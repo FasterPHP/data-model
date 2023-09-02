@@ -6,8 +6,7 @@ namespace FasterPhp\DataModel;
 
 use PHPUnit\Framework\TestCase;
 use PDO;
-use PDO as Db;
-use PDOStatement as Statement;
+use PDOStatement;
 use FasterPhp\DataModel\Paginator\SqlPaginator;
 use FasterPhp\DataModel\TestModel;
 
@@ -547,18 +546,18 @@ class RepositoryPdoTest extends TestCase
 		$this->assertFalse($item->isTemp());
 	}
 
-	protected function _getMockDbStatement(): Statement
+	protected function _getMockDbStatement(): PDOStatement
 	{
-		return $this->getMockBuilder(Statement::class)
+		return $this->getMockBuilder(PDOStatement::class)
 			->disableOriginalConstructor()
 			->setMethods(['execute', 'fetch', 'fetchAll', 'fetchColumn'])
 			->getMock();
 
 	}
 
-	protected function _getMockDb(): Db
+	protected function _getMockDb(): PDO
 	{
-		$mockDb = $this->getMockBuilder(Db::class)
+		$mockDb = $this->getMockBuilder(PDO::class)
 			->disableOriginalConstructor()
 			->setMethods(['getDbKey', 'prepare', 'exec', 'quote', 'lastInsertId'])
 			->getMock();
