@@ -13,11 +13,13 @@ use InvalidArgumentException;
  */
 class Integer extends Base
 {
+	protected $_value = 0;
+
 	protected function _setValue($value): void
 	{
-		if (!is_int($value) && intval($value) != $value) {
+		if (!is_null($value) && !is_int($value) && intval($value) != $value) {
 			throw new InvalidArgumentException("{$this->_name} value '$value' must be an integer");
 		}
-		$this->_value = intval($value);
+		$this->_value = is_null($value) ? $value : intval($value);
 	}
 }

@@ -1,10 +1,10 @@
 <?php
 /**
- * Data Model Item class.
+ * Data Model Composite Item class.
  */
 declare(strict_types=1);
 
-namespace FasterPhp\DataModel;
+namespace FasterPhp\DataModel\Composite;
 
 use BadMethodCallException;
 use Laminas\Validator\ValidatorChain;
@@ -13,7 +13,7 @@ use Stringable;
 use FasterPhp\DataModel\Field;
 
 /**
- * Data Model Item class.
+ * Data Model Composite Item class.
  */
 abstract class Item implements Serializable, Stringable
 {

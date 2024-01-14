@@ -13,6 +13,8 @@ use InvalidArgumentException;
  */
 class Varchar extends Base
 {
+	protected $_value = '';
+
 	protected function _setValue($value): void
 	{
 		if (!is_string($value) && strval($value) != $value) {

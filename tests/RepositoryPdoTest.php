@@ -84,7 +84,7 @@ class RepositoryPdoTest extends TestCase
 		$this->assertSame(3, $set[2]->getId());
 	}
 
-	public function testGetSetWithData(): void
+	public function testGetSetWithParams(): void
 	{
 		$sql = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` WHERE `name` = :name AND `age` = :age";
 		$params = [':name' => 'Marcus Don', ':age' => 25];
@@ -108,7 +108,7 @@ class RepositoryPdoTest extends TestCase
 		$repo = new TestModel\ValidRepository();
 		$repo->setDb($mockDb);
 
-		$set = $repo->getSetWithData(['name' => 'Marcus Don', 'age' => 25]);
+		$set = $repo->getSetWithParams(['name' => 'Marcus Don', 'age' => 25]);
 
 		$this->assertInstanceOf(TestModel\ValidSet::class, $set);
 		$this->assertCount(1, $set);
@@ -118,8 +118,8 @@ class RepositoryPdoTest extends TestCase
 
 	public function testGetSetWithMinAge(): void
 	{
-		$sql = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` WHERE `age` >= :minAge";
-		$params = [':minAge' => 25];
+		$sql = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` WHERE `age` >= :age";
+		$params = [':age' => 25];
 		$data = [self::$_data[0], self::$_data[1]];
 
 		$mockDbStatement = $this->_getMockDbStatement();
@@ -227,20 +227,18 @@ class RepositoryPdoTest extends TestCase
 
 	public function testSimplePaginator(): void
 	{
-		$sqlCountOne = "SELECT COUNT(*) FROM (SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`) AS numItemsTotal";
+		$sqlCount = "SELECT COUNT(*) FROM (SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`) AS numItemsTotal";
 		$sqlOne = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` LIMIT 2";
-
-		$sqlCountTwo = "SELECT COUNT(*) FROM (SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`) AS numItemsTotal";
 		$sqlTwo = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` LIMIT 2 OFFSET 2";
 
 		$dataOne = [self::$_data[0], self::$_data[1]];
 		$dataTwo = [self::$_data[2]];
 
 		$mockDbStatement = $this->_getMockDbStatement();
-		$mockDbStatement->expects($this->exactly(4))
+		$mockDbStatement->expects($this->exactly(3))
 			->method('execute')
 			->with([]);
-		$mockDbStatement->expects($this->exactly(2))
+		$mockDbStatement->expects($this->exactly(1))
 			->method('fetchColumn')
 			->willReturn(3);
 		$mockDbStatement->expects($this->exactly(2))
@@ -249,9 +247,9 @@ class RepositoryPdoTest extends TestCase
 			->willReturnOnConsecutiveCalls($dataOne, $dataTwo);
 
 		$mockDb = $this->_getMockDb();
-		$mockDb->expects($this->exactly(4))
+		$mockDb->expects($this->exactly(3))
 			->method('prepare')
-			->withConsecutive([$sqlCountOne], [$sqlOne], [$sqlCountTwo], [$sqlTwo])
+			->withConsecutive([$sqlOne], [$sqlCount], [$sqlTwo])
 			->willReturn($mockDbStatement);
 
 		$paginator = new SqlPaginator();
@@ -265,30 +263,30 @@ class RepositoryPdoTest extends TestCase
 		$this->assertCount(2, $set);
 		$this->assertSame(1, $set[0]->getId());
 		$this->assertSame(2, $set[1]->getId());
+		$this->assertSame(3, $paginator->getNumItemsTotal());
 
 		$paginator->setPageNum(2);
 		$set = $repo->getSetOfAll();
 		$this->assertInstanceOf(TestModel\ValidSet::class, $set);
 		$this->assertCount(1, $set);
 		$this->assertSame(3, $set[0]->getId());
+		$this->assertSame(3, $paginator->getNumItemsTotal());
 	}
 
 	public function testSortedPaginator(): void
 	{
-		$sqlCountOne = "SELECT COUNT(*) FROM (SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`) AS numItemsTotal";
+		$sqlCount = "SELECT COUNT(*) FROM (SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`) AS numItemsTotal";
 		$sqlOne = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` ORDER BY `handsome` ASC, `age` DESC LIMIT 2";
-
-		$sqlCountTwo = "SELECT COUNT(*) FROM (SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`) AS numItemsTotal";
 		$sqlTwo = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` ORDER BY `handsome` ASC, `age` DESC LIMIT 2 OFFSET 2";
 
 		$dataOne = [self::$_data[1], self::$_data[0]];
 		$dataTwo = [self::$_data[2]];
 
 		$mockDbStatement = $this->_getMockDbStatement();
-		$mockDbStatement->expects($this->exactly(4))
+		$mockDbStatement->expects($this->exactly(3))
 			->method('execute')
 			->with([]);
-		$mockDbStatement->expects($this->exactly(2))
+		$mockDbStatement->expects($this->exactly(1))
 			->method('fetchColumn')
 			->willReturn(3);
 		$mockDbStatement->expects($this->exactly(2))
@@ -297,9 +295,9 @@ class RepositoryPdoTest extends TestCase
 			->willReturnOnConsecutiveCalls($dataOne, $dataTwo);
 
 		$mockDb = $this->_getMockDb();
-		$mockDb->expects($this->exactly(4))
+		$mockDb->expects($this->exactly(3))
 			->method('prepare')
-			->withConsecutive([$sqlCountOne], [$sqlOne], [$sqlCountTwo], [$sqlTwo])
+			->withConsecutive([$sqlOne], [$sqlCount], [$sqlTwo])
 			->willReturn($mockDbStatement);
 
 		$secondarySort = new Sort('age', Sort::DESCENDING);
@@ -316,12 +314,14 @@ class RepositoryPdoTest extends TestCase
 		$this->assertCount(2, $set);
 		$this->assertSame('Joe Bloggs', $set[0]->getName());
 		$this->assertSame('Marcus Don', $set[1]->getName());
+		$this->assertSame(3, $paginator->getNumItemsTotal());
 
 		$paginator->setPageNum(2);
 		$set = $repo->getSetOfAll();
 		$this->assertInstanceOf(TestModel\ValidSet::class, $set);
 		$this->assertCount(1, $set);
 		$this->assertSame('Jane Doe', $set[0]->getName());
+		$this->assertSame(3, $paginator->getNumItemsTotal());
 	}
 
 	public function testSaveSetDeleteAll(): void
