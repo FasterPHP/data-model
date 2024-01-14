@@ -16,9 +16,6 @@ class ValidRepository extends BaseRepository
 
 	public function getSetWithMinAge(int $minAge): ValidSet
 	{
-		return $this->_getSet(
-			"SELECT {$this->_getFieldList()} FROM `{$this->getTableName()}` WHERE `age` >= :minAge",
-			[':minAge' => $minAge]
-		);
+		return $this->getSetWithParams(['age' => $minAge], ['age' => self::GREATER_OR_EQUALS]);
 	}
 }

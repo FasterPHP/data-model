@@ -43,9 +43,9 @@ class SortTest extends \PHPUnit\Framework\TestCase
 	public function testCreateSortItemWithSortFieldAndInvalidDirection(): void
 	{
 		$this->expectException(\FasterPhp\DataModel\Exception::class);
-		$this->expectExceptionMessage("Invalid sort direction '5'");
+		$this->expectExceptionMessage("Invalid sort direction 'blah'");
 
-		$item = new Sort('wibble', 5);
+		$item = new Sort('wibble', 'blah');
 	}
 
 	/**
@@ -84,9 +84,9 @@ class SortTest extends \PHPUnit\Framework\TestCase
 		$item = new Sort('name');
 
 		$this->expectException(\FasterPhp\DataModel\Exception::class);
-		$this->expectExceptionMessage("Invalid sort direction '5'");
+		$this->expectExceptionMessage("Invalid sort direction 'foo'");
 
-		$item->setSortDirection(5);
+		$item->setSortDirection('foo');
 	}
 
 

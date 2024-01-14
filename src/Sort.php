@@ -11,8 +11,8 @@ namespace FasterPhp\DataModel;
  */
 class Sort
 {
-	const ASCENDING = 1;
-	const DESCENDING = 0;
+	const ASCENDING = 'asc';
+	const DESCENDING = 'desc';
 
 	/**
 	 * The field to sort on.
@@ -24,22 +24,34 @@ class Sort
 	/**
 	 * The sort direction.
 	 *
-	 * @var integer
+	 * @var string
 	 */
-	protected int $_sortDirection;
+	protected string $_sortDirection;
 
 	/**
-	 * An optional secondary sort to apply if the sort returns equivilance.
+	 * An optional secondary sort to apply if the sort returns equivalence.
 	 *
 	 * @var Sort|null
 	 */
 	protected ?Sort $_secondarySort = null;
 
 	/**
+	 * Get whether sort direction is valid.
+	 * 
+	 * @param string|null $direction The direction of the sort.
+	 *
+	 * @return boolean
+	 */
+	public static function isValidSortDirection(?string $direction): bool
+	{
+		return is_null($direction) || in_array($direction, [Sort::ASCENDING, Sort::DESCENDING]);
+	}
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string  $field         The sort field.
-	 * @param integer $direction     The sort direction.
+	 * @param string  $direction     The sort direction.
 	 * @param ?Sort   $secondarySort An optional secondary sort.
 	 */
 	public function __construct(
@@ -78,9 +90,9 @@ class Sort
 	/**
 	 * Return the current sort direction.
 	 *
-	 * @return integer The direction of the sort.
+	 * @return string The direction of the sort.
 	 */
-	public function getSortDirection(): int
+	public function getSortDirection(): string
 	{
 		return $this->_sortDirection;
 	}
@@ -88,25 +100,25 @@ class Sort
 	/**
 	 * Set the current sort direction.
 	 *
-	 * @param integer|null $direction The direction of the sort.
+	 * @param string|null $direction The direction of the sort.
 	 *
 	 * @return static
 	 */
 
-	public function setSortDirection(?int $direction): static
+	public function setSortDirection(?string $direction): static
 	{
-		if (!in_array($direction, [Sort::ASCENDING, Sort::DESCENDING], true)) {
+		if (false === self::isValidSortDirection($direction)) {
 			throw new Exception("Invalid sort direction '$direction'");
 		}
 		$this->_sortDirection = $direction;
 		return $this;
 	}
-
+	
 	/**
-	 * Set a secondary sort to apply if two elements are equivilant.
+	 * Set a secondary sort to apply if two elements are equivalent.
 	 *
 	 * If, when compared with the sort, 2 elements come back as '0'
-	 * (equivilant) then the secondary sort will be applied. This secondary
+	 * (equivalent) then the secondary sort will be applied. This secondary
 	 * sort can, itself, have a secondary sort so creating a sort chain.
 	 *
 	 * @param Sort $sort The secondary sort.

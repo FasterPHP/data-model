@@ -13,6 +13,8 @@ use InvalidArgumentException;
  */
 class Boolean extends Base
 {
+	protected $_value = false;
+
 	public function getSqlValue()
 	{
 		return $this->_value ? 'y' : 'n';

@@ -32,7 +32,8 @@ class ValidItem extends BaseItem
 
 	public const VALIDATORS = [
 		'name' => [
-			Validator\StringLength::class => [
+			[
+				'class' => Validator\StringLength::class,
 				'options' => [
 					'min' => 2,
 					'max' => 60,
@@ -41,15 +42,17 @@ class ValidItem extends BaseItem
 				'break' => false,
 				'priority' => 1,
 			],
-			Validator\Regex::class => [
+			[
+				'class' => Validator\Regex::class,
 				'options' => [
 					'pattern' => '/[^0-9]/',
 					'message' => 'Name cannot contain numbers',
 				],
-			],
+			]
 		],
 		'age' => [
-			Validator\GreaterThan::class => [
+			[
+				'class' => Validator\GreaterThan::class,
 				'options' => [
 					'min' => 18,
 					'inclusive' => true,
