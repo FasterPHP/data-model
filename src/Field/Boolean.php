@@ -22,7 +22,9 @@ class Boolean extends Base
 
 	protected function _setValue($value): void
 	{
-		if (in_array($value, [true, 'y', 1, '1'], true)) {
+		if (null === $value) {
+			$this->_value = $value;
+		} elseif (in_array($value, [true, 'y', 1, '1'], true)) {
 			$this->_value = true;
 		} elseif (in_array($value, [false, 'n', 0, '0'], true)) {
 			$this->_value = false;

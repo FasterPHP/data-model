@@ -99,9 +99,9 @@ abstract class Repository
 		return $this->_getItem($sql, [':id' => $id]);
 	}
 
-	public function getItemWithParams(array $data, array $searchTypes = []): ?Item
+	public function getItemWithParams(array $params, array $searchTypes = []): ?Item
 	{
-		$set = $this->getSetWithParams($data, $searchTypes);
+		$set = $this->getSetWithParams($params, $searchTypes);
 		if (0 === count($set)) {
 			return null;
 		}
@@ -110,27 +110,22 @@ abstract class Repository
 
 	public function getSetOfAll(): Set
 	{
-		return $this->getSetWithData($this->getData($this->_getDefaultSelectAndFromSql()));
+		return $this->_createSetWithData($this->getData($this->_getDefaultSelectAndFromSql()));
 	}
 
-	public function getSetWithParams(array $data, array $searchTypes = []): Set
+	public function getSetWithParams(array $params, array $searchTypes = []): Set
 	{
-		return $this->getSetWithData($this->getDataWithParams($data, $searchTypes));
+		return $this->_createSetWithData($this->getDataWithParams($params, $searchTypes));
 	}
 
-	public function getSetWithData(array $data): Set
-	{
-		return new $this->_setClassName($data);
-	}
-
-	public function getDataWithParams(array $data, array $searchTypes = [], $selectAndFromSql = null): array
+	public function getDataWithParams(array $params, array $searchTypes = [], $selectAndFromSql = null): array
 	{
 		$sql = $selectAndFromSql ?? $this->_getDefaultSelectAndFromSql();
-		[$whereSql, $params] = $this->_getWhereSqlAndParams($data, $searchTypes);
+		[$whereSql, $args] = $this->_getWhereSqlAndParams($params, $searchTypes);
 		if (!empty($whereSql)) {
 			$sql .= ' WHERE ' . $whereSql;
 		}
-		return $this->getData($sql, $params);
+		return $this->getData($sql, $args);
 	}
 
 	public function getData(string $sql, array $params = []): array
@@ -178,15 +173,23 @@ abstract class Repository
 		}
 	}
 
+	protected function _createSetWithData(array $data): Set
+	{
+		return new $this->_setClassName($data);
+	}
+
 	protected function _getFieldList(): string
 	{
+		$tableName = $this->getTableName();
 		$idField = $this->getIdField();
-		$dbFields = array_map(function ($fieldName) use ($idField) {
+		$fieldNames = array_keys(array_merge($this->_itemClassName::FIELDS, $this->_itemClassName::FIELDS_READONLY));
+
+		$dbFields = array_map(function ($fieldName) use ($tableName, $idField) {
 			if ($fieldName == $this->_itemClassName::ID_INTERNAL) {
-				return '`' . $idField . '` AS `' . $this->_itemClassName::ID_INTERNAL . '`';
+				return '`' . $tableName . '`.`' . $idField . '` AS `' . $this->_itemClassName::ID_INTERNAL . '`';
 			}
-			return '`' . $fieldName . '`';
-		}, array_keys($this->_itemClassName::FIELDS));
+			return '`' . $tableName . '`.`' . $fieldName . '`';
+		}, $fieldNames);
 
 		return implode(', ', $dbFields);
 	}
@@ -196,11 +199,12 @@ abstract class Repository
 		return 'SELECT ' . $this->_getFieldList() . ' FROM `' . $this->getTableName() . '`';
 	}
 
-	protected function _getWhereSqlAndParams(array $data, array $searchTypes = []): array
+	protected function _getWhereSqlAndParams(array $params, array $searchTypes = []): array
 	{
+		$tableName = $this->getTableName();
 		$whereSql = '';
-		$params = [];
-		foreach ($data as $key => $value) {
+		$args = [];
+		foreach ($params as $key => $value) {
 			if (!array_key_exists($key, $searchTypes)) {
 				$searchType = self::EQUALS;
 			} elseif (!array_key_exists($searchTypes[$key], self::OPERATORS)) {
@@ -208,30 +212,38 @@ abstract class Repository
 			} else {
 				$searchType = $searchTypes[$key];
 			}
-			$placeholder = ':' . preg_replace('/^[^\.]+\./', '', $key);
-			$safeKey = '`' . str_replace('.', '`.`', $key) . '`';
-			$whereSql .= ' AND ' . $safeKey . ' ' . self::OPERATORS[$searchType] . ' ' . $placeholder;
-
-			switch ($searchType) {
-				case self::STARTS:
-					$value = $value . '%';
-					break;
-
-				case self::ENDS:
-					$value = '%' . $value;
-					break;
-
-				case self::CONTAINS;
-					$value = '%' . $value . '%';
-					break;
-
-				default;
-					break;
+			$placeholder = ':' . preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
+			if (false !== strpos($key, '.')) {
+				$safeKey = '`' . str_replace('.', '`.`', $key) . '`';
+			} else {
+				$safeKey = '`' . $tableName . '`.`' . $key . '`';
 			}
 
-			$params[$placeholder] = $value;
+			if ($searchType == self::EQUALS && is_null($value)) {
+				$whereSql .= ' AND ' . $safeKey . ' IS NULL';
+			} else {
+				$whereSql .= ' AND ' . $safeKey . ' ' . self::OPERATORS[$searchType] . ' ' . $placeholder;
+				switch ($searchType) {
+					case self::STARTS:
+						$value = $value . '%';
+						break;
+
+					case self::ENDS:
+						$value = '%' . $value;
+						break;
+
+					case self::CONTAINS;
+						$value = '%' . $value . '%';
+						break;
+
+					default;
+						break;
+				}
+
+				$args[$placeholder] = $value;
+			}
 		}
-		return [substr($whereSql, 5), $params];
+		return [substr($whereSql, 5), $args];
 	}
 
 	protected function _getItem(string $sql, array $params): ?Item
@@ -271,7 +283,12 @@ abstract class Repository
 		$stmt = $db->prepare($sql);
 		$stmt->execute($params);
 
-		$item->setId($db->lastInsertId());
+		if (empty($item->getId())) {
+			$newId = $db->lastInsertId();
+			if (!empty($newId)) {
+				$item->setId($newId);
+			}
+		}
 		$item->clearOriginalValues();
 	}
 
@@ -307,11 +324,15 @@ abstract class Repository
 
 	protected function _getDb(): Db|PDO
 	{
-		if (isset($this->_db)) {
-			return $this->_db;
-		} elseif (class_exists('\FasterPhp\Db\Db')) {
-			return Db::newDb($this->getDbName());
+		if (!isset($this->_db)) {
+			if (class_exists('\FasterPhp\Db\Db')) {
+				$this->_db = Db::newDb($this->getDbName());
+			} else {
+				$dbName = $this->getDbName();
+				$config = \FasterPhp\CoreApp\App::getInstance()->getConfig()->db->databases->$dbName;
+				$this->_db = new \PDO($config->dsn, $config->username, $config->password);
+			}
 		}
-		throw new Exception('Database connection not set and \\FasterPhp\\Db\\Db not available');
+		return $this->_db;
 	}
 }

@@ -17,9 +17,9 @@ class Varchar extends Base
 
 	protected function _setValue($value): void
 	{
-		if (!is_string($value) && strval($value) != $value) {
+		if (!is_null($value) && !is_string($value) && strval($value) != $value) {
 			throw new InvalidArgumentException("{$this->_name} value '$value' must be a string");
 		}
-		$this->_value = strval($value);
+		$this->_value = is_null($value) ? $value : strval($value);
 	}
 }
