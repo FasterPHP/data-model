@@ -23,12 +23,17 @@ class Datetime extends Base
 
 	protected function _setValue($value): void
 	{
-		if ($value instanceof \DateTime) {
+		if (null === $value || $value instanceof \DateTime) {
 			$this->_value = $value;
 		} elseif (is_string($value)) {
 			$this->_value = \DateTime::createFromFormat('Y-m-d H:i:s', $value);
 		} else {
 			throw new InvalidArgumentException("{$this->_name} value '$value' must be a DateTime instance of string");
 		}
+	}
+
+	public function __toString(): string
+	{
+		return $this->_value->format('d/m/Y');
 	}
 }

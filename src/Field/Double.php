@@ -17,9 +17,12 @@ class Double extends Base
 
 	protected function _setValue($value): void
 	{
-		if (!is_numeric($value)) {
+		if (null === $value) {
+			$this->_value = $value;
+		} elseif (is_numeric($value)) {
+			$this->_value = doubleval($value);
+		} else {
 			throw new InvalidArgumentException("{$this->_name} value '$value' must be a number");
 		}
-		$this->_value = doubleval($value);
 	}
 }

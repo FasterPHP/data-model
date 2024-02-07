@@ -20,6 +20,8 @@ abstract class Item implements Serializable, Stringable
 	public const ID_FIELD = '';
 	public const ID_INTERNAL = 'id';
 	public const FIELDS = [];
+	public const FIELDS_READONLY = [];
+	public const FIELDS_EXTERNAL = [];
 	public const DEFAULTS = [];
 	public const VALIDATORS = [];
 
@@ -184,7 +186,8 @@ abstract class Item implements Serializable, Stringable
 	public function __call(string $name, array $args): mixed
 	{
 		if (count($args) === 1 && array_key_exists(0, $args) && preg_match('/^set(.+)$/', $name, $matches)) {
-			return $this->_setValue(lcfirst($matches[1]), $args[0]);
+			$this->_setValue(lcfirst($matches[1]), $args[0]);
+			return $this;
 		} elseif (count($args) === 0 && preg_match('/^get(.+)$/', $name, $matches)) {
 			return $this->_getValue(lcfirst($matches[1]));
 		}
@@ -213,11 +216,16 @@ abstract class Item implements Serializable, Stringable
 
 	protected function _getField(string $fieldName): Field\Base
 	{
-		if (!isset(static::FIELDS[$fieldName])) {
+		if (!isset(static::FIELDS[$fieldName])
+			&& !isset(static::FIELDS_READONLY[$fieldName])
+			&& !isset(static::FIELDS_EXTERNAL[$fieldName])
+		) {
 			throw new Exception("Field '$fieldName' not defined");
 		}
 		if (!array_key_exists($fieldName, $this->_data) || !$this->_data[$fieldName] instanceof Field\Base) {
-			$fieldClassName = static::FIELDS[$fieldName];
+			$fieldClassName = static::FIELDS[$fieldName]
+				?? static::FIELDS_READONLY[$fieldName]
+				?? static::FIELDS_EXTERNAL[$fieldName];
 			$field = new $fieldClassName($fieldName);
 			if (array_key_exists($fieldName, $this->_data)) {
 				$field->setValue($this->_data[$fieldName]);
