@@ -50,11 +50,14 @@ abstract class Item implements Serializable, Stringable
 		return $values;
 	}
 
-	public function getSqlValues(): array
+	public function getSqlValues($includeNull = true): array
 	{
 		$values = [];
-		foreach (array_keys(static::FIELDS) as $fieldName) {
-			$values[$fieldName] = $this->_getField($fieldName)->getSqlValue();
+		foreach (array_merge(array_keys(static::FIELDS), array_keys(static::FIELDS_READONLY)) as $fieldName) {
+			$sqlValue = $this->_getField($fieldName)->getSqlValue();
+			if (true === $includeNull || null !== $sqlValue) {
+				$values[$fieldName] = $sqlValue;
+			}
 		}
 		return $values;
 	}
@@ -112,11 +115,9 @@ abstract class Item implements Serializable, Stringable
 
 	public function validate(): void
 	{
-		//echo "validating " . get_called_class() . "\n";
 		$this->_isValid = true;
 		$this->_validationErrors = [];
 		foreach (static::VALIDATORS as $fieldName => $validators) {
-			//echo " - processing field '$fieldName' (" . count($validators) . " validators)\n";
 			$validatorChain = new ValidatorChain();
 			foreach ($validators as $args) {
 				if (!isset($args['class'])) {
@@ -126,7 +127,6 @@ abstract class Item implements Serializable, Stringable
 					&& true === $args['skipIfEmpty']
 					&& empty($this->_getField($fieldName)->getValue())
 				) {
-					echo "skipping empty value for field '$fieldName'\n";
 					continue;
 				}
 				$validator = new $args['class']($args['options'] ?? null);
@@ -140,10 +140,8 @@ abstract class Item implements Serializable, Stringable
 				);
 			}
 			if ($validatorChain->isValid($this->_getField($fieldName)->getValue())) {
-				//echo " - field '$fieldName', value '{$this->_getField($fieldName)->getValue()}' is valid\n";
 				unset($this->_validationErrors[$fieldName]);
 			} else {
-				echo " - field '$fieldName', value '{$this->_getField($fieldName)->getValue()}' is NOT valid\n";
 				$this->_isValid = false;
 				$this->_validationErrors[$fieldName] = array_values($validatorChain->getMessages());
 			}

@@ -24,7 +24,8 @@ class RepositoryDbTest extends TestCase
 
 	public function testGetItemWithId(): void
 	{
-		$sql = 'SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` WHERE `userId` = :id';
+		$sql = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
+			. ' FROM `users` WHERE `users`.`userId` = :id';
 		$params = [':id' => 1];
 		$data = self::$_data[0];
 
@@ -54,7 +55,8 @@ class RepositoryDbTest extends TestCase
 
 	public function testGetSetOfAll(): void
 	{
-		$sql = 'SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`';
+		$sql = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
+			. ' FROM `users`';
 		$params = [];
 		$data = self::$_data;
 
@@ -87,7 +89,8 @@ class RepositoryDbTest extends TestCase
 
 	public function testGetSetWithParams(): void
 	{
-		$sql = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` WHERE `name` = :name AND `age` = :age";
+		$sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+			. " FROM `users` WHERE `users`.`name` = :name AND `users`.`age` = :age";
 		$params = [':name' => 'Marcus Don', ':age' => 25];
 		$data = [self::$_data[0]];
 
@@ -119,7 +122,8 @@ class RepositoryDbTest extends TestCase
 
 	public function testGetSetWithMinAge(): void
 	{
-		$sql = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` WHERE `age` >= :age";
+		$sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+			. " FROM `users` WHERE `users`.`age` >= :age";
 		$params = [':age' => 25];
 		$data = [self::$_data[0], self::$_data[1]];
 
@@ -151,8 +155,10 @@ class RepositoryDbTest extends TestCase
 
 	public function testSimpleSort(): void
 	{
-		$sqlOne = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` ORDER BY `name` ASC";
-		$sqlTwo = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` ORDER BY `age` DESC";
+		$sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+			. " FROM `users` ORDER BY `users`.`name` ASC";
+		$sqlTwo = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+			. " FROM `users` ORDER BY `users`.`age` DESC";
 
 		$dataOne = [self::$_data[2], self::$_data[1], self::$_data[0]];
 		$dataTwo = [self::$_data[1], self::$_data[0], self::$_data[2]];
@@ -172,7 +178,7 @@ class RepositoryDbTest extends TestCase
 			->withConsecutive([$sqlOne], [$sqlTwo])
 			->willReturn($mockDbStatement);
 
-		$repo = new TestModel\ValidRepository(new Sort('name'));
+		$repo = new TestModel\ValidRepository(new Sort('users.name'));
 		$repo->setDb($mockDb);
 
 		$set = $repo->getSetOfAll();
@@ -182,7 +188,7 @@ class RepositoryDbTest extends TestCase
 		$this->assertSame('Joe Bloggs', $set[1]->getName());
 		$this->assertSame('Marcus Don', $set[2]->getName());
 
-		$repo->setSort(new Sort('age', Sort::DESCENDING));
+		$repo->setSort(new Sort('users.age', Sort::DESCENDING));
 		$set = $repo->getSetOfAll();
 		$this->assertInstanceOf(TestModel\ValidSet::class, $set);
 		$this->assertCount(3, $set);
@@ -193,7 +199,8 @@ class RepositoryDbTest extends TestCase
 
 	public function testMultiSort(): void
 	{
-		$sql = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` ORDER BY `handsome` ASC, `age` DESC";
+		$sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+			. " FROM `users` ORDER BY `users`.`handsome` ASC, `users`.`age` DESC";
 		$params = [];
 		$data = [self::$_data[1], self::$_data[0], self::$_data[2]];
 
@@ -212,8 +219,8 @@ class RepositoryDbTest extends TestCase
 			->with($sql)
 			->willReturn($mockDbStatement);
 
-		$secondarySort = new Sort('age', Sort::DESCENDING);
-		$sort = new Sort('handsome', Sort::ASCENDING, $secondarySort);
+		$secondarySort = new Sort('users.age', Sort::DESCENDING);
+		$sort = new Sort('users.handsome', Sort::ASCENDING, $secondarySort);
 
 		$repo = new TestModel\ValidRepository($sort);
 		$repo->setDb($mockDb);
@@ -228,9 +235,12 @@ class RepositoryDbTest extends TestCase
 
 	public function testSimplePaginator(): void
 	{
-		$sqlCount = "SELECT COUNT(*) FROM (SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`) AS numItemsTotal";
-		$sqlOne = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` LIMIT 2";
-		$sqlTwo = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` LIMIT 2 OFFSET 2";
+		$sqlCount = "SELECT COUNT(*) FROM (SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`,"
+			. " `users`.`height`, `users`.`handsome` FROM `users`) AS numItemsTotal";
+		$sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+			. " FROM `users` LIMIT 2";
+		$sqlTwo = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+			. " FROM `users` LIMIT 2 OFFSET 2";
 
 		$dataOne = [self::$_data[0], self::$_data[1]];
 		$dataTwo = [self::$_data[2]];
@@ -276,9 +286,12 @@ class RepositoryDbTest extends TestCase
 
 	public function testSortedPaginator(): void
 	{
-		$sqlCount = "SELECT COUNT(*) FROM (SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`) AS numItemsTotal";
-		$sqlOne = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` ORDER BY `handsome` ASC, `age` DESC LIMIT 2";
-		$sqlTwo = "SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` ORDER BY `handsome` ASC, `age` DESC LIMIT 2 OFFSET 2";
+		$sqlCount = "SELECT COUNT(*) FROM (SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`"
+			. ", `users`.`height`, `users`.`handsome` FROM `users`) AS numItemsTotal";
+		$sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+			. " FROM `users` ORDER BY `users`.`handsome` ASC, `users`.`age` DESC LIMIT 2";
+		$sqlTwo = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+			. " FROM `users` ORDER BY `users`.`handsome` ASC, `users`.`age` DESC LIMIT 2 OFFSET 2";
 
 		$dataOne = [self::$_data[1], self::$_data[0]];
 		$dataTwo = [self::$_data[2]];
@@ -301,8 +314,8 @@ class RepositoryDbTest extends TestCase
 			->withConsecutive([$sqlOne], [$sqlCount], [$sqlTwo])
 			->willReturn($mockDbStatement);
 
-		$secondarySort = new Sort('age', Sort::DESCENDING);
-		$sort = new Sort('handsome', Sort::ASCENDING, $secondarySort);
+		$secondarySort = new Sort('users.age', Sort::DESCENDING);
+		$sort = new Sort('users.handsome', Sort::ASCENDING, $secondarySort);
 
 		$paginator = new SqlPaginator($sort);
 		$paginator->setMaxItemsPerPage(2);
@@ -327,7 +340,8 @@ class RepositoryDbTest extends TestCase
 
 	public function testSaveSetDeleteAll(): void
 	{
-		$sqlOne = 'SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`';
+		$sqlOne = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
+			. ' FROM `users`';
 		$data = self::$_data;
 		$sqlTwo = "DELETE FROM `users` WHERE `userId` IN ('1', '2', '3')";
 
@@ -359,7 +373,8 @@ class RepositoryDbTest extends TestCase
 
 	public function testSaveSetUpdate(): void
 	{
-		$sqlOne = 'SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`';
+		$sqlOne = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
+			. ' FROM `users`';
 		$data = self::$_data;
 		$sqlTwo = 'UPDATE `users` SET `name` = :name WHERE `userId` = :id';
 		$nameOne = 'Mickey Mouse';
@@ -395,7 +410,8 @@ class RepositoryDbTest extends TestCase
 
 	public function testSaveSetCreate(): void
 	{
-		$sqlOne = 'SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users`';
+		$sqlOne = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
+			. ' FROM `users`';
 		$paramsOne = [];
 		$data = self::$_data;
 
@@ -441,7 +457,8 @@ class RepositoryDbTest extends TestCase
 
 	public function testSaveItemDelete(): void
 	{
-		$sqlOne = 'SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` WHERE `userId` = :id';
+		$sqlOne = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
+			. ' FROM `users` WHERE `users`.`userId` = :id';
 		$params = [':id' => 1];
 		$data = self::$_data[0];
 
@@ -475,7 +492,8 @@ class RepositoryDbTest extends TestCase
 
 	public function testSaveItemUpdate(): void
 	{
-		$sqlOne = 'SELECT `userId` AS `id`, `name`, `age`, `height`, `handsome` FROM `users` WHERE `userId` = :id';
+		$sqlOne = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
+			. ' FROM `users` WHERE `users`.`userId` = :id';
 		$paramsOne = [':id' => 1];
 		$data = self::$_data[0];
 

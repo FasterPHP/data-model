@@ -94,7 +94,8 @@ abstract class Repository
 
 	public function getItemWithId(mixed $id): ?Item
 	{
-		$sql = $this->_getDefaultSelectAndFromSql() . ' WHERE `' . $this->getIdField() . '` = :id';
+		$sql = $this->_getDefaultSelectAndFromSql()
+			. ' WHERE `' . $this->getTableName() . '`.`' . $this->getIdField() . '` = :id';
 
 		return $this->_getItem($sql, [':id' => $id]);
 	}
@@ -215,8 +216,12 @@ abstract class Repository
 			$placeholder = ':' . preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
 			if (false !== strpos($key, '.')) {
 				$safeKey = '`' . str_replace('.', '`.`', $key) . '`';
-			} else {
+			} elseif (isset($this->_itemClassName::FIELDS[$key])
+				|| isset($this->_itemClassName::FIELDS_READONLY[$key])
+			) {
 				$safeKey = '`' . $tableName . '`.`' . $key . '`';
+			} else {
+				$safeKey = '`' . $key . '`';
 			}
 
 			if ($searchType == self::EQUALS && is_null($value)) {
@@ -261,7 +266,7 @@ abstract class Repository
 
 	protected function _insertItem(Item $item): void
 	{
-		$sqlValues = $item->getSqlValues();
+		$sqlValues = $item->getSqlValues(false);
 
 		$placeholders = [];
 		$params = [];
