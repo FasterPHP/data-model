@@ -13,8 +13,6 @@ use InvalidArgumentException;
  */
 class Integer extends Base
 {
-	protected $_value = 0;
-
 	protected function _setValue($value): void
 	{
 		if (!is_null($value) && !is_int($value) && intval($value) != $value) {

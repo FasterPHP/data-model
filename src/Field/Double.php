@@ -13,8 +13,6 @@ use InvalidArgumentException;
  */
 class Double extends Base
 {
-	protected $_value = 0.0;
-
 	protected function _setValue($value): void
 	{
 		if (null === $value) {
