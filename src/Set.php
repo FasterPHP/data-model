@@ -64,6 +64,11 @@ abstract class Set implements ArrayAccess, Countable, SeekableIterator
 		return count($this->_data);
 	}
 
+	public function isEmpty(): bool
+	{
+		return 0 === $this->count();
+	}
+
 	public function offsetExists($offset): bool
 	{
 		return isset($this->_data[$offset]);
@@ -128,6 +133,49 @@ abstract class Set implements ArrayAccess, Countable, SeekableIterator
 	public function valid(): bool
 	{
 		return false !== current($this->_data);
+	}
+
+	/**
+	 * Return an array of values, optionally using properties for the key and/or value.
+	 *
+	 * You can specify a property to use as the key, or null for a sequential array, a property
+	 * to use as the value, or null to return the whole model as the value.
+	 *
+	 * Examples of use:
+	 * $set->arrayMap('id', 'name'); // [1 => 'Bob', 3 => 'Frank']
+	 * $set->arrayMap(null, 'name'); // [0 => 'Bob', 1 => 'Frank']
+	 * $set->arrayMap('id'); // [1 => <Model Object>, 3 => <Model Object>]
+	 *
+	 * @param ?string $key   Optional name of the property to use as the key, or null for a 0-indexed array.
+	 * @param ?string $value The name of the property to use as the value, or null to use the model object as value.
+	 *
+	 * @return array
+	 */
+	public function arrayMap(string $key = null, string $value = null): array
+	{
+		if ($key !== null) {
+			$keyFunction = 'get' . ucfirst($key);
+		}
+
+		if ($value !== null) {
+			$valueFunction = 'get' . ucfirst($value);
+		}
+
+		$result = [];
+		foreach ($this as $item) {
+			if ($value === null) {
+				$currentValue = $item;
+			} else {
+				$currentValue = $item->$valueFunction();
+			}
+
+			if ($key === null) {
+				$result[] = $currentValue;
+			} else {
+				$result[$item->$keyFunction()] = $currentValue;
+			}
+		}
+		return $result;
 	}
 
 	protected function _getItem(int $offset): Item

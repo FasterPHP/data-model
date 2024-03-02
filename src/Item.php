@@ -7,7 +7,7 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use BadMethodCallException;
-use Laminas\Validator\ValidatorChain;
+use Laminas\Validator;
 use Serializable;
 use Stringable;
 use FasterPhp\DataModel\Field;
@@ -19,9 +19,12 @@ abstract class Item implements Serializable, Stringable
 {
 	public const ID_FIELD = '';
 	public const ID_INTERNAL = 'id';
+
 	public const FIELDS = [];
 	public const FIELDS_READONLY = [];
 	public const FIELDS_EXTERNAL = [];
+	public const FIELDS_AGGREGATE = [];
+
 	public const DEFAULTS = [];
 	public const VALIDATORS = [];
 
@@ -99,6 +102,11 @@ abstract class Item implements Serializable, Stringable
 		return $sqlValues;
 	}
 
+	public function hasFieldChanged(string $fieldName): bool
+	{
+		return isset($this->_originalValues[$fieldName]);
+	}
+
 	public function clearOriginalValues(): static
 	{
 		$this->_originalValues = [];
@@ -118,27 +126,12 @@ abstract class Item implements Serializable, Stringable
 		$this->_isValid = true;
 		$this->_validationErrors = [];
 		foreach (static::VALIDATORS as $fieldName => $validators) {
-			$validatorChain = new ValidatorChain();
+			$validatorChain = new Validator\ValidatorChain();
+
 			foreach ($validators as $args) {
-				if (!isset($args['class'])) {
-					throw new Exception("Validator class name missing for field '$fieldName'");
-				}
-				if (isset($args['skipIfEmpty'])
-					&& true === $args['skipIfEmpty']
-					&& empty($this->_getField($fieldName)->getValue())
-				) {
-					continue;
-				}
-				$validator = new $args['class']($args['options'] ?? null);
-				if (isset($args['message'])) {
-					$validator->setMessage($args['message']);
-				}
-				$validatorChain->attach(
-					$validator,
-					breakChainOnFailure: $args['break'] ?? null,
-					priority: $args['priority'] ?? null,
-				);
+				$this->_addValidator($validatorChain, $fieldName, $args);
 			}
+
 			if ($validatorChain->isValid($this->_getField($fieldName)->getValue())) {
 				unset($this->_validationErrors[$fieldName]);
 			} else {
@@ -217,13 +210,15 @@ abstract class Item implements Serializable, Stringable
 		if (!isset(static::FIELDS[$fieldName])
 			&& !isset(static::FIELDS_READONLY[$fieldName])
 			&& !isset(static::FIELDS_EXTERNAL[$fieldName])
+			&& !isset(static::FIELDS_AGGREGATE[$fieldName])
 		) {
 			throw new Exception("Field '$fieldName' not defined");
 		}
 		if (!array_key_exists($fieldName, $this->_data) || !$this->_data[$fieldName] instanceof Field\Base) {
 			$fieldClassName = static::FIELDS[$fieldName]
 				?? static::FIELDS_READONLY[$fieldName]
-				?? static::FIELDS_EXTERNAL[$fieldName];
+				?? static::FIELDS_EXTERNAL[$fieldName]
+				?? static::FIELDS_AGGREGATE[$fieldName];
 			$field = new $fieldClassName($fieldName);
 			if (array_key_exists($fieldName, $this->_data)) {
 				$field->setValue($this->_data[$fieldName]);
@@ -238,5 +233,40 @@ abstract class Item implements Serializable, Stringable
 			$this->_data[$fieldName] = $field;
 		}
 		return $this->_data[$fieldName];
+	}
+
+	protected function _addValidator(Validator\ValidatorChain $validatorChain, string $fieldName, array $args): void
+	{
+		if (!isset($args['class'])) {
+			throw new Exception("Validator class name missing for field '$fieldName'");
+		}
+
+		if (isset($args['skipIfEmpty'])
+			&& true === $args['skipIfEmpty']
+			&& empty($this->_getField($fieldName)->getValue())
+		) {
+			return;
+		}
+
+		$options = $args['options'] ?? [];
+
+		// If using callback validator, add item instance as last callback option
+		if ($args['class'] == Validator\Callback::class) {
+			if (!isset($options['callbackOptions'])) {
+				$options['callbackOptions'] = [];
+			}
+			$options['callbackOptions'][] = $this;
+		}
+
+		$validator = new $args['class']($options);
+		if (isset($args['message'])) {
+			$validator->setMessage($args['message']);
+		}
+
+		$validatorChain->attach(
+			$validator,
+			breakChainOnFailure: $args['break'] ?? null,
+			priority: $args['priority'] ?? null,
+		);
 	}
 }

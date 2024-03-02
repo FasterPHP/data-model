@@ -62,6 +62,12 @@ abstract class Repository
 		return $this;
 	}
 
+	public function setMaxItemsPerPage(?int $maxItemsPerPage): static
+	{
+		$this->_paginator->setMaxItemsPerPage($maxItemsPerPage);
+		return $this;
+	}
+
 	public function setDb(Db|PDO $db): static
 	{
 		$this->_db = $db;
@@ -94,7 +100,7 @@ abstract class Repository
 
 	public function getItemWithId(mixed $id): ?Item
 	{
-		$sql = $this->_getDefaultSelectAndFromSql()
+		$sql = $this->_getSelectAndFromSql()
 			. ' WHERE `' . $this->getTableName() . '`.`' . $this->getIdField() . '` = :id';
 
 		return $this->_getItem($sql, [':id' => $id]);
@@ -111,7 +117,7 @@ abstract class Repository
 
 	public function getSetOfAll(): Set
 	{
-		return $this->_createSetWithData($this->getData($this->_getDefaultSelectAndFromSql()));
+		return $this->_createSetWithData($this->getData($this->_getSelectAndFromSql()));
 	}
 
 	public function getSetWithParams(array $params, array $searchTypes = []): Set
@@ -119,14 +125,22 @@ abstract class Repository
 		return $this->_createSetWithData($this->getDataWithParams($params, $searchTypes));
 	}
 
-	public function getDataWithParams(array $params, array $searchTypes = [], $selectAndFromSql = null): array
+	public function getDataWithParams(array $params, array $searchTypes = []): array
 	{
-		$sql = $selectAndFromSql ?? $this->_getDefaultSelectAndFromSql();
-		[$whereSql, $args] = $this->_getWhereSqlAndParams($params, $searchTypes);
+		$sql = rtrim($this->_getSelectAndFromSql());
+		[$whereSql, $whereParams] = $this->_getWhereSqlAndParams($params, $searchTypes);
 		if (!empty($whereSql)) {
-			$sql .= ' WHERE ' . $whereSql;
+			$sql .= "\nWHERE " . $whereSql;
 		}
-		return $this->getData($sql, $args);
+		$groupBySql = $this->_getGroupBySql();
+		if (!empty($groupBySql)) {
+			$sql .= "\nGROUP BY " . $groupBySql;
+		}
+		[$havingSql, $havingParams] = $this->_getHavingSqlAndParams($params, $searchTypes);
+		if (!empty($havingSql)) {
+			$sql .= "\nHAVING " . $havingSql;
+		}
+		return $this->getData($sql, array_merge($whereParams, $havingParams));
 	}
 
 	public function getData(string $sql, array $params = []): array
@@ -195,17 +209,37 @@ abstract class Repository
 		return implode(', ', $dbFields);
 	}
 
-	protected function _getDefaultSelectAndFromSql(): string
+	protected function _getSelectAndFromSql(): string
 	{
 		return 'SELECT ' . $this->_getFieldList() . ' FROM `' . $this->getTableName() . '`';
 	}
 
 	protected function _getWhereSqlAndParams(array $params, array $searchTypes = []): array
 	{
+		return $this->_getArgsSqlAndParams(array_diff_key($params, $this->_itemClassName::FIELDS_AGGREGATE));
+	}
+
+	protected function _getGroupBySql(): string
+	{
+		if (!empty($this->_itemClassName::FIELDS_AGGREGATE)) {
+			return '`' . $this->getTableName() . '`.`' . $this->getIdField() . '`';
+		}
+		return '';
+	}
+
+	protected function _getHavingSqlAndParams(array $params, array $searchTypes = []): array
+	{
+		return $this->_getArgsSqlAndParams(array_intersect_key($params, $this->_itemClassName::FIELDS_AGGREGATE));
+	}
+
+	protected function _getArgsSqlAndParams(array $params, array $searchTypes = []): array
+	{
 		$tableName = $this->getTableName();
-		$whereSql = '';
+		$argsSql = '';
 		$args = [];
 		foreach ($params as $key => $value) {
+
+			// Set search type and ensure operator defined
 			if (!array_key_exists($key, $searchTypes)) {
 				$searchType = self::EQUALS;
 			} elseif (!array_key_exists($searchTypes[$key], self::OPERATORS)) {
@@ -213,21 +247,62 @@ abstract class Repository
 			} else {
 				$searchType = $searchTypes[$key];
 			}
+
+			// Create safe and unambiguous placeholder
 			$placeholder = ':' . preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
+
+			// Create safe version of key name (field name, plus table name where needed)
 			if (false !== strpos($key, '.')) {
+				// If table and field included, escape with backticks
 				$safeKey = '`' . str_replace('.', '`.`', $key) . '`';
 			} elseif (isset($this->_itemClassName::FIELDS[$key])
 				|| isset($this->_itemClassName::FIELDS_READONLY[$key])
 			) {
+				// If field in primary table, include table name to avoid ambiguity
 				$safeKey = '`' . $tableName . '`.`' . $key . '`';
 			} else {
 				$safeKey = '`' . $key . '`';
 			}
 
-			if ($searchType == self::EQUALS && is_null($value)) {
-				$whereSql .= ' AND ' . $safeKey . ' IS NULL';
+			// If value is array of one, just extract value and treat as scalar
+			$hasNullValue = false;
+			if (is_array($value)) {
+				$value = array_unique($value);
+				if (1 === count($value)) {
+					$value = array_pop($value);
+				} elseif (2 === count($value) && in_array(null, $value)) {
+					$hasNullValue = true;
+					$value = array_filter($value, function ($thisValue) {
+						return null !== $thisValue;
+					});
+					$value = array_pop($value);
+				}
+			}
+
+			// Convert array of values to IN statement
+			if ($searchType == self::EQUALS && is_array($value)) {
+				$nonNullValues = [];
+				foreach ($value as $thisValue) {
+					if (null === $thisValue) {
+						$hasNullValue = true;
+					} else {
+						$nonNullValues[] = $thisValue;
+					}
+				}
+				$quotedValues = implode(', ', array_map([$this->_getDb(), 'quote'], $nonNullValues));
+				$argsSql .= ' AND (' . $safeKey . ' IN (' . $quotedValues . ')';
+				if ($hasNullValue) {
+					$argsSql .= ' OR ' . $safeKey . ' IS NULL';
+				}
+				$argsSql .= ')';
+
+			// Deal with null values
+			} elseif ($searchType == self::EQUALS && is_null($value)) {
+				$argsSql .= ' AND ' . $safeKey . ' IS NULL';
+
+			// Scalar values with/without wildcards
 			} else {
-				$whereSql .= ' AND ' . $safeKey . ' ' . self::OPERATORS[$searchType] . ' ' . $placeholder;
+				$thisArgSql = $safeKey . ' ' . self::OPERATORS[$searchType] . ' ' . $placeholder;
 				switch ($searchType) {
 					case self::STARTS:
 						$value = $value . '%';
@@ -244,11 +319,16 @@ abstract class Repository
 					default;
 						break;
 				}
+				if ($hasNullValue) {
+					$argsSql .= ' AND (' . $thisArgSql . ' OR ' . $safeKey . ' IS NULL)';
+				} else {
+					$argsSql .= ' AND ' . $thisArgSql;
+				}
 
 				$args[$placeholder] = $value;
 			}
 		}
-		return [substr($whereSql, 5), $args];
+		return [substr($argsSql, 5), $args];
 	}
 
 	protected function _getItem(string $sql, array $params): ?Item
@@ -283,6 +363,11 @@ abstract class Repository
 
 		$sql = 'INSERT INTO `' . $this->getTableName() . '`'
 			. ' SET '. implode(', ', $placeholders);
+
+//		echo "<pre>";
+//		echo "$sql\n";
+//		echo "\$params: " . var_export($params, true);
+//		exit;
 
 		$db = $this->_getDb();
 		$stmt = $db->prepare($sql);
