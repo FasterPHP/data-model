@@ -100,10 +100,11 @@ abstract class Repository
 
 	public function getItemWithId(mixed $id): ?Item
 	{
-		$sql = $this->_getSelectAndFromSql()
-			. ' WHERE `' . $this->getTableName() . '`.`' . $this->getIdField() . '` = :id';
-
-		return $this->_getItem($sql, [':id' => $id]);
+		$set = $this->getSetWithParams([$this->getTableName() . '.' . $this->getIdField() => $id]);
+		if (0 === count($set)) {
+			return null;
+		}
+		return $set[0];
 	}
 
 	public function getItemWithParams(array $params, array $searchTypes = []): ?Item
@@ -117,7 +118,7 @@ abstract class Repository
 
 	public function getSetOfAll(): Set
 	{
-		return $this->_createSetWithData($this->getData($this->_getSelectAndFromSql()));
+		return $this->_createSetWithData($this->getDataWithParams([]));
 	}
 
 	public function getSetWithParams(array $params, array $searchTypes = []): Set
@@ -140,15 +141,7 @@ abstract class Repository
 		if (!empty($havingSql)) {
 			$sql .= "\nHAVING " . $havingSql;
 		}
-		return $this->getData($sql, array_merge($whereParams, $havingParams));
-	}
-
-	public function getData(string $sql, array $params = []): array
-	{
-		return $this->_paginator->setDb($this->_getDb())
-			->setSql($sql)
-			->setParams($params)
-			->getItems();
+		return $this->_getData($sql, array_merge($whereParams, $havingParams));
 	}
 
 	public function saveSet(Set $set): void
@@ -188,6 +181,11 @@ abstract class Repository
 		}
 	}
 
+	protected function _createItemWithData(array $data): Item
+	{
+		return new $this->_itemClassName($data);
+	}
+
 	protected function _createSetWithData(array $data): Set
 	{
 		return new $this->_setClassName($data);
@@ -216,7 +214,10 @@ abstract class Repository
 
 	protected function _getWhereSqlAndParams(array $params, array $searchTypes = []): array
 	{
-		return $this->_getArgsSqlAndParams(array_diff_key($params, $this->_itemClassName::FIELDS_AGGREGATE));
+		return $this->_getArgsSqlAndParams(
+			array_diff_key($params, $this->_itemClassName::FIELDS_AGGREGATE),
+			$searchTypes
+		);
 	}
 
 	protected function _getGroupBySql(): string
@@ -229,7 +230,10 @@ abstract class Repository
 
 	protected function _getHavingSqlAndParams(array $params, array $searchTypes = []): array
 	{
-		return $this->_getArgsSqlAndParams(array_intersect_key($params, $this->_itemClassName::FIELDS_AGGREGATE));
+		return $this->_getArgsSqlAndParams(
+			array_intersect_key($params, $this->_itemClassName::FIELDS_AGGREGATE),
+			$searchTypes
+		);
 	}
 
 	protected function _getArgsSqlAndParams(array $params, array $searchTypes = []): array
@@ -331,17 +335,12 @@ abstract class Repository
 		return [substr($argsSql, 5), $args];
 	}
 
-	protected function _getItem(string $sql, array $params): ?Item
+	protected function _getData(string $sql, array $params = []): array
 	{
-		$stmt = $this->_getDb()->prepare($sql);
-		$stmt->execute($params);
-
-		$data = $stmt->fetch(PDO::FETCH_ASSOC);
-		if (empty($data)) {
-			return null;
-		}
-
-		return new $this->_itemClassName($data);
+		return $this->_paginator->setDb($this->_getDb())
+			->setSql($sql)
+			->setParams($params)
+			->getItems();
 	}
 
 	protected function _insertItem(Item $item): void

@@ -17,7 +17,7 @@ class Boolean extends Base
 
 	public function getSqlValue(): mixed
 	{
-		return is_null($this->_value) ? null : $this->_value ? 'y' : 'n';
+		return is_null($this->_value) ? null : ($this->_value ? 'y' : 'n');
 	}
 
 	protected function _setValue($value): void

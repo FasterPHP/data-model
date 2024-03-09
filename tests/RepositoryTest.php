@@ -5,8 +5,6 @@
 namespace FasterPhp\DataModel;
 
 use PHPUnit\Framework\TestCase;
-use PDO;
-use FasterPhp\DataModel\Paginator\SqlPaginator;
 use FasterPhp\DataModel\TestModel;
 
 /**
