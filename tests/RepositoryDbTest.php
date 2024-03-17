@@ -40,7 +40,7 @@ class RepositoryDbTest extends RepositoryBase
 
 		$mockDb = $this->getMockBuilder(Db::class)
 			->disableOriginalConstructor()
-			->setMethods(['getDbKey', 'prepare', 'exec', 'getPdo'])
+			->setMethods(['getDbKey', 'prepare', 'exec', 'getPdo', 'query'])
 			->getMock();
 		$mockDb->expects($this->any())
 			->method('getDbKey')

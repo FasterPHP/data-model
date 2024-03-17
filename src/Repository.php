@@ -337,10 +337,12 @@ abstract class Repository
 
 	protected function _getData(string $sql, array $params = []): array
 	{
-		return $this->_paginator->setDb($this->_getDb())
+		return $this->_paginator
+			->setDb($this->_getDb())
 			->setSql($sql)
 			->setParams($params)
-			->getItems();
+			->getItems()
+		;
 	}
 
 	protected function _insertItem(Item $item): void
@@ -373,9 +375,13 @@ abstract class Repository
 		$stmt->execute($params);
 
 		if (empty($item->getId())) {
-			$newId = $db->lastInsertId();
-			if (!empty($newId)) {
-				$item->setId($newId);
+			//$newId = $db->lastInsertId();
+			$idStmt = $db->query("SELECT MAX(`{$this->getIdField()}`) FROM `{$this->getTableName()}`");
+			if ($idStmt) {
+				$newId = $idStmt->fetchColumn();
+				if (!empty($newId)) {
+					$item->setId($newId);
+				}
 			}
 		}
 		$item->clearOriginalValues();
@@ -413,15 +419,16 @@ abstract class Repository
 
 	protected function _getDb(): Db|PDO
 	{
-		if (!isset($this->_db)) {
-			if (class_exists('\FasterPhp\Db\Db')) {
-				$this->_db = Db::newDb($this->getDbName());
-			} else {
-				$dbName = $this->getDbName();
-				$config = \FasterPhp\CoreApp\App::getInstance()->getConfig()->db->databases->$dbName;
-				$this->_db = new \PDO($config->dsn, $config->username, $config->password);
-			}
+		if (!isset($this->_db) && class_exists('\FasterPhp\Db\Db')) {
+			return Db::newDb($this->getDbName());
 		}
+
+		if (!isset($this->_db)) {
+			$dbName = $this->getDbName();
+			$config = \FasterPhp\CoreApp\App::getInstance()->getConfig()->db->databases->$dbName;
+			$this->_db = new \PDO($config->dsn, $config->username, $config->password);
+		}
+
 		return $this->_db;
 	}
 }
