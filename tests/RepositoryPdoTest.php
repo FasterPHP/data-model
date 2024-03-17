@@ -24,7 +24,7 @@ class RepositoryPdoTest extends RepositoryBase
 	{
 		$mockDb = $this->getMockBuilder(PDO::class)
 			->disableOriginalConstructor()
-			->setMethods(['getDbKey', 'prepare', 'exec', 'quote', 'lastInsertId'])
+			->setMethods(['getDbKey', 'prepare', 'exec', 'quote', 'lastInsertId', 'query'])
 			->getMock();
 
 		$mockDb->expects($this->any())

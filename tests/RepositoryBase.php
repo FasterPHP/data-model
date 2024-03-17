@@ -432,11 +432,18 @@ abstract class RepositoryBase extends TestCase
 			->method('fetchAll')
 			->with(PDO::FETCH_ASSOC)
 			->willReturn($data);
+		$mockDbStatement->expects($this->once())
+			->method('fetchColumn')
+			->willReturn('1');
 
 		$mockDb = $this->_getMockDb();
 		$mockDb->expects($this->exactly(2))
 			->method('prepare')
 			->withConsecutive([$sqlOne], [$sqlTwo])
+			->willReturn($mockDbStatement);
+		$mockDb->expects($this->once())
+			->method('query')
+			->with("SELECT MAX(`userId`) FROM `users`")
 			->willReturn($mockDbStatement);
 
 		$repo = new TestModel\ValidRepository();
