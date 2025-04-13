@@ -16,6 +16,7 @@ use FasterPhp\DataModel\Paginator\SqlPaginator;
 abstract class Repository
 {
 	const EQUALS = 'equals';
+	const NOT_EQUALS = 'not equals';
 	const STARTS = 'starts';
 	const ENDS = 'ends';
 	const CONTAINS = 'contains';
@@ -26,6 +27,7 @@ abstract class Repository
 
 	const OPERATORS = [
 		self::EQUALS => '=',
+		self::NOT_EQUALS => '!=',
 		self::STARTS => 'LIKE',
 		self::ENDS => 'LIKE',
 		self::CONTAINS => 'LIKE',
