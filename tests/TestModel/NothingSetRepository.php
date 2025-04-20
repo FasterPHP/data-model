@@ -1,7 +1,9 @@
 <?php
+
 /**
  * Test Repository class.
  */
+
 namespace FasterPhp\DataModel\TestModel;
 
 use FasterPhp\DataModel\Repository as BaseRepository;

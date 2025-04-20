@@ -1,7 +1,9 @@
 <?php
+
 /**
  * Datetime Field class.
  */
+
 declare(strict_types=1);
 
 namespace FasterPhp\DataModel\Field;
@@ -14,26 +16,27 @@ use InvalidArgumentException;
  */
 class Datetime extends Base
 {
-	protected $_value = null;
+    protected $value = null;
 
-	public function getSqlValue()
-	{
-		return is_null($this->_value) ? null : $this->_value->format('Y-m-d H:i:s');
-	}
+    public function getSqlValue()
+    {
+        return is_null($this->value) ? null : $this->value->format('Y-m-d H:i:s');
+    }
 
-	protected function _setValue($value): void
-	{
-		if (null === $value || $value instanceof \DateTime) {
-			$this->_value = $value;
-		} elseif (is_string($value)) {
-			$this->_value = \DateTime::createFromFormat('Y-m-d H:i:s', $value);
-		} else {
-			throw new InvalidArgumentException("{$this->_name} value '$value' must be a DateTime instance of string");
-		}
-	}
+    public function setValue($value): self
+    {
+        if (null === $value || $value instanceof \DateTime) {
+            $this->value = $value;
+        } elseif (is_string($value)) {
+            $this->value = \DateTime::createFromFormat('Y-m-d H:i:s', $value);
+        } else {
+            throw new InvalidArgumentException("{$this->name} value '$value' must be a DateTime instance of string");
+        }
+        return $this;
+    }
 
-	public function __toString(): string
-	{
-		return $this->_value->format('d/m/Y');
-	}
+    public function __toString(): string
+    {
+        return $this->value->format('d/m/Y');
+    }
 }
