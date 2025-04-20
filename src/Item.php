@@ -10,14 +10,13 @@ namespace FasterPhp\DataModel;
 
 use BadMethodCallException;
 use Laminas\Validator;
-use Serializable;
 use Stringable;
 use FasterPhp\DataModel\Field;
 
 /**
  * Data Model Item class.
  */
-abstract class Item implements Serializable, Stringable
+abstract class Item implements Stringable
 {
     public const ID_FIELD = '';
     public const ID_INTERNAL = 'id';
@@ -32,6 +31,7 @@ abstract class Item implements Serializable, Stringable
     protected bool $toDelete = false;
     protected bool $isValid;
     protected array $validationErrors;
+
     public function __construct(array $data = [])
     {
         $this->data = $data;

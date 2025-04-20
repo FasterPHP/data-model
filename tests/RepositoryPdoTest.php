@@ -14,7 +14,7 @@ use PDOStatement;
  */
 class RepositoryPdoTest extends RepositoryBase
 {
-    protected function _getMockDbStatement(): PDOStatement
+    protected function getMockDbStatement(): PDOStatement
     {
         return $this->getMockBuilder(PDOStatement::class)
             ->disableOriginalConstructor()
@@ -22,24 +22,24 @@ class RepositoryPdoTest extends RepositoryBase
             ->getMock();
     }
 
-    protected function _getMockDb(): PDO
+    protected function getMockDb(): PDO
     {
         $mockDb = $this->getMockBuilder(PDO::class)
             ->disableOriginalConstructor()
-            ->onlyMethods(['getDbKey', 'prepare', 'exec', 'quote', 'lastInsertId', 'query'])
+            ->onlyMethods(['prepare', 'exec', 'quote', 'lastInsertId', 'query'])
             ->getMock();
 
         $mockDb->expects($this->any())
             ->method('quote')
-            ->will($this->returnCallback(function ($value) {
+            ->willReturnCallback(function ($value) {
                 return "'" . $value . "'";
-            }));
+            });
 
         $mockDb->expects($this->any())
             ->method('lastInsertId')
-            ->will($this->returnCallback(function () {
+            ->willReturnCallback(function () {
                 return (string) rand(10, 999);
-            }));
+            });
 
         return $mockDb;
     }
