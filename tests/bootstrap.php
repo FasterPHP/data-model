@@ -1,7 +1,9 @@
 <?php
+
 /**
  * Unit Testing Bootstrap.
  */
+
 declare(strict_types=1);
 
 namespace FasterPhp\DataModel;

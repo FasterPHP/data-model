@@ -1,7 +1,9 @@
 <?php
+
 /**
  * Boolean Field class.
  */
+
 declare(strict_types=1);
 
 namespace FasterPhp\DataModel\Field;
@@ -13,23 +15,24 @@ use InvalidArgumentException;
  */
 class Boolean extends Base
 {
-	protected $_value = false;
+    protected $value = false;
 
-	public function getSqlValue(): mixed
-	{
-		return is_null($this->_value) ? null : ($this->_value ? 'y' : 'n');
-	}
+    public function getSqlValue(): mixed
+    {
+        return is_null($this->value) ? null : ($this->value ? 'y' : 'n');
+    }
 
-	protected function _setValue($value): void
-	{
-		if (null === $value) {
-			$this->_value = $value;
-		} elseif (in_array($value, [true, 'y', 1, '1'], true)) {
-			$this->_value = true;
-		} elseif (in_array($value, [false, 'n', 0, '0'], true)) {
-			$this->_value = false;
-		} else {
-			throw new InvalidArgumentException("{$this->_name} value '$value' cannot be converted to boolean");
-		}
-	}
+    public function setValue($value): self
+    {
+        if (null === $value) {
+            $this->value = $value;
+        } elseif (in_array($value, [true, 'y', 1, '1'], true)) {
+            $this->value = true;
+        } elseif (in_array($value, [false, 'n', 0, '0'], true)) {
+            $this->value = false;
+        } else {
+            throw new InvalidArgumentException("{$this->name} value '$value' cannot be converted to boolean");
+        }
+        return $this;
+    }
 }

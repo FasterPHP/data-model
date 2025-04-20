@@ -1,7 +1,9 @@
 <?php
+
 /**
  * Integer Field class.
  */
+
 declare(strict_types=1);
 
 namespace FasterPhp\DataModel\Field;
@@ -13,11 +15,12 @@ use InvalidArgumentException;
  */
 class Integer extends Base
 {
-	protected function _setValue($value): void
-	{
-		if (!is_null($value) && !is_int($value) && intval($value) != $value) {
-			throw new InvalidArgumentException("{$this->_name} value '$value' must be an integer");
-		}
-		$this->_value = is_null($value) ? $value : intval($value);
-	}
+    public function setValue($value): self
+    {
+        if (!is_null($value) && !is_int($value) && intval($value) != $value) {
+            throw new InvalidArgumentException("{$this->name} value '$value' must be an integer");
+        }
+        $this->value = is_null($value) ? $value : intval($value);
+        return $this;
+    }
 }

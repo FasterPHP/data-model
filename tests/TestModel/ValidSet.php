@@ -1,7 +1,9 @@
 <?php
+
 /**
  * Test Set class.
  */
+
 namespace FasterPhp\DataModel\TestModel;
 
 use FasterPhp\DataModel\Set as BaseSet;

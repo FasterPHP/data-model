@@ -2,29 +2,37 @@
     "name": "faster-php/data-model",
     "description": "Faster PHP data models with sorting, pagination and validation",
     "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Marcus Don",
+            "email": "marcus@fasterphp.com"
+        }
+    ],
 	"repositories":[
 		{
 			"type": "vcs",
 			"url": "https://github.com/FasterPHP/db.git"
 		}
 	],
-    "require": {
-        "php": ">=8.2",
-        "laminas/laminas-validator": "^2.38"
-    },
-    "require-dev": {
-        "faster-php/db": "dev-main",
-        "phpunit/phpunit": "^9.5"
-    },
-    "license": "GPL-3.0-or-later",
-    "authors": [
-        {
-            "name": "Marcus Don",
-            "email": "marcus@sqldevelopment.co.uk"
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
         }
-    ],
+    },
     "minimum-stability": "dev",
     "prefer-stable": true,
+    "require": {
+        "php": ">=8.2",
+        "laminas/laminas-validator": "^2.38",
+        "ext-pdo": "*"
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "faster-php/db": "dev-feature/extend-pdo",
+        "phpunit/phpunit": "^11.5",
+        "roave/security-advisories": "dev-latest"
+    },
 	"autoload": {
 		"psr-4": {"FasterPhp\\DataModel\\": "src/"}
 	},
