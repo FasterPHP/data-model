@@ -15,7 +15,7 @@ use FasterPhp\Db\DbStatement;
  */
 class RepositoryDbTest extends RepositoryBase
 {
-    protected function _getMockDbStatement(): DbStatement
+    protected function getMockDbStatement(): DbStatement
     {
         return $this->getMockBuilder(DbStatement::class)
             ->disableOriginalConstructor()
@@ -23,7 +23,7 @@ class RepositoryDbTest extends RepositoryBase
             ->getMock();
     }
 
-    protected function _getMockDb(): Db
+    protected function getMockDb(): Db
     {
         $mockPdo = $this->getMockBuilder(PDO::class)
             ->disableOriginalConstructor()
@@ -31,22 +31,19 @@ class RepositoryDbTest extends RepositoryBase
             ->getMock();
         $mockPdo->expects($this->any())
             ->method('quote')
-            ->will($this->returnCallback(function ($value) {
+            ->willReturnCallback(function ($value) {
                 return "'" . $value . "'";
-            }));
+            });
         $mockPdo->expects($this->any())
             ->method('lastInsertId')
-            ->will($this->returnCallback(function () {
+            ->willReturnCallback(function () {
                 return (string) rand(10, 999);
-            }));
+            });
 
         $mockDb = $this->getMockBuilder(Db::class)
             ->disableOriginalConstructor()
-            ->onlyMethods(['getDbKey', 'prepare', 'exec', 'getPdo', 'query'])
+            ->onlyMethods(['prepare', 'exec', 'getPdo', 'query'])
             ->getMock();
-        $mockDb->expects($this->any())
-            ->method('getDbKey')
-            ->willReturn('testdb');
         $mockDb->expects($this->any())
             ->method('getPdo')
             ->willReturn($mockPdo);

@@ -16,7 +16,7 @@ use FasterPhp\DataModel\TestModel;
  */
 class ItemTest extends TestCase
 {
-    protected array $_data = [
+    protected array $data = [
         'id' => 123,
         'name' => 'Marcus',
         'age' => 25,
@@ -26,29 +26,29 @@ class ItemTest extends TestCase
 
     public function testSetViaConstructor(): void
     {
-        $item = new TestModel\ValidItem($this->_data);
+        $item = new TestModel\ValidItem($this->data);
 
-        $this->assertSame($this->_data['id'], $item->getId());
-        $this->assertSame($this->_data['name'], $item->getName());
-        $this->assertSame($this->_data['age'], $item->getAge());
-        $this->assertSame($this->_data['height'], $item->getHeight());
-        $this->assertSame($this->_data['handsome'], $item->getHandsome());
+        $this->assertSame($this->data['id'], $item->getId());
+        $this->assertSame($this->data['name'], $item->getName());
+        $this->assertSame($this->data['age'], $item->getAge());
+        $this->assertSame($this->data['height'], $item->getHeight());
+        $this->assertSame($this->data['handsome'], $item->getHandsome());
     }
 
     public function testSetViaSetters(): void
     {
         $item = new TestModel\ValidItem();
-        $item->setId($this->_data['id']);
-        $item->setName($this->_data['name']);
-        $item->setAge($this->_data['age']);
-        $item->setHeight($this->_data['height']);
-        $item->setHandsome($this->_data['handsome']);
+        $item->setId($this->data['id']);
+        $item->setName($this->data['name']);
+        $item->setAge($this->data['age']);
+        $item->setHeight($this->data['height']);
+        $item->setHandsome($this->data['handsome']);
 
-        $this->assertSame($this->_data['id'], $item->getId());
-        $this->assertSame($this->_data['name'], $item->getName());
-        $this->assertSame($this->_data['age'], $item->getAge());
-        $this->assertSame($this->_data['height'], $item->getHeight());
-        $this->assertSame($this->_data['handsome'], $item->getHandsome());
+        $this->assertSame($this->data['id'], $item->getId());
+        $this->assertSame($this->data['name'], $item->getName());
+        $this->assertSame($this->data['age'], $item->getAge());
+        $this->assertSame($this->data['height'], $item->getHeight());
+        $this->assertSame($this->data['handsome'], $item->getHandsome());
     }
 
     public function testDefaults(): void
@@ -75,16 +75,16 @@ class ItemTest extends TestCase
 
     public function testIsDirtyFalse(): void
     {
-        $item = new TestModel\ValidItem($this->_data);
+        $item = new TestModel\ValidItem($this->data);
         $this->assertFalse($item->isDirty());
 
-        $item->setName($this->_data['name']);
+        $item->setName($this->data['name']);
         $this->assertFalse($item->isDirty());
     }
 
     public function testIsDirtyTrue(): void
     {
-        $item = new TestModel\ValidItem($this->_data);
+        $item = new TestModel\ValidItem($this->data);
 
         $item->setId(234);
         $this->assertTrue($item->isDirty());
@@ -92,32 +92,32 @@ class ItemTest extends TestCase
 
     public function testIsToDeleteFalse(): void
     {
-        $item = new TestModel\ValidItem($this->_data);
+        $item = new TestModel\ValidItem($this->data);
         $this->assertFalse($item->isToDelete());
     }
 
     public function testIsToDeleteTrue(): void
     {
-        $item = new TestModel\ValidItem($this->_data);
+        $item = new TestModel\ValidItem($this->data);
         $item->setToDelete();
         $this->assertTrue($item->isToDelete());
     }
 
     public function testLazyLoadFields(): void
     {
-        $item = new TestModel\ValidItem($this->_data);
+        $item = new TestModel\ValidItem($this->data);
 
-        $dataProperty = new ReflectionProperty($item, '_data');
+        $dataProperty = new ReflectionProperty($item, 'data');
 
-        $this->assertSame($this->_data, $dataProperty->getValue($item));
-        $this->assertSame($this->_data['name'], $item->getName());
+        $this->assertSame($this->data, $dataProperty->getValue($item));
+        $this->assertSame($this->data['name'], $item->getName());
 
         $data = $dataProperty->getValue($item);
         $this->assertInstanceOf(Field\Base::class, $data['name']);
-        $this->assertSame($this->_data['id'], $data['id']);
-        $this->assertSame($this->_data['age'], $data['age']);
-        $this->assertSame($this->_data['height'], $data['height']);
-        $this->assertSame($this->_data['handsome'], $data['handsome']);
+        $this->assertSame($this->data['id'], $data['id']);
+        $this->assertSame($this->data['age'], $data['age']);
+        $this->assertSame($this->data['height'], $data['height']);
+        $this->assertSame($this->data['handsome'], $data['handsome']);
     }
 
     public function testValidateErrorsNotValidated(): void
@@ -159,22 +159,22 @@ class ItemTest extends TestCase
 
     public function testSerializable(): void
     {
-        $item = new TestModel\ValidItem($this->_data);
+        $item = new TestModel\ValidItem($this->data);
 
         $serialized = $item->serialize();
         $item->unserialize($serialized);
 
-        $this->assertSame($this->_data['id'], $item->getId());
-        $this->assertSame($this->_data['name'], $item->getName());
-        $this->assertSame($this->_data['age'], $item->getAge());
-        $this->assertSame($this->_data['height'], $item->getHeight());
+        $this->assertSame($this->data['id'], $item->getId());
+        $this->assertSame($this->data['name'], $item->getName());
+        $this->assertSame($this->data['age'], $item->getAge());
+        $this->assertSame($this->data['height'], $item->getHeight());
         $this->assertFalse($item->isTemp());
         $this->assertFalse($item->isDirty());
     }
 
     public function testSerializeUnserialize(): void
     {
-        $item = new TestModel\ValidItem($this->_data);
+        $item = new TestModel\ValidItem($this->data);
 
         $serialized = serialize($item);
         $unserialized = unserialize($serialized);
@@ -185,7 +185,7 @@ class ItemTest extends TestCase
 
     public function testToString(): void
     {
-        $item = new TestModel\ValidItem($this->_data);
+        $item = new TestModel\ValidItem($this->data);
         $this->assertSame('{"id":123,"name":"Marcus","age":25,"height":6.25,"handsome":true}', strval($item));
     }
 }

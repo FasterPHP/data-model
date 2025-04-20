@@ -19,7 +19,7 @@ use FasterPhp\DataModel\TestModel;
  */
 abstract class RepositoryBase extends TestCase
 {
-    protected static $_data = [
+    protected static $data = [
         ['id' => '1', 'name' => 'Marcus Don', 'age' => '25', 'height' => '6.25', 'handsome' => 'y'],
         ['id' => '2', 'name' => 'Joe Bloggs', 'age' => '32', 'height' => '5.90', 'handsome' => 'n'],
         ['id' => '3', 'name' => 'Jane Doe', 'age' => '21', 'height' => '5.40', 'handsome' => 'y'],
@@ -27,21 +27,23 @@ abstract class RepositoryBase extends TestCase
 
     public function testGetItemWithId(): void
     {
-        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome` FROM `users`\n"
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
             . "WHERE `users`.`userId` = :users_userId";
         $params = [':users_userId' => 1];
-        $data = [self::$_data[0]];
+        $data = [self::$data[0]];
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())
             ->method('execute')
-            ->with($params);
+            ->with($params)
+            ->willReturn(true);
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
-        $mockDb = $this->_getMockDb();
+        $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())
             ->method('prepare')
             ->with($sql)
@@ -61,18 +63,19 @@ abstract class RepositoryBase extends TestCase
         $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users`";
         $params = [];
-        $data = self::$_data;
+        $data = self::$data;
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())
             ->method('execute')
-            ->with($params);
+            ->with($params)
+            ->willReturn(true);
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
-        $mockDb = $this->_getMockDb();
+        $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())
             ->method('prepare')
             ->with($sql)
@@ -92,21 +95,23 @@ abstract class RepositoryBase extends TestCase
 
     public function testGetSetWithParams(): void
     {
-        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome` FROM `users`\n"
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
             . "WHERE `users`.`name` = :name AND `users`.`age` = :age";
         $params = [':name' => 'Marcus Don', ':age' => 25];
-        $data = [self::$_data[0]];
+        $data = [self::$data[0]];
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())
             ->method('execute')
-            ->with($params);
+            ->with($params)
+            ->willReturn(true);
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
-        $mockDb = $this->_getMockDb();
+        $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())
             ->method('prepare')
             ->with($sql)
@@ -125,21 +130,23 @@ abstract class RepositoryBase extends TestCase
 
     public function testGetSetWithMinAge(): void
     {
-        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome` FROM `users`\n"
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
             . "WHERE `users`.`age` >= :age";
         $params = [':age' => 25];
-        $data = [self::$_data[0], self::$_data[1]];
+        $data = [self::$data[0], self::$data[1]];
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())
             ->method('execute')
-            ->with($params);
+            ->with($params)
+            ->willReturn(true);
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
-        $mockDb = $this->_getMockDb();
+        $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())
             ->method('prepare')
             ->with($sql)
@@ -163,22 +170,29 @@ abstract class RepositoryBase extends TestCase
         $sqlTwo = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users` ORDER BY `users`.`age` DESC";
 
-        $dataOne = [self::$_data[2], self::$_data[1], self::$_data[0]];
-        $dataTwo = [self::$_data[1], self::$_data[0], self::$_data[2]];
+        $dataOne = [self::$data[2], self::$data[1], self::$data[0]];
+        $dataTwo = [self::$data[1], self::$data[0], self::$data[2]];
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->exactly(2))
             ->method('execute')
-            ->with([]);
+            ->with([])
+            ->willReturn(true);
         $mockDbStatement->expects($this->exactly(2))
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturnOnConsecutiveCalls($dataOne, $dataTwo);
 
-        $mockDb = $this->_getMockDb();
-        $mockDb->expects($this->exactly(2))
+        $mockDb = $this->getMockDb();
+        $matcher = $this->exactly(2);
+        $mockDb->expects($matcher)
             ->method('prepare')
-            ->withConsecutive([$sqlOne], [$sqlTwo])
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($sqlOne, $sql),
+                    2 => $this->assertEquals($sqlTwo, $sql),
+                };
+            })
             ->willReturn($mockDbStatement);
 
         $repo = new TestModel\ValidRepository(new Sort('users.name'));
@@ -205,18 +219,19 @@ abstract class RepositoryBase extends TestCase
         $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users` ORDER BY `users`.`handsome` ASC, `users`.`age` DESC";
         $params = [];
-        $data = [self::$_data[1], self::$_data[0], self::$_data[2]];
+        $data = [self::$data[1], self::$data[0], self::$data[2]];
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())
             ->method('execute')
-            ->with($params);
+            ->with($params)
+            ->willReturn(true);
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
-        $mockDb = $this->_getMockDb();
+        $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())
             ->method('prepare')
             ->with($sql)
@@ -245,13 +260,14 @@ abstract class RepositoryBase extends TestCase
         $sqlTwo = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users` LIMIT 2 OFFSET 2";
 
-        $dataOne = [self::$_data[0], self::$_data[1]];
-        $dataTwo = [self::$_data[2]];
+        $dataOne = [self::$data[0], self::$data[1]];
+        $dataTwo = [self::$data[2]];
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->exactly(3))
             ->method('execute')
-            ->with([]);
+            ->with([])
+            ->willReturn(true);
         $mockDbStatement->expects($this->exactly(1))
             ->method('fetchColumn')
             ->willReturn(3);
@@ -260,10 +276,17 @@ abstract class RepositoryBase extends TestCase
             ->with(PDO::FETCH_ASSOC)
             ->willReturnOnConsecutiveCalls($dataOne, $dataTwo);
 
-        $mockDb = $this->_getMockDb();
-        $mockDb->expects($this->exactly(3))
+        $mockDb = $this->getMockDb();
+        $matcher = $this->exactly(3);
+        $mockDb->expects($matcher)
             ->method('prepare')
-            ->withConsecutive([$sqlOne], [$sqlCount], [$sqlTwo])
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlCount, $sqlTwo) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($sqlOne, $sql),
+                    2 => $this->assertEquals($sqlCount, $sql),
+                    3 => $this->assertEquals($sqlTwo, $sql),
+                };
+            })
             ->willReturn($mockDbStatement);
 
         $paginator = new SqlPaginator();
@@ -296,13 +319,14 @@ abstract class RepositoryBase extends TestCase
         $sqlTwo = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users` ORDER BY `users`.`handsome` ASC, `users`.`age` DESC LIMIT 2 OFFSET 2";
 
-        $dataOne = [self::$_data[1], self::$_data[0]];
-        $dataTwo = [self::$_data[2]];
+        $dataOne = [self::$data[1], self::$data[0]];
+        $dataTwo = [self::$data[2]];
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->exactly(3))
             ->method('execute')
-            ->with([]);
+            ->with([])
+            ->willReturn(true);
         $mockDbStatement->expects($this->exactly(1))
             ->method('fetchColumn')
             ->willReturn(3);
@@ -311,10 +335,17 @@ abstract class RepositoryBase extends TestCase
             ->with(PDO::FETCH_ASSOC)
             ->willReturnOnConsecutiveCalls($dataOne, $dataTwo);
 
-        $mockDb = $this->_getMockDb();
-        $mockDb->expects($this->exactly(3))
+        $mockDb = $this->getMockDb();
+        $matcher = $this->exactly(3);
+        $mockDb->expects($matcher)
             ->method('prepare')
-            ->withConsecutive([$sqlOne], [$sqlCount], [$sqlTwo])
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlCount, $sqlTwo) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($sqlOne, $sql),
+                    2 => $this->assertEquals($sqlCount, $sql),
+                    3 => $this->assertEquals($sqlTwo, $sql),
+                };
+            })
             ->willReturn($mockDbStatement);
 
         $secondarySort = new Sort('users.age', Sort::DESCENDING);
@@ -345,19 +376,20 @@ abstract class RepositoryBase extends TestCase
     {
         $sqlOne = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
             . ' FROM `users`';
-        $data = self::$_data;
+        $data = self::$data;
         $sqlTwo = "DELETE FROM `users` WHERE `userId` IN ('1', '2', '3')";
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())
             ->method('execute')
-            ->with([]);
+            ->with([])
+            ->willReturn(true);
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
-        $mockDb = $this->_getMockDb();
+        $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())
             ->method('prepare')
             ->with($sqlOne)
@@ -378,24 +410,41 @@ abstract class RepositoryBase extends TestCase
     {
         $sqlOne = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
             . ' FROM `users`';
-        $data = self::$_data;
+        $data = self::$data;
         $sqlTwo = 'UPDATE `users` SET `name` = :name WHERE `userId` = :id';
         $nameOne = 'Mickey Mouse';
         $nameTwo = 'Donald Duck';
 
-        $mockDbStatement = $this->_getMockDbStatement();
-        $mockDbStatement->expects($this->exactly(3))
+        $mockDbStatement = $this->getMockDbStatement();
+        $matcher = $this->exactly(3);
+        $mockDbStatement->expects($matcher)
             ->method('execute')
-            ->withConsecutive([[]], [[':id' => 1, ':name' => $nameOne]], [[':id' => 3, ':name' => $nameTwo]]);
+            //->withConsecutive([[]], [[':id' => 1, ':name' => $nameOne]], [[':id' => 1, ':name' => $nameOne]])
+            ->willReturnCallback(function (array $args) use ($matcher, $nameOne) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals([], $args),
+                    2 => $this->assertEquals([':id' => 1, ':name' => $nameOne], $args),
+                    3 => $this->assertEquals([':id' => 1, ':name' => $nameOne], $args),
+                };
+            })
+            ->willReturn(true);
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
-        $mockDb = $this->_getMockDb();
-        $mockDb->expects($this->exactly(3))
+        $mockDb = $this->getMockDb();
+        $matcher = $this->exactly(3);
+        $mockDb->expects($matcher)
             ->method('prepare')
-            ->withConsecutive([$sqlOne], [$sqlTwo], [$sqlTwo])
+            //->withConsecutive([$sqlOne], [$sqlTwo], [$sqlTwo])
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($sqlOne, $sql),
+                    2 => $this->assertEquals($sqlTwo, $sql),
+                    3 => $this->assertEquals($sqlTwo, $sql),
+                };
+            })
             ->willReturn($mockDbStatement);
 
         $repo = new TestModel\ValidRepository();
@@ -416,7 +465,7 @@ abstract class RepositoryBase extends TestCase
         $sqlOne = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
             . ' FROM `users`';
         $paramsOne = [];
-        $data = self::$_data;
+        $data = self::$data;
 
         $name = 'Mickey Mouse';
         $age = 85;
@@ -426,10 +475,18 @@ abstract class RepositoryBase extends TestCase
         $sqlTwo = 'INSERT INTO `users` SET `name` = :name, `age` = :age, `height` = :height, `handsome` = :handsome';
         $paramsTwo = [':name' => $name, ':age' => $age, ':height' => $height, ':handsome' => 'n'];
 
-        $mockDbStatement = $this->_getMockDbStatement();
-        $mockDbStatement->expects($this->exactly(2))
+        $mockDbStatement = $this->getMockDbStatement();
+        $matcher = $this->exactly(2);
+        $mockDbStatement->expects($matcher)
             ->method('execute')
-            ->withConsecutive([$paramsOne], [$paramsTwo]);
+            //->withConsecutive([$paramsOne], [$paramsTwo])
+            ->willReturnCallback(function (string $params) use ($matcher, $paramsOne, $paramsTwo) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($paramsOne, $params),
+                    3 => $this->assertEquals($paramsTwo, $params),
+                };
+            })
+            ->willReturn(true);
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
@@ -438,10 +495,17 @@ abstract class RepositoryBase extends TestCase
             ->method('fetchColumn')
             ->willReturn('1');
 
-        $mockDb = $this->_getMockDb();
-        $mockDb->expects($this->exactly(2))
+        $mockDb = $this->getMockDb();
+        $matcher = $this->exactly(2);
+        $mockDb->expects($matcher)
             ->method('prepare')
-            ->withConsecutive([$sqlOne], [$sqlTwo])
+            //->withConsecutive([$sqlOne], [$sqlTwo])
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($sqlOne, $sql),
+                    2 => $this->assertEquals($sqlTwo, $sql),
+                };
+            })
             ->willReturn($mockDbStatement);
         $mockDb->expects($this->once())
             ->method('query')
@@ -467,23 +531,25 @@ abstract class RepositoryBase extends TestCase
 
     public function testSaveItemDelete(): void
     {
-        $sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome` FROM `users`\n"
+        $sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
             . "WHERE `users`.`userId` = :users_userId";
         $params = [':users_userId' => 1];
-        $data = [self::$_data[0]];
+        $data = [self::$data[0]];
 
         $sqlTwo = "DELETE FROM `users` WHERE `userId` IN ('1')";
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())
             ->method('execute')
-            ->with($params);
+            ->with($params)
+            ->willReturn(true);
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
-        $mockDb = $this->_getMockDb();
+        $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())
             ->method('prepare')
             ->with($sqlOne)
@@ -502,10 +568,11 @@ abstract class RepositoryBase extends TestCase
 
     public function testSaveItemUpdate(): void
     {
-        $sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome` FROM `users`\n"
+        $sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
             . "WHERE `users`.`userId` = :users_userId";
         $paramsOne = [':users_userId' => 1];
-        $data = [self::$_data[0]];
+        $data = [self::$data[0]];
 
         $sqlTwo = 'UPDATE `users` SET `name` = :name, `age` = :age WHERE `userId` = :id';
         $name = 'Mickey Mouse';
@@ -513,19 +580,34 @@ abstract class RepositoryBase extends TestCase
         $handsome = true; // Unchanged
         $paramsTwo = [':id' => 1, ':name' => $name, ':age' => $age];
 
-        $mockDbStatement = $this->_getMockDbStatement();
-        $mockDbStatement->expects($this->exactly(2))
+        $mockDbStatement = $this->getMockDbStatement();
+        $matcher = $this->exactly(2);
+        $mockDbStatement->expects($matcher)
             ->method('execute')
-            ->withConsecutive([$paramsOne], [$paramsTwo]);
+            //->withConsecutive([$paramsOne], [$paramsTwo]);
+            ->willReturnCallback(function (string $params) use ($matcher, $paramsOne, $paramsTwo) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($paramsOne, $params),
+                    3 => $this->assertEquals($paramsTwo, $params),
+                };
+            })
+            ->willReturn(true);
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
-        $mockDb = $this->_getMockDb();
-        $mockDb->expects($this->exactly(2))
+        $mockDb = $this->getMockDb();
+        $matcher = $this->exactly(2);
+        $mockDb->expects($matcher)
             ->method('prepare')
-            ->withConsecutive([$sqlOne], [$sqlTwo])
+            //->withConsecutive([$sqlOne], [$sqlTwo])
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($sqlOne, $sql),
+                    2 => $this->assertEquals($sqlTwo, $sql),
+                };
+            })
             ->willReturn($mockDbStatement);
 
         $repo = new TestModel\ValidRepository();
@@ -550,12 +632,13 @@ abstract class RepositoryBase extends TestCase
         $sql = 'INSERT INTO `users` SET `name` = :name, `age` = :age, `height` = :height, `handsome` = :handsome';
         $params = [':name' => $name, ':age' => $age, ':height' => $height, ':handsome' => 'n'];
 
-        $mockDbStatement = $this->_getMockDbStatement();
+        $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())
             ->method('execute')
-            ->with($params);
+            ->with($params)
+            ->willReturn(true);
 
-        $mockDb = $this->_getMockDb();
+        $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())
             ->method('prepare')
             ->with($sql)
@@ -575,7 +658,7 @@ abstract class RepositoryBase extends TestCase
         $this->assertFalse($item->isTemp());
     }
 
-    abstract protected function _getMockDbStatement(): PDOStatement|Statement;
+    abstract protected function getMockDbStatement(): PDOStatement|Statement;
 
-    abstract protected function _getMockDb(): PDO|Db;
+    abstract protected function getMockDb(): PDO|Db;
 }
