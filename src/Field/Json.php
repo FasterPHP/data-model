@@ -23,8 +23,12 @@ class Json extends Base
 
         // Decode value
         } elseif (is_string($value)) {
+            // Fast‑path on PHP 8.3+
+            if (function_exists('json_validate') && false === json_validate($value)) {
+                throw new InvalidArgumentException('Invalid JSON string');
+            }
             try {
-                $this->value = json_decode($value, true, JSON_THROW_ON_ERROR);
+                $this->value = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
             } catch (JsonException $ex) {
                 throw new InvalidArgumentException($ex->getMessage());
             }

@@ -157,21 +157,6 @@ class ItemTest extends TestCase
         $this->assertSame([], $item->getValidationErrors());
     }
 
-    public function testSerializable(): void
-    {
-        $item = new TestModel\ValidItem($this->data);
-
-        $serialized = $item->serialize();
-        $item->unserialize($serialized);
-
-        $this->assertSame($this->data['id'], $item->getId());
-        $this->assertSame($this->data['name'], $item->getName());
-        $this->assertSame($this->data['age'], $item->getAge());
-        $this->assertSame($this->data['height'], $item->getHeight());
-        $this->assertFalse($item->isTemp());
-        $this->assertFalse($item->isDirty());
-    }
-
     public function testSerializeUnserialize(): void
     {
         $item = new TestModel\ValidItem($this->data);
@@ -180,7 +165,14 @@ class ItemTest extends TestCase
         $unserialized = unserialize($serialized);
 
         $this->assertInstanceOf(TestModel\ValidItem::class, $unserialized);
+        $this->assertSame($this->data['id'], $unserialized->getId());
+        $this->assertSame($this->data['name'], $unserialized->getName());
+        $this->assertSame($this->data['age'], $unserialized->getAge());
+        $this->assertSame($this->data['height'], $unserialized->getHeight());
+        $this->assertFalse($unserialized->isTemp());
+        $this->assertFalse($unserialized->isDirty());
         $this->assertSame($item->getValues(), $unserialized->getValues());
+        $this->assertEquals($unserialized, $item);
     }
 
     public function testToString(): void

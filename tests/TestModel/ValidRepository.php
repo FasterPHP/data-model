@@ -13,8 +13,8 @@ use FasterPhp\DataModel\Repository as BaseRepository;
  */
 class ValidRepository extends BaseRepository
 {
-    protected static string $dbName = 'testdb';
-    protected static string $tableName = 'users';
+    protected const DB_NAME = 'testdb';
+    protected const TABLE_NAME = 'users';
 
     public function getSetWithMinAge(int $minAge): ValidSet
     {
