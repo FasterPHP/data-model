@@ -187,13 +187,13 @@ abstract class RepositoryBase extends TestCase
         $matcher = $this->exactly(2);
         $mockDb->expects($matcher)
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo) {
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
                 match ($matcher->numberOfInvocations()) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlTwo, $sql),
                 };
-            })
-            ->willReturn($mockDbStatement);
+                return $mockDbStatement;
+            });
 
         $repo = new TestModel\ValidRepository(new Sort('users.name'));
         $repo->setDb($mockDb);
@@ -280,14 +280,14 @@ abstract class RepositoryBase extends TestCase
         $matcher = $this->exactly(3);
         $mockDb->expects($matcher)
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlCount, $sqlTwo) {
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlCount, $sqlTwo, $mockDbStatement) {
                 match ($matcher->numberOfInvocations()) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlCount, $sql),
                     3 => $this->assertEquals($sqlTwo, $sql),
                 };
-            })
-            ->willReturn($mockDbStatement);
+                return $mockDbStatement;
+            });
 
         $paginator = new SqlPaginator();
         $paginator->setMaxItemsPerPage(2);
@@ -339,14 +339,14 @@ abstract class RepositoryBase extends TestCase
         $matcher = $this->exactly(3);
         $mockDb->expects($matcher)
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlCount, $sqlTwo) {
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlCount, $sqlTwo, $mockDbStatement) {
                 match ($matcher->numberOfInvocations()) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlCount, $sql),
                     3 => $this->assertEquals($sqlTwo, $sql),
                 };
-            })
-            ->willReturn($mockDbStatement);
+                return $mockDbStatement;
+            });
 
         $secondarySort = new Sort('users.age', Sort::DESCENDING);
         $sort = new Sort('users.handsome', Sort::ASCENDING, $secondarySort);
@@ -377,26 +377,35 @@ abstract class RepositoryBase extends TestCase
         $sqlOne = 'SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`'
             . ' FROM `users`';
         $data = self::$data;
-        $sqlTwo = "DELETE FROM `users` WHERE `userId` IN ('1', '2', '3')";
+        $sqlTwo = "DELETE FROM `users` WHERE `userId` IN (:del_0,:del_1,:del_2)";
 
         $mockDbStatement = $this->getMockDbStatement();
-        $mockDbStatement->expects($this->once())
+        $matcher = $this->exactly(2);
+        $mockDbStatement->expects($matcher)
             ->method('execute')
-            ->with([])
-            ->willReturn(true);
+            ->willReturnCallback(function (array $params) use ($matcher) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals([], $params),
+                    2 => $this->assertEquals([':del_0' => 1, ':del_1' => 2, ':del_2' => 3], $params),
+                };
+                return true;
+            });
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
         $mockDb = $this->getMockDb();
-        $mockDb->expects($this->once())
+        $matcher = $this->exactly(2);
+        $mockDb->expects($matcher)
             ->method('prepare')
-            ->with($sqlOne)
-            ->willReturn($mockDbStatement);
-            $mockDb->expects($this->once())
-            ->method('exec')
-            ->with($sqlTwo);
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($sqlOne, $sql),
+                    2 => $this->assertEquals($sqlTwo, $sql),
+                };
+                return $mockDbStatement;
+            });
 
         $repo = new TestModel\ValidRepository();
         $repo->setDb($mockDb);
@@ -419,15 +428,14 @@ abstract class RepositoryBase extends TestCase
         $matcher = $this->exactly(3);
         $mockDbStatement->expects($matcher)
             ->method('execute')
-            //->withConsecutive([[]], [[':id' => 1, ':name' => $nameOne]], [[':id' => 1, ':name' => $nameOne]])
-            ->willReturnCallback(function (array $args) use ($matcher, $nameOne) {
+            ->willReturnCallback(function (array $args) use ($matcher, $nameOne, $nameTwo) {
                 match ($matcher->numberOfInvocations()) {
                     1 => $this->assertEquals([], $args),
                     2 => $this->assertEquals([':id' => 1, ':name' => $nameOne], $args),
-                    3 => $this->assertEquals([':id' => 1, ':name' => $nameOne], $args),
+                    3 => $this->assertEquals([':id' => 3, ':name' => $nameTwo], $args),
                 };
-            })
-            ->willReturn(true);
+                return true;
+            });
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
@@ -437,15 +445,14 @@ abstract class RepositoryBase extends TestCase
         $matcher = $this->exactly(3);
         $mockDb->expects($matcher)
             ->method('prepare')
-            //->withConsecutive([$sqlOne], [$sqlTwo], [$sqlTwo])
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo) {
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
                 match ($matcher->numberOfInvocations()) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlTwo, $sql),
                     3 => $this->assertEquals($sqlTwo, $sql),
                 };
-            })
-            ->willReturn($mockDbStatement);
+                return $mockDbStatement;
+            });
 
         $repo = new TestModel\ValidRepository();
         $repo->setDb($mockDb);
@@ -479,38 +486,29 @@ abstract class RepositoryBase extends TestCase
         $matcher = $this->exactly(2);
         $mockDbStatement->expects($matcher)
             ->method('execute')
-            //->withConsecutive([$paramsOne], [$paramsTwo])
-            ->willReturnCallback(function (string $params) use ($matcher, $paramsOne, $paramsTwo) {
+            ->willReturnCallback(function (array $params) use ($matcher, $paramsOne, $paramsTwo) {
                 match ($matcher->numberOfInvocations()) {
                     1 => $this->assertEquals($paramsOne, $params),
-                    3 => $this->assertEquals($paramsTwo, $params),
+                    2 => $this->assertEquals($paramsTwo, $params),
                 };
-            })
-            ->willReturn(true);
+                return true;
+            });
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
-        $mockDbStatement->expects($this->once())
-            ->method('fetchColumn')
-            ->willReturn('1');
 
         $mockDb = $this->getMockDb();
         $matcher = $this->exactly(2);
         $mockDb->expects($matcher)
             ->method('prepare')
-            //->withConsecutive([$sqlOne], [$sqlTwo])
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo) {
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
                 match ($matcher->numberOfInvocations()) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlTwo, $sql),
                 };
-            })
-            ->willReturn($mockDbStatement);
-        $mockDb->expects($this->once())
-            ->method('query')
-            ->with("SELECT MAX(`userId`) FROM `users`")
-            ->willReturn($mockDbStatement);
+                return $mockDbStatement;
+            });
 
         $repo = new TestModel\ValidRepository();
         $repo->setDb($mockDb);
@@ -534,29 +532,39 @@ abstract class RepositoryBase extends TestCase
         $sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users`\n"
             . "WHERE `users`.`userId` = :users_userId";
-        $params = [':users_userId' => 1];
+        $paramsOne = [':users_userId' => 1];
         $data = [self::$data[0]];
 
-        $sqlTwo = "DELETE FROM `users` WHERE `userId` IN ('1')";
+        $sqlTwo = "DELETE FROM `users` WHERE `userId` IN (:del_0)";
+        $paramsTwo = [':del_0' => 1];
 
         $mockDbStatement = $this->getMockDbStatement();
-        $mockDbStatement->expects($this->once())
+        $matcher = $this->exactly(2);
+        $mockDbStatement->expects($matcher)
             ->method('execute')
-            ->with($params)
-            ->willReturn(true);
+            ->willReturnCallback(function (array $params) use ($matcher, $paramsOne, $paramsTwo) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($paramsOne, $params),
+                    2 => $this->assertEquals($paramsTwo, $params),
+                };
+                return true;
+            });
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
             ->willReturn($data);
 
         $mockDb = $this->getMockDb();
-        $mockDb->expects($this->once())
+        $matcher = $this->exactly(2);
+        $mockDb->expects($matcher)
             ->method('prepare')
-            ->with($sqlOne)
-            ->willReturn($mockDbStatement);
-            $mockDb->expects($this->once())
-            ->method('exec')
-            ->with($sqlTwo);
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
+                match ($matcher->numberOfInvocations()) {
+                    1 => $this->assertEquals($sqlOne, $sql),
+                    2 => $this->assertEquals($sqlTwo, $sql),
+                };
+                return $mockDbStatement;
+            });
 
         $repo = new TestModel\ValidRepository();
         $repo->setDb($mockDb);
@@ -584,14 +592,13 @@ abstract class RepositoryBase extends TestCase
         $matcher = $this->exactly(2);
         $mockDbStatement->expects($matcher)
             ->method('execute')
-            //->withConsecutive([$paramsOne], [$paramsTwo]);
-            ->willReturnCallback(function (string $params) use ($matcher, $paramsOne, $paramsTwo) {
+            ->willReturnCallback(function (array $params) use ($matcher, $paramsOne, $paramsTwo) {
                 match ($matcher->numberOfInvocations()) {
                     1 => $this->assertEquals($paramsOne, $params),
-                    3 => $this->assertEquals($paramsTwo, $params),
+                    2 => $this->assertEquals($paramsTwo, $params),
                 };
-            })
-            ->willReturn(true);
+                return true;
+            });
         $mockDbStatement->expects($this->once())
             ->method('fetchAll')
             ->with(PDO::FETCH_ASSOC)
@@ -601,14 +608,13 @@ abstract class RepositoryBase extends TestCase
         $matcher = $this->exactly(2);
         $mockDb->expects($matcher)
             ->method('prepare')
-            //->withConsecutive([$sqlOne], [$sqlTwo])
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo) {
+            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
                 match ($matcher->numberOfInvocations()) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlTwo, $sql),
                 };
-            })
-            ->willReturn($mockDbStatement);
+                return $mockDbStatement;
+            });
 
         $repo = new TestModel\ValidRepository();
         $repo->setDb($mockDb);

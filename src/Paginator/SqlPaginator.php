@@ -79,11 +79,8 @@ class SqlPaginator extends Base
     public function getItems(int $mode = PDO::FETCH_ASSOC): array
     {
         if (!isset($this->items)) {
-//          echo "<pre>";
-//          echo "\nSQL: " . $this->getPaginatedSql() . "\n";
-//          echo "\$params: " . print_r($this->_getParams(), true) . "\n";
-//          echo "</pre>\n";
-//          exit;
+//            echo "\nSQL: " . $this->getPaginatedSql() . "\n";
+//            echo "\$params: " . print_r($this->getParams(), true) . "\n";
 
             $stmt = $this->getDb()->prepare($this->getPaginatedSql());
             $stmt->execute($this->getParams());
