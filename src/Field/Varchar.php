@@ -17,7 +17,8 @@ class Varchar extends Base
 {
     public function setValue($value): self
     {
-        if (!is_null($value)
+        if (
+            !is_null($value)
             && !is_string($value)
             && (is_array($value)
             || (is_object($value) && !($value instanceof \Stringable))
