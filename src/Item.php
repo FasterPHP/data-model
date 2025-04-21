@@ -11,7 +11,6 @@ namespace FasterPhp\DataModel;
 use BadMethodCallException;
 use Laminas\Validator;
 use Stringable;
-use FasterPhp\DataModel\Field;
 
 /**
  * Data Model Item class.
@@ -26,6 +25,7 @@ abstract class Item implements Stringable
     public const FIELDS_AGGREGATE = [];
     public const DEFAULTS = [];
     public const VALIDATORS = [];
+
     protected array $data;
     protected array $originalValues = [];
     protected bool $toDelete = false;
@@ -145,16 +145,6 @@ abstract class Item implements Stringable
             throw new Exception('Item not validated');
         }
         return $this->validationErrors;
-    }
-
-    public function serialize(): string
-    {
-        return serialize($this->getValues());
-    }
-
-    public function unserialize(string $data): void
-    {
-        $this->data = unserialize($data);
     }
 
     public function __serialize(): array

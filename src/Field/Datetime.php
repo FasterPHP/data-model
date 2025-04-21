@@ -30,7 +30,7 @@ class Datetime extends Base
         } elseif (is_string($value)) {
             $this->value = \DateTime::createFromFormat('Y-m-d H:i:s', $value);
         } else {
-            throw new InvalidArgumentException("{$this->name} value '$value' must be a DateTime instance of string");
+            throw new InvalidArgumentException("{$this->name} value must be a DateTime instance or string");
         }
         return $this;
     }

@@ -33,11 +33,7 @@ abstract class Base implements Stringable
         return isset($this->value);
     }
 
-    public function setValue($value): self
-    {
-        $this->value = $value;
-        return $this;
-    }
+    abstract public function setValue($value): self;
 
     public function getValue()
     {

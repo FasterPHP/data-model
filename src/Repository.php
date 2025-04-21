@@ -17,6 +17,9 @@ use FasterPhp\DataModel\Paginator\SqlPaginator;
  */
 abstract class Repository
 {
+    protected const DB_NAME = '';
+    protected const TABLE_NAME = '';
+
     protected const EQUALS = 'equals';
     protected const NOT_EQUALS = 'not equals';
     protected const STARTS = 'starts';
@@ -37,8 +40,7 @@ abstract class Repository
         self::LESS => '<',
         self::LESS_OR_EQUALS => '<=',
     ];
-    protected static string $dbName;
-    protected static string $tableName;
+
     protected SqlPaginator $paginator;
     protected Db|PDO $db;
     protected string $itemClassName;
@@ -77,18 +79,18 @@ abstract class Repository
 
     public function getDbName(): string
     {
-        if (!isset(static::$dbName)) {
+        if (empty(static::DB_NAME)) {
             throw new Exception('Database name not set');
         }
-        return static::$dbName;
+        return static::DB_NAME;
     }
 
     public function getTableName(): string
     {
-        if (!isset(static::$tableName)) {
+        if (empty(static::TABLE_NAME)) {
             throw new Exception('Table name not set');
         }
-        return static::$tableName;
+        return static::TABLE_NAME;
     }
 
     public function getIdField(): string
@@ -198,7 +200,6 @@ abstract class Repository
         $idField = $this->getIdField();
         $fieldNames = array_keys(array_merge($this->itemClassName::FIELDS, $this->itemClassName::FIELDS_READONLY));
         $dbFields = array_map(function ($fieldName) use ($tableName, $idField) {
-
             if ($fieldName == $this->itemClassName::ID_INTERNAL) {
                 return '`' . $tableName . '`.`' . $idField . '` AS `' . $this->itemClassName::ID_INTERNAL . '`';
             }
@@ -236,13 +237,21 @@ abstract class Repository
         );
     }
 
+    /**
+     * Build an SQL fragment and bound‑parameter array from $params + $searchTypes specification.
+     *
+     * @param array<string,mixed> $params
+     * @param array<string,string> $searchTypes
+     *
+     * @return array{0:string,1:array<string,mixed>}  [sql, params]
+     */
     protected function getArgsSqlAndParams(array $params, array $searchTypes = []): array
     {
         $tableName = $this->getTableName();
         $argsSql = '';
         $args = [];
         foreach ($params as $key => $value) {
-            // Set search type and ensure operator defined
+            // Determine the search type and ensure operator defined
             if (!array_key_exists($key, $searchTypes)) {
                 $searchType = self::EQUALS;
             } elseif (!array_key_exists($searchTypes[$key], self::OPERATORS)) {
@@ -268,39 +277,43 @@ abstract class Repository
                 $safeKey = '`' . $key . '`';
             }
 
-            // If value is array of one, just extract value and treat as scalar
+            // Normalise arrays, check for NULLs and filter for non-NULLs
             $hasNullValue = false;
+            $nonNullValues = [];
             if (is_array($value)) {
                 $value = array_unique($value);
-                if (1 === count($value)) {
-                    $value = array_pop($value);
-                } elseif (2 === count($value) && in_array(null, $value)) {
-                    $hasNullValue = true;
-                    $value = array_filter($value, function ($thisValue) {
-                        return null !== $thisValue;
-                    });
-                    $value = array_pop($value);
+                $hasNullValue = in_array(null, $value, true);
+                $nonNullValues = array_values(array_filter($value, fn ($v) => $v !== null));
+
+                // Convert single‑element array to scalar
+                if (count($value) === 1) {
+                    $value = array_values($value)[0];
+
+                // Two elements, one is NULL - treat as scalar + NULL flag
+                } elseif (count($value) === 2 && $hasNullValue) {
+                    $value = $nonNullValues[0];
                 }
             }
 
             // Convert array of values to IN statement
-            if ($searchType == self::EQUALS && is_array($value)) {
-                $nonNullValues = [];
-                foreach ($value as $thisValue) {
-                    if (null === $thisValue) {
-                        $hasNullValue = true;
-                    } else {
-                        $nonNullValues[] = $thisValue;
-                    }
-                }
-                $quotedValues = implode(', ', array_map([$this->getDb(), 'quote'], $nonNullValues));
-                $argsSql .= ' AND (' . $safeKey . ' IN (' . $quotedValues . ')';
-                if ($hasNullValue) {
-                    $argsSql .= ' OR ' . $safeKey . ' IS NULL';
-                }
-                $argsSql .= ')';
+            if ($searchType === self::EQUALS && is_array($value)) {
+                if (!empty($nonNullValues)) {
+                    [$fragment, $inParams] = Sql::expandIn($safeKey, $nonNullValues, ltrim($placeholder, ':'));
 
-            // Deal with null values
+                    // (field IN (:p0,:p1) OR field IS NULL)
+                    $argsSql .= ' AND (' . $fragment;
+                    if ($hasNullValue) {
+                        $argsSql .= ' OR ' . $safeKey . ' IS NULL';
+                    }
+                    $argsSql .= ')';
+
+                    $args += $inParams;
+                } else {
+                    // Only NULLs left
+                    $argsSql .= ' AND ' . $safeKey . ' IS NULL';
+                }
+
+            // Only with null value
             } elseif ($searchType == self::EQUALS && is_null($value)) {
                 $argsSql .= ' AND ' . $safeKey . ' IS NULL';
 
@@ -329,6 +342,8 @@ abstract class Repository
                 $args[$placeholder] = $value;
             }
         }
+
+        // Strip leading ' AND '
         return [substr($argsSql, 5), $args];
     }
 
@@ -360,16 +375,12 @@ abstract class Repository
 
         $sql = 'INSERT INTO `' . $this->getTableName() . '`'
             . ' SET ' . implode(', ', $placeholders);
-//      echo "<pre>";
-//        echo "$sql\n";
-//       echo "\$params: " . var_export($params, true);
-//       exit;
 
         $db = $this->getDb();
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
         if (empty($item->getId())) {
-        //$newId = $db->lastInsertId();
+            //$newId = $db->lastInsertId();
             $idStmt = $db->query("SELECT MAX(`{$this->getIdField()}`) FROM `{$this->getTableName()}`");
             if ($idStmt) {
                 $newId = $idStmt->fetchColumn();
