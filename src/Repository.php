@@ -1,73 +1,85 @@
 <?php
 
-/**
- * Data Model Repository class.
- */
-
 declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
-use PDO;
-use FasterPhp\Db\Db;
 use FasterPhp\DataModel\Paginator\SqlPaginator;
+use FasterPhp\Db\Db;
+use PDO;
 
 /**
- * Data Model Repository class.
+ * @template TItem of Item
  */
 abstract class Repository
 {
-    protected const DB_NAME = '';
+    /* -------------------------------
+     * Model metadata – override in subclass
+     * ----------------------------- */
+    protected const DB_NAME    = '';
     protected const TABLE_NAME = '';
 
-    protected const EQUALS = 'equals';
-    protected const NOT_EQUALS = 'not equals';
-    protected const STARTS = 'starts';
-    protected const ENDS = 'ends';
-    protected const CONTAINS = 'contains';
-    protected const GREATER = 'greater';
-    protected const GREATER_OR_EQUALS = 'greater or equals';
-    protected const LESS = 'less';
-    protected const LESS_OR_EQUALS = 'less or equals';
-    protected const OPERATORS = [
-        self::EQUALS => '=',
-        self::NOT_EQUALS => '!=',
-        self::STARTS => 'LIKE',
-        self::ENDS => 'LIKE',
-        self::CONTAINS => 'LIKE',
-        self::GREATER => '>',
+    /* -------------------------------
+     * Search operators
+     * ----------------------------- */
+    public const EQUALS            = 'equals';
+    public const NOT_EQUALS        = 'not equals';
+    public const STARTS            = 'starts';
+    public const ENDS              = 'ends';
+    public const CONTAINS          = 'contains';
+    public const GREATER           = 'greater';
+    public const GREATER_OR_EQUALS = 'greater or equals';
+    public const LESS              = 'less';
+    public const LESS_OR_EQUALS    = 'less or equals';
+
+    public const OPERATORS = [
+        self::EQUALS            => '=',
+        self::NOT_EQUALS        => '!=',
+        self::STARTS            => 'LIKE',
+        self::ENDS              => 'LIKE',
+        self::CONTAINS          => 'LIKE',
+        self::GREATER           => '>',
         self::GREATER_OR_EQUALS => '>=',
-        self::LESS => '<',
-        self::LESS_OR_EQUALS => '<=',
+        self::LESS              => '<',
+        self::LESS_OR_EQUALS    => '<=',
     ];
 
+    /* -------------------------------
+     * Instance state
+     * ----------------------------- */
     protected SqlPaginator $paginator;
     protected Db|PDO $db;
+
+    /** @var class-string<TItem> */
     protected string $itemClassName;
+    /** @var class-string<Set<TItem>> */
     protected string $setClassName;
 
-    public function __construct(SqlPaginator|Sort $paginatorOrSort = null)
+    /* -------------------------------
+     * Construction
+     * ----------------------------- */
+    public function __construct(SqlPaginator|Sort|null $paginatorOrSort = null)
     {
-        if ($paginatorOrSort instanceof SqlPaginator) {
-            $this->paginator = $paginatorOrSort;
-        } elseif ($paginatorOrSort instanceof Sort) {
-            $this->paginator = new SqlPaginator($paginatorOrSort);
-        } else {
-            $this->paginator = new SqlPaginator();
-        }
-        $this->itemClassName = Util::getItemClassName(get_called_class());
-        $this->setClassName = Util::getSetClassName(get_called_class());
+        $this->paginator = $paginatorOrSort instanceof SqlPaginator
+            ? $paginatorOrSort
+            : new SqlPaginator($paginatorOrSort instanceof Sort ? $paginatorOrSort : null);
+
+        $this->itemClassName = Util::getItemClassName(static::class);
+        $this->setClassName  = Util::getSetClassName(static::class);
     }
 
+    /* -------------------------------
+     * Fluent configurators
+     * ----------------------------- */
     public function setSort(?Sort $sort): static
     {
         $this->paginator->setSort($sort);
         return $this;
     }
 
-    public function setMaxItemsPerPage(?int $maxItemsPerPage): static
+    public function setMaxItemsPerPage(?int $max): static
     {
-        $this->paginator->setMaxItemsPerPage($maxItemsPerPage);
+        $this->paginator->setMaxItemsPerPage($max);
         return $this;
     }
 
@@ -77,6 +89,9 @@ abstract class Repository
         return $this;
     }
 
+    /* -------------------------------
+     * Metadata helpers
+     * ----------------------------- */
     public function getDbName(): string
     {
         if (empty(static::DB_NAME)) {
@@ -101,52 +116,48 @@ abstract class Repository
         return $this->itemClassName::ID_FIELD;
     }
 
+    /* -------------------------------
+     * Public retrieval API
+     * ----------------------------- */
     public function getItemWithId(mixed $id): ?Item
     {
-        $set = $this->getSetWithParams([$this->getTableName() . '.' . $this->getIdField() => $id]);
-        if (0 === count($set)) {
-            return null;
-        }
-        return $set[0];
+        return $this->getItemWithParams([
+            $this->getTableName() . '.' . $this->getIdField() => $id,
+        ]);
     }
 
-    public function getItemWithParams(array $params, array $searchTypes = []): ?Item
+    public function getItemWithParams(array $params, array $types = []): ?Item
     {
-        $set = $this->getSetWithParams($params, $searchTypes);
-        if (0 === count($set)) {
-            return null;
-        }
-        return $set[0];
+        $set = $this->getSetWithParams($params, $types);
+        return $set[0] ?? null;
     }
 
     public function getSetOfAll(): Set
     {
-        return $this->createSetWithData($this->getDataWithParams([]));
+        return $this->createSet($this->getDataWithParams([]));
     }
 
-    public function getSetWithParams(array $params, array $searchTypes = []): Set
+    public function getSetWithParams(array $params, array $types = []): Set
     {
-        return $this->createSetWithData($this->getDataWithParams($params, $searchTypes));
+        return $this->createSet($this->getDataWithParams($params, $types));
     }
 
-    public function getDataWithParams(array $params, array $searchTypes = []): array
+    /* -------------------------------
+     * Item / Set factories (override if needed)
+     * ----------------------------- */
+    protected function createItem(array $data): Item
     {
-        $sql = rtrim($this->getSelectAndFromSql());
-        [$whereSql, $whereParams] = $this->getWhereSqlAndParams($params, $searchTypes);
-        if (!empty($whereSql)) {
-            $sql .= "\nWHERE " . $whereSql;
-        }
-        $groupBySql = $this->getGroupBySql();
-        if (!empty($groupBySql)) {
-            $sql .= "\nGROUP BY " . $groupBySql;
-        }
-        [$havingSql, $havingParams] = $this->getHavingSqlAndParams($params, $searchTypes);
-        if (!empty($havingSql)) {
-            $sql .= "\nHAVING " . $havingSql;
-        }
-        return $this->getData($sql, array_merge($whereParams, $havingParams));
+        return new $this->itemClassName($data);
     }
 
+    protected function createSet(array $data): Set
+    {
+        return new $this->setClassName($data);
+    }
+
+    /**
+     * Persist a Set: insert new, update dirty, delete removed.
+     */
     public function saveSet(Set $set): void
     {
         if (!$set instanceof $this->setClassName) {
@@ -164,12 +175,14 @@ abstract class Repository
                 $this->updateItem($item);
             }
         }
-
         if (!empty($idsToDelete)) {
             $this->deleteItemIds($idsToDelete);
         }
     }
 
+    /**
+     * Persist a single Item: insert, update, or delete.
+     */
     public function saveItem(Item $item): void
     {
         if (!$item instanceof $this->itemClassName) {
@@ -184,209 +197,191 @@ abstract class Repository
         }
     }
 
-    protected function createItemWithData(array $data): Item
-    {
-        return new $this->itemClassName($data);
-    }
-
-    protected function createSetWithData(array $data): Set
-    {
-        return new $this->setClassName($data);
-    }
-
+    /* -------------------------------
+     * Field list helper – quoted identifiers
+     * ----------------------------- */
     protected function getFieldList(): string
     {
-        $tableName = $this->getTableName();
-        $idField = $this->getIdField();
-        $fieldNames = array_keys(array_merge($this->itemClassName::FIELDS, $this->itemClassName::FIELDS_READONLY));
-        $dbFields = array_map(function ($fieldName) use ($tableName, $idField) {
-            if ($fieldName == $this->itemClassName::ID_INTERNAL) {
-                return '`' . $tableName . '`.`' . $idField . '` AS `' . $this->itemClassName::ID_INTERNAL . '`';
+        $table      = $this->getTableName();
+        $idField    = $this->itemClassName::ID_FIELD;
+        $idInternal = $this->itemClassName::ID_INTERNAL;
+
+        $fields = array_keys(array_merge(
+            $this->itemClassName::FIELDS,
+            $this->itemClassName::FIELDS_READONLY,
+        ));
+
+        $parts = [];
+        foreach ($fields as $field) {
+            if ($field === $idInternal) {
+                $parts[] = Sql::ident("$table.$idField")
+                    . ' AS '
+                    . Sql::ident($idInternal);
+            } else {
+                $parts[] = Sql::ident("$table.$field");
             }
-            return '`' . $tableName . '`.`' . $fieldName . '`';
-        }, $fieldNames);
-        return implode(', ', $dbFields);
+        }
+        return implode(', ', $parts);
     }
 
-    protected function getSelectAndFromSql(): string
+    /* -------------------------------
+     * SQL clause builders – override piecemeal for joins/aliases
+     * ----------------------------- */
+    protected function buildSelectClause(): string
     {
-        return 'SELECT ' . $this->getFieldList() . ' FROM `' . $this->getTableName() . '`';
+        return $this->getFieldList();
     }
 
-    protected function getWhereSqlAndParams(array $params, array $searchTypes = []): array
+    protected function buildFromClause(): string
+    {
+        return Sql::ident($this->getTableName());
+    }
+
+    protected function buildGroupByClause(): string
+    {
+        return $this->itemClassName::FIELDS_AGGREGATE !== []
+            ? Sql::ident($this->getTableName() . '.' . $this->getIdField())
+            : '';
+    }
+
+    /* -------------------------------
+     * Core data retrieval pipeline
+     * ----------------------------- */
+    protected function getDataWithParams(array $params, array $types = []): array
+    {
+        $sql  = 'SELECT ' . $this->buildSelectClause();
+        $sql .= ' FROM ' . $this->buildFromClause();
+
+        [$whereSql,  $whereParams]  = $this->getWhereSqlAndParams($params, $types);
+        if ($whereSql !== '') {
+            $sql .= "\nWHERE $whereSql";
+        }
+
+        $groupBy = $this->buildGroupByClause();
+        if ($groupBy !== '') {
+            $sql .= "\nGROUP BY $groupBy";
+        }
+
+        [$havingSql, $havingParams] = $this->getHavingSqlAndParams($params, $types);
+        if ($havingSql !== '') {
+            $sql .= "\nHAVING $havingSql";
+        }
+
+        return $this->fetchData($sql, $whereParams + $havingParams);
+    }
+
+    /* -------------------------------
+     * WHERE / HAVING helpers
+     * ----------------------------- */
+    protected function getWhereSqlAndParams(array $params, array $types = []): array
     {
         return $this->getArgsSqlAndParams(
             array_diff_key($params, $this->itemClassName::FIELDS_AGGREGATE),
-            $searchTypes
+            $types
         );
     }
 
-    protected function getGroupBySql(): string
-    {
-        if (!empty($this->itemClassName::FIELDS_AGGREGATE)) {
-            return '`' . $this->getTableName() . '`.`' . $this->getIdField() . '`';
-        }
-        return '';
-    }
-
-    protected function getHavingSqlAndParams(array $params, array $searchTypes = []): array
+    protected function getHavingSqlAndParams(array $params, array $types = []): array
     {
         return $this->getArgsSqlAndParams(
             array_intersect_key($params, $this->itemClassName::FIELDS_AGGREGATE),
-            $searchTypes
+            $types
         );
     }
 
-    /**
-     * Build an SQL fragment and bound‑parameter array from $params + $searchTypes specification.
-     *
-     * @param array<string,mixed> $params
-     * @param array<string,string> $searchTypes
-     *
-     * @return array{0:string,1:array<string,mixed>}  [sql, params]
-     */
-    protected function getArgsSqlAndParams(array $params, array $searchTypes = []): array
+    protected function getArgsSqlAndParams(array $filters, array $types = []): array
     {
-        $tableName = $this->getTableName();
-        $argsSql = '';
-        $args = [];
-        foreach ($params as $key => $value) {
-            // Determine the search type and ensure operator defined
-            if (!array_key_exists($key, $searchTypes)) {
-                $searchType = self::EQUALS;
-            } elseif (!array_key_exists($searchTypes[$key], self::OPERATORS)) {
-                throw new Exception("Unsupported search type '{$searchTypes[$key]}'");
-            } else {
-                $searchType = $searchTypes[$key];
-            }
+        $fragments = [];
+        $params    = [];
+        foreach ($filters as $key => $value) {
+            $searchType = $types[$key] ?? self::EQUALS;
+            [$sql, $chunk] = $this->buildComparison($key, $searchType, $value);
+            $fragments[] = $sql;
+            $params += $chunk;
+        }
+        return [implode(' AND ', $fragments), $params];
+    }
 
-            // Create safe and unambiguous placeholder
-            $placeholder = ':' . preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
+    protected function buildComparison(string $key, string $type, mixed $value): array
+    {
+        if (!isset(self::OPERATORS[$type])) {
+            throw new Exception("Unsupported search type '{$type}'");
+        }
+        // Qualify column with table if no explicit alias provided
+        $identifier = str_contains($key, '.')
+            ? $key
+            : $this->getTableName() . '.' . $key;
+        $safeKey     = Sql::ident($identifier);
+        $placeholder = Sql::placeholder($key);
+        $params      = [];
 
-            // Create safe version of key name (field name, plus table name where needed)
-            if (false !== strpos($key, '.')) {
-                // If table and field included, escape with backticks
-                $safeKey = '`' . str_replace('.', '`.`', $key) . '`';
-            } elseif (
-                isset($this->itemClassName::FIELDS[$key])
-                || isset($this->itemClassName::FIELDS_READONLY[$key])
-            ) {
-                // If field in primary table, include table name to avoid ambiguity
-                $safeKey = '`' . $tableName . '`.`' . $key . '`';
-            } else {
-                $safeKey = '`' . $key . '`';
-            }
-
-            // Normalise arrays, check for NULLs and filter for non-NULLs
-            $hasNullValue = false;
-            $nonNullValues = [];
-            if (is_array($value)) {
-                $value = array_unique($value);
-                $hasNullValue = in_array(null, $value, true);
-                $nonNullValues = array_values(array_filter($value, fn ($v) => $v !== null));
-
-                // Convert single‑element array to scalar
-                if (count($value) === 1) {
-                    $value = array_values($value)[0];
-
-                // Two elements, one is NULL - treat as scalar + NULL flag
-                } elseif (count($value) === 2 && $hasNullValue) {
-                    $value = $nonNullValues[0];
-                }
-            }
-
-            // Convert array of values to IN statement
-            if ($searchType === self::EQUALS && is_array($value)) {
-                if (!empty($nonNullValues)) {
-                    [$fragment, $inParams] = Sql::expandIn($safeKey, $nonNullValues, ltrim($placeholder, ':'));
-
-                    // (field IN (:p0,:p1) OR field IS NULL)
-                    $argsSql .= ' AND (' . $fragment;
-                    if ($hasNullValue) {
-                        $argsSql .= ' OR ' . $safeKey . ' IS NULL';
-                    }
-                    $argsSql .= ')';
-
-                    $args += $inParams;
-                } else {
-                    // Only NULLs left
-                    $argsSql .= ' AND ' . $safeKey . ' IS NULL';
-                }
-
-            // Only with null value
-            } elseif ($searchType == self::EQUALS && is_null($value)) {
-                $argsSql .= ' AND ' . $safeKey . ' IS NULL';
-
-            // Scalar values with/without wildcards
-            } else {
-                $thisArgSql = $safeKey . ' ' . self::OPERATORS[$searchType] . ' ' . $placeholder;
-                switch ($searchType) {
-                    case self::STARTS:
-                        $value = $value . '%';
-                        break;
-                    case self::ENDS:
-                        $value = '%' . $value;
-                        break;
-                    case self::CONTAINS:
-                        $value = '%' . $value . '%';
-                        break;
-                    default:
-                        break;
-                }
-                if ($hasNullValue) {
-                    $argsSql .= ' AND (' . $thisArgSql . ' OR ' . $safeKey . ' IS NULL)';
-                } else {
-                    $argsSql .= ' AND ' . $thisArgSql;
-                }
-
-                $args[$placeholder] = $value;
+        $hasNull = false;
+        $nonNull = [];
+        if (is_array($value)) {
+            $value   = array_unique($value);
+            $hasNull = in_array(null, $value, true);
+            $nonNull = array_values(array_filter($value, static fn($v) => $v !== null));
+            if (count($value) === 1) {
+                $value = $value[0];
+            } elseif (count($value) === 2 && $hasNull) {
+                $value = $nonNull[0] ?? null;
             }
         }
 
-        // Strip leading ' AND '
-        return [substr($argsSql, 5), $args];
+        // Array → IN (...) with params
+        if ($type === self::EQUALS && is_array($value)) {
+            if ($nonNull !== []) {
+                [$frag, $inParams] = Sql::expandIn($safeKey, $nonNull, trim($placeholder, ':') . '_');
+                $sql = "($frag" . ($hasNull ? " OR $safeKey IS NULL)" : ')');
+                return [$sql, $inParams];
+            }
+            return ["$safeKey IS NULL", []];
+        }
+
+        // Null scalar
+        if ($type === self::EQUALS && $value === null) {
+            return ["$safeKey IS NULL", []];
+        }
+
+        // Scalar / LIKE
+        $op   = self::OPERATORS[$type];
+        $val  = Sql::likeWildcards((string)$value, $type);
+        $sql  = "$safeKey $op $placeholder";
+        if ($hasNull) {
+            $sql = "($sql OR $safeKey IS NULL)";
+        }
+        $params[$placeholder] = $val;
+
+        return [$sql, $params];
     }
 
-    protected function getData(string $sql, array $params = []): array
+    /* -------------------------------
+     * Core fetch via paginator
+     * ----------------------------- */
+    protected function fetchData(string $sql, array $params): array
     {
         return $this->paginator
             ->setDb($this->getDb())
             ->setSql($sql)
             ->setParams($params)
-            ->getItems()
-        ;
+            ->getItems();
     }
 
+    /* -------------------------------
+     * Persistence helpers
+     * ----------------------------- */
     protected function insertItem(Item $item): void
     {
         $sqlValues = $item->getSqlValues(false);
-        $placeholders = [];
-        $params = [];
-        foreach ($sqlValues as $fieldName => $sqlValue) {
-            if ($fieldName == $this->itemClassName::ID_INTERNAL) {
-                if (is_null($sqlValue)) {
-                    continue;
-                }
-                $fieldName = $this->itemClassName::ID_FIELD;
-            }
-            $placeholders[] = '`' . $fieldName . '` = :' . $fieldName;
-            $params[':' . $fieldName] = $sqlValue;
-        }
-
-        $sql = 'INSERT INTO `' . $this->getTableName() . '`'
-            . ' SET ' . implode(', ', $placeholders);
-
-        $db = $this->getDb();
-        $stmt = $db->prepare($sql);
+        [$pairs, $params] = $this->buildSetList($sqlValues, '');
+        $sql = 'INSERT INTO ' . Sql::ident($this->getTableName())
+             . ' SET ' . implode(', ', $pairs);
+        $stmt = $this->getDb()->prepare($sql);
         $stmt->execute($params);
         if (empty($item->getId())) {
-            //$newId = $db->lastInsertId();
-            $idStmt = $db->query("SELECT MAX(`{$this->getIdField()}`) FROM `{$this->getTableName()}`");
-            if ($idStmt) {
-                $newId = $idStmt->fetchColumn();
-                if (!empty($newId)) {
-                    $item->setId($newId);
-                }
+            $newId = $this->getDb()->lastInsertId();
+            if ($newId) {
+                $item->setId($newId);
             }
         }
         $item->clearOriginalValues();
@@ -395,43 +390,59 @@ abstract class Repository
     protected function updateItem(Item $item): void
     {
         $sqlValues = $item->getChangedSqlValues();
-        $placeholders = [];
-        $params = [':id' => $item->getId()];
-        foreach ($sqlValues as $fieldName => $sqlValue) {
-            $placeholders[] = '`' . $fieldName . '` = :' . $fieldName;
-            $params[':' . $fieldName] = $sqlValue;
-        }
-
-        $sql = 'UPDATE `' . $this->getTableName() . '`'
-            . ' SET ' . implode(', ', $placeholders)
-            . ' WHERE `' . $this->getIdField() . '` = :id';
+        [$pairs, $params] = $this->buildSetList($sqlValues, '');
+        $params[':id'] = $item->getId();
+        $sql = 'UPDATE ' . Sql::ident($this->getTableName())
+             . ' SET ' . implode(', ', $pairs)
+             . ' WHERE ' . Sql::ident($this->getIdField()) . ' = :id';
         $stmt = $this->getDb()->prepare($sql);
         $stmt->execute($params);
         $item->clearOriginalValues();
     }
 
-    protected function deleteItemIds(array $itemIds): void
+    protected function deleteItemIds(array $ids): void
     {
-        $db = $this->getDb();
-        $quotedIds = implode(', ', array_map([$db, 'quote'], $itemIds));
-        $sql = 'DELETE FROM `' . $this->getTableName() . '`'
-            . ' WHERE `' . $this->getIdField() . '`'
-            . ' IN (' . $quotedIds . ')';
-        $db->exec($sql);
+        [$inSql, $inParams] = Sql::expandIn(
+            Sql::ident($this->getIdField()),
+            $ids,
+            'del_'
+        );
+        $sql = 'DELETE FROM ' . Sql::ident($this->getTableName())
+             . ' WHERE ' . $inSql;
+        $stmt = $this->getDb()->prepare($sql);
+        $stmt->execute($inParams);
     }
 
+    protected function buildSetList(array $fieldSqlValues, string $prefix = ''): array
+    {
+        $pairs  = [];
+        $params = [];
+        foreach ($fieldSqlValues as $name => $value) {
+            $ph = ':' . $prefix . $name;
+            $pairs[]     = Sql::ident($name) . ' = ' . $ph;
+            $params[$ph] = $value;
+        }
+        return [$pairs, $params];
+    }
+
+    /* -------------------------------
+     * DB accessor (lazy)
+     * ----------------------------- */
     protected function getDb(): Db|PDO
     {
-        if (!isset($this->db) && class_exists('\FasterPhp\Db\Db')) {
+        if (!isset($this->db) && class_exists(Db::class)) {
             return Db::newDb($this->getDbName());
         }
-
         if (!isset($this->db)) {
             $dbName = $this->getDbName();
-            $config = \FasterPhp\CoreApp\App::getInstance()->getConfig()->db->databases->$dbName;
-            $this->db = new \PDO($config->dsn, $config->username, $config->password);
+            $config = \FasterPhp\CoreApp\App::getInstance()
+                ->getConfig()->db->databases->$dbName;
+            $this->db = new PDO(
+                $config->dsn,
+                $config->username,
+                $config->password
+            );
         }
-
         return $this->db;
     }
 }

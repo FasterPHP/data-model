@@ -98,8 +98,11 @@ class FieldTest extends TestCase
     }
 
     #[DataProvider('booleanProvider')]
-    public function testBooleanConversions(string|bool|null $input = null, ?bool $expectedBool = null, ?string $expectedSql = null): void
-    {
+    public function testBooleanConversions(
+        string|bool|null $input = null,
+        ?bool $expectedBool = null,
+        ?string $expectedSql = null
+    ): void {
         $f = (new Field\Boolean('active'))->setValue($input);
         $this->assertSame($expectedBool, $f->getValue());
         $this->assertSame($expectedSql, $f->getSqlValue());
@@ -151,7 +154,7 @@ class FieldTest extends TestCase
     public function testNonStringableObject(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $f = (new Field\Varchar('name'))->setValue(new \stdClass);
+        $f = (new Field\Varchar('name'))->setValue(new \stdClass());
     }
 
     /*
