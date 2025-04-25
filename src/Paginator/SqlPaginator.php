@@ -10,7 +10,6 @@ namespace FasterPhp\DataModel\Paginator;
 
 use FasterPhp\DataModel\Exception;
 use FasterPhp\DataModel\Sort;
-use FasterPhp\Db\Db;
 use PDO;
 
 /**
@@ -18,17 +17,23 @@ use PDO;
  */
 class SqlPaginator extends Base
 {
-    protected Db|PDO $db;
+    protected PDO $pdo;
     protected string $sql;
     protected array $params;
     protected array $sortFields = [];
 
-    public function setDb(Db|PDO $db): static
+    public function __construct(PDO $pdo, ?Sort $sort = null)
     {
-        if (isset($this->db) && $db !== $this->db) {
+        $this->pdo = $pdo;
+        parent::__construct($sort);
+    }
+
+    public function setPdo(PDO $pdo): static
+    {
+        if (isset($this->pdo) && $pdo !== $this->pdo) {
             $this->clearResults();
         }
-        $this->db = $db;
+        $this->pdo = $pdo;
         return $this;
     }
 
@@ -82,7 +87,7 @@ class SqlPaginator extends Base
 //            echo "\nSQL: " . $this->getPaginatedSql() . "\n";
 //            echo "\$params: " . print_r($this->getParams(), true) . "\n";
 
-            $stmt = $this->getDb()->prepare($this->getPaginatedSql());
+            $stmt = $this->getPdo()->prepare($this->getPaginatedSql());
             $stmt->execute($this->getParams());
 
             $this->items = $stmt->fetchAll($mode) ?? [];
@@ -93,7 +98,7 @@ class SqlPaginator extends Base
     public function getNumItemsTotal(): int
     {
         if (!isset($this->numItemsTotal)) {
-            $stmt = $this->getDb()->prepare("SELECT COUNT(*) FROM ({$this->getSql()}) AS numItemsTotal");
+            $stmt = $this->getPdo()->prepare("SELECT COUNT(*) FROM ({$this->getSql()}) AS numItemsTotal");
             $stmt->execute($this->getParams());
             $this->setNumItemsTotal((int) $stmt->fetchColumn());
         }
@@ -152,12 +157,9 @@ class SqlPaginator extends Base
         return $sql;
     }
 
-    protected function getDb(): Db|PDO
+    protected function getPdo(): PDO
     {
-        if (!isset($this->db)) {
-            throw new Exception('Db not set');
-        }
-        return $this->db;
+        return $this->pdo;
     }
 
     protected function getSql(): string

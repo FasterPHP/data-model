@@ -49,8 +49,7 @@ abstract class RepositoryBase extends TestCase
             ->with($sql)
             ->willReturn($mockDbStatement);
 
-        $repo = new TestModel\ValidRepository();
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb);
 
         $item = $repo->getItemWithId(1);
 
@@ -81,8 +80,7 @@ abstract class RepositoryBase extends TestCase
             ->with($sql)
             ->willReturn($mockDbStatement);
 
-        $repo = new TestModel\ValidRepository();
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb);
 
         $set = $repo->getSetOfAll();
 
@@ -117,8 +115,7 @@ abstract class RepositoryBase extends TestCase
             ->with($sql)
             ->willReturn($mockDbStatement);
 
-        $repo = new TestModel\ValidRepository();
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb);
 
         $set = $repo->getSetWithParams(['name' => 'Marcus Don', 'age' => 25]);
 
@@ -152,8 +149,7 @@ abstract class RepositoryBase extends TestCase
             ->with($sql)
             ->willReturn($mockDbStatement);
 
-        $repo = new TestModel\ValidRepository();
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb);
 
         $set = $repo->getSetWithMinAge(25);
 
@@ -195,8 +191,7 @@ abstract class RepositoryBase extends TestCase
                 return $mockDbStatement;
             });
 
-        $repo = new TestModel\ValidRepository(new Sort('users.name'));
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb, new Sort('users.name'));
 
         $set = $repo->getSetOfAll();
         $this->assertInstanceOf(TestModel\ValidSet::class, $set);
@@ -240,8 +235,7 @@ abstract class RepositoryBase extends TestCase
         $secondarySort = new Sort('users.age', Sort::DESCENDING);
         $sort = new Sort('users.handsome', Sort::ASCENDING, $secondarySort);
 
-        $repo = new TestModel\ValidRepository($sort);
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb, $sort);
 
         $set = $repo->getSetOfAll();
         $this->assertInstanceOf(TestModel\ValidSet::class, $set);
@@ -289,11 +283,10 @@ abstract class RepositoryBase extends TestCase
                 return $mockDbStatement;
             });
 
-        $paginator = new SqlPaginator();
+        $paginator = new SqlPaginator($mockDb);
         $paginator->setMaxItemsPerPage(2);
 
-        $repo = new TestModel\ValidRepository($paginator);
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb, $paginator);
 
         $set = $repo->getSetOfAll();
         $this->assertInstanceOf(TestModel\ValidSet::class, $set);
@@ -351,11 +344,10 @@ abstract class RepositoryBase extends TestCase
         $secondarySort = new Sort('users.age', Sort::DESCENDING);
         $sort = new Sort('users.handsome', Sort::ASCENDING, $secondarySort);
 
-        $paginator = new SqlPaginator($sort);
+        $paginator = new SqlPaginator($mockDb, $sort);
         $paginator->setMaxItemsPerPage(2);
 
-        $repo = new TestModel\ValidRepository($paginator);
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb, $paginator);
 
         $set = $repo->getSetOfAll();
         $this->assertInstanceOf(TestModel\ValidSet::class, $set);
@@ -407,8 +399,7 @@ abstract class RepositoryBase extends TestCase
                 return $mockDbStatement;
             });
 
-        $repo = new TestModel\ValidRepository();
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb);
 
         $set = $repo->getSetOfAll();
         $set->setToDeleteAll();
@@ -454,8 +445,7 @@ abstract class RepositoryBase extends TestCase
                 return $mockDbStatement;
             });
 
-        $repo = new TestModel\ValidRepository();
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb);
 
         $set = $repo->getSetOfAll();
         $set[0]->setName($nameOne);
@@ -510,8 +500,7 @@ abstract class RepositoryBase extends TestCase
                 return $mockDbStatement;
             });
 
-        $repo = new TestModel\ValidRepository();
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb);
 
         $set = $repo->getSetOfAll();
         $item = $set->createItem();
@@ -566,8 +555,7 @@ abstract class RepositoryBase extends TestCase
                 return $mockDbStatement;
             });
 
-        $repo = new TestModel\ValidRepository();
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb);
 
         $item = $repo->getItemWithId(1);
         $item->setToDelete();
@@ -616,8 +604,7 @@ abstract class RepositoryBase extends TestCase
                 return $mockDbStatement;
             });
 
-        $repo = new TestModel\ValidRepository();
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb);
 
         $item = $repo->getItemWithId(1);
         $item->setName($name);
@@ -650,8 +637,7 @@ abstract class RepositoryBase extends TestCase
             ->with($sql)
             ->willReturn($mockDbStatement);
 
-        $repo = new TestModel\ValidRepository();
-        $repo->setDb($mockDb);
+        $repo = new TestModel\ValidRepository($mockDb);
 
         $item = new TestModel\ValidItem();
         $item->setName($name);
