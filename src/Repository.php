@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use FasterPhp\DataModel\Paginator\SqlPaginator;
-use FasterPhp\Db\Db;
 use PDO;
 
 /**
@@ -47,8 +46,8 @@ abstract class Repository
     /* -------------------------------
      * Instance state
      * ----------------------------- */
+    protected PDO $pdo;
     protected SqlPaginator $paginator;
-    protected Db|PDO $db;
 
     /** @var class-string<TItem> */
     protected string $itemClassName;
@@ -58,11 +57,12 @@ abstract class Repository
     /* -------------------------------
      * Construction
      * ----------------------------- */
-    public function __construct(SqlPaginator|Sort|null $paginatorOrSort = null)
+    public function __construct(PDO $pdo, SqlPaginator|Sort|null $paginatorOrSort = null)
     {
+        $this->pdo = $pdo;
         $this->paginator = $paginatorOrSort instanceof SqlPaginator
             ? $paginatorOrSort
-            : new SqlPaginator($paginatorOrSort instanceof Sort ? $paginatorOrSort : null);
+            : new SqlPaginator($pdo, $paginatorOrSort instanceof Sort ? $paginatorOrSort : null);
 
         $this->itemClassName = Util::getItemClassName(static::class);
         $this->setClassName  = Util::getSetClassName(static::class);
@@ -80,12 +80,6 @@ abstract class Repository
     public function setMaxItemsPerPage(?int $max): static
     {
         $this->paginator->setMaxItemsPerPage($max);
-        return $this;
-    }
-
-    public function setDb(Db|PDO $db): static
-    {
-        $this->db = $db;
         return $this;
     }
 
@@ -361,7 +355,6 @@ abstract class Repository
     protected function fetchData(string $sql, array $params): array
     {
         return $this->paginator
-            ->setDb($this->getDb())
             ->setSql($sql)
             ->setParams($params)
             ->getItems();
@@ -376,10 +369,10 @@ abstract class Repository
         [$pairs, $params] = $this->buildSetList($sqlValues, '');
         $sql = 'INSERT INTO ' . Sql::ident($this->getTableName())
              . ' SET ' . implode(', ', $pairs);
-        $stmt = $this->getDb()->prepare($sql);
+        $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($params);
         if (empty($item->getId())) {
-            $newId = $this->getDb()->lastInsertId();
+            $newId = $this->getPdo()->lastInsertId();
             if ($newId) {
                 $item->setId($newId);
             }
@@ -395,7 +388,7 @@ abstract class Repository
         $sql = 'UPDATE ' . Sql::ident($this->getTableName())
              . ' SET ' . implode(', ', $pairs)
              . ' WHERE ' . Sql::ident($this->getIdField()) . ' = :id';
-        $stmt = $this->getDb()->prepare($sql);
+        $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($params);
         $item->clearOriginalValues();
     }
@@ -409,7 +402,7 @@ abstract class Repository
         );
         $sql = 'DELETE FROM ' . Sql::ident($this->getTableName())
              . ' WHERE ' . $inSql;
-        $stmt = $this->getDb()->prepare($sql);
+        $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($inParams);
     }
 
@@ -425,24 +418,8 @@ abstract class Repository
         return [$pairs, $params];
     }
 
-    /* -------------------------------
-     * DB accessor (lazy)
-     * ----------------------------- */
-    protected function getDb(): Db|PDO
+    protected function getPdo(): PDO
     {
-        if (!isset($this->db) && class_exists(Db::class)) {
-            return Db::newDb($this->getDbName());
-        }
-        if (!isset($this->db)) {
-            $dbName = $this->getDbName();
-            $config = \FasterPhp\CoreApp\App::getInstance()
-                ->getConfig()->db->databases->$dbName;
-            $this->db = new PDO(
-                $config->dsn,
-                $config->username,
-                $config->password
-            );
-        }
-        return $this->db;
+        return $this->pdo;
     }
 }

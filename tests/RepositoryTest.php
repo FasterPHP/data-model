@@ -8,6 +8,7 @@ namespace FasterPhp\DataModel;
 
 use PHPUnit\Framework\TestCase;
 use FasterPhp\DataModel\TestModel;
+use PDO;
 
 /**
  * Tests for Data Model Repository class.
@@ -16,7 +17,7 @@ class RepositoryTest extends TestCase
 {
     public function testGetDbNameNotSet(): void
     {
-        $repo = new TestModel\NothingSetRepository();
+        $repo = new TestModel\NothingSetRepository($this->createStub(PDO::class));
 
         $this->expectException(\FasterPhp\DataModel\Exception::class);
         $this->expectExceptionMessage('Database name not set');
@@ -26,14 +27,14 @@ class RepositoryTest extends TestCase
 
     public function testGetDbName(): void
     {
-        $repo = new TestModel\ValidRepository();
+        $repo = new TestModel\ValidRepository($this->createStub(PDO::class));
 
         $this->assertSame('testdb', $repo->getDbName());
     }
 
     public function testGetTableNameNotSet(): void
     {
-        $repo = new TestModel\NothingSetRepository();
+        $repo = new TestModel\NothingSetRepository($this->createStub(PDO::class));
 
         $this->expectException(\FasterPhp\DataModel\Exception::class);
         $this->expectExceptionMessage('Table name not set');
@@ -43,14 +44,14 @@ class RepositoryTest extends TestCase
 
     public function testGetTableName(): void
     {
-        $repo = new TestModel\ValidRepository();
+        $repo = new TestModel\ValidRepository($this->createStub(PDO::class));
 
         $this->assertSame('users', $repo->getTableName());
     }
 
     public function testGetIdField(): void
     {
-        $repo = new TestModel\ValidRepository();
+        $repo = new TestModel\ValidRepository($this->createStub(PDO::class));
 
         $this->assertSame('userId', $repo->getIdField());
     }
