@@ -168,12 +168,12 @@ abstract class Item implements Stringable
             $this->setValue(lcfirst($matches[1]), $args[0]);
             return $this;
         } elseif (count($args) === 0 && preg_match('/^get(.+)$/', $name, $matches)) {
-            return $this->getValue(lcfirst($matches[1]));
+            return $this->getFieldValue(lcfirst($matches[1]));
         }
         throw new BadMethodCallException("Call to undefined method '$name'");
     }
 
-    protected function getValue($fieldName): mixed
+    protected function getFieldValue($fieldName): mixed
     {
         return $this->getField($fieldName)->getValue();
     }

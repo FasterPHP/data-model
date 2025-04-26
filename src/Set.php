@@ -27,6 +27,11 @@ abstract class Set implements ArrayAccess, Countable, SeekableIterator
         $this->itemClassName = Util::getItemClassName(get_called_class());
     }
 
+    public function __toString(): string
+    {
+        return json_encode($this->getValues());
+    }
+
     public function getRawData(): array
     {
         return $this->data;
