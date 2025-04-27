@@ -9,13 +9,15 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use BadMethodCallException;
+use JsonSerializable;
 use Laminas\Validator;
+use PDO;
 use Stringable;
 
 /**
  * Data Model Item class.
  */
-abstract class Item implements Stringable
+abstract class Item implements Stringable, JsonSerializable
 {
     public const ID_FIELD = '';
     public const ID_INTERNAL = 'id';
@@ -32,10 +34,18 @@ abstract class Item implements Stringable
     protected bool $isValid;
     protected array $validationErrors;
 
+	protected PDO $pdo;
+
     public function __construct(array $data = [])
     {
         $this->data = $data;
     }
+
+	public function setPdo(PDO $pdo): static
+	{
+		$this->pdo = $pdo;
+		return $this;
+	}
 
     public function getRawData(): array
     {
@@ -147,6 +157,12 @@ abstract class Item implements Stringable
         return $this->validationErrors;
     }
 
+	#[\Override]
+	public function jsonSerialize(): mixed
+	{
+        return $this->getValues();
+	}
+
     public function __serialize(): array
     {
         return $this->getValues();
@@ -157,6 +173,7 @@ abstract class Item implements Stringable
         $this->data = $data;
     }
 
+    #[\Override]
     public function __toString(): string
     {
         return json_encode($this->getValues());

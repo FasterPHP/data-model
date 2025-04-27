@@ -141,12 +141,17 @@ abstract class Repository
      * ----------------------------- */
     protected function createItem(array $data): Item
     {
-        return new $this->itemClassName($data);
+        $item = new $this->itemClassName($data);
+		$item->setPdo($this->pdo);
+		return $item;
     }
 
     protected function createSet(array $data): Set
     {
-        return new $this->setClassName($data);
+        $set = new $this->setClassName($data);
+		$set->setPdo($this->pdo);
+		$set->preloadChildren();
+		return $set;
     }
 
     /**
@@ -219,19 +224,19 @@ abstract class Repository
     }
 
     /* -------------------------------
-     * SQL clause builders – override piecemeal for joins/aliases
+     * SQL clause getters – override piecemeal for joins/aliases
      * ----------------------------- */
-    protected function buildSelectClause(): string
+    protected function getSelectClause(): string
     {
         return $this->getFieldList();
     }
 
-    protected function buildFromClause(): string
+    protected function getFromClause(): string
     {
         return Sql::ident($this->getTableName());
     }
 
-    protected function buildGroupByClause(): string
+    protected function getGroupByClause(): string
     {
         return $this->itemClassName::FIELDS_AGGREGATE !== []
             ? Sql::ident($this->getTableName() . '.' . $this->getIdField())
@@ -243,15 +248,15 @@ abstract class Repository
      * ----------------------------- */
     protected function getDataWithParams(array $params, array $types = []): array
     {
-        $sql  = 'SELECT ' . $this->buildSelectClause();
-        $sql .= ' FROM ' . $this->buildFromClause();
+        $sql  = 'SELECT ' . $this->getSelectClause();
+        $sql .= ' FROM ' . $this->getFromClause();
 
         [$whereSql,  $whereParams]  = $this->getWhereSqlAndParams($params, $types);
         if ($whereSql !== '') {
             $sql .= "\nWHERE $whereSql";
         }
 
-        $groupBy = $this->buildGroupByClause();
+        $groupBy = $this->getGroupByClause();
         if ($groupBy !== '') {
             $sql .= "\nGROUP BY $groupBy";
         }
@@ -289,14 +294,14 @@ abstract class Repository
         $params    = [];
         foreach ($filters as $key => $value) {
             $searchType = $types[$key] ?? self::EQUALS;
-            [$sql, $chunk] = $this->buildComparison($key, $searchType, $value);
+            [$sql, $chunk] = $this->getComparison($key, $searchType, $value);
             $fragments[] = $sql;
             $params += $chunk;
         }
         return [implode(' AND ', $fragments), $params];
     }
 
-    protected function buildComparison(string $key, string $type, mixed $value): array
+    protected function getComparison(string $key, string $type, mixed $value): array
     {
         if (!isset(self::OPERATORS[$type])) {
             throw new Exception("Unsupported search type '{$type}'");
