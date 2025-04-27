@@ -11,23 +11,45 @@ namespace FasterPhp\DataModel;
 use ArrayAccess;
 use Countable;
 use InvalidArgumentException;
-use SeekableIterator;
+use JsonSerializable;
 use OutOfBoundsException;
+use PDO;
+use SeekableIterator;
+use Stringable;
 
 /**
  * Data Model Set class.
  */
-abstract class Set implements ArrayAccess, Countable, SeekableIterator
+abstract class Set implements ArrayAccess, Countable, JsonSerializable, SeekableIterator, Stringable
 {
     protected array $data;
     protected string $itemClassName;
+    protected PDO $pdo;
+
     public function __construct(array $data = [])
     {
         $this->data = $data;
         $this->itemClassName = Util::getItemClassName(get_called_class());
     }
 
-    public function __toString(): string
+	public function setPdo(PDO $pdo): static
+	{
+		$this->pdo = $pdo;
+		return $this;
+	}
+
+	public function preloadChildren(): void
+	{
+		// Override as required
+	}
+
+	#[\Override]
+	public function jsonSerialize(): mixed
+	{
+        return $this->getValues();
+	}
+
+	public function __toString(): string
     {
         return json_encode($this->getValues());
     }
@@ -37,9 +59,21 @@ abstract class Set implements ArrayAccess, Countable, SeekableIterator
         return $this->data;
     }
 
+    public function getValues(): array
+    {
+        $values = [];
+        for ($i = 0; $i < count($this->data); $i++) {
+            $values[] = $this->getItem($i)->getValues();
+        }
+        return $values;
+    }
+
     public function createItem(): Item
     {
         $item = new $this->itemClassName();
+		if (isset($this->pdo)) {
+			$item->setPdo($this->pdo);
+		}
         $this->addItem($item);
         return $item;
     }
@@ -188,6 +222,9 @@ abstract class Set implements ArrayAccess, Countable, SeekableIterator
     {
         if (is_array($this->data[$offset])) {
             $this->data[$offset] = new $this->itemClassName($this->data[$offset]);
+			if (isset($this->pdo)) {
+				$this->data[$offset]->setPdo($this->pdo);
+			}
         }
         if (!$this->data[$offset] instanceof $this->itemClassName) {
             throw new Exception('Invalid item in set: ' . json_encode($this->data[$offset]));
