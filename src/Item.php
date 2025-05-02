@@ -75,7 +75,7 @@ abstract class Item implements Stringable, JsonSerializable
 
     public function isTemp(): bool
     {
-        if (empty($this->data[static::ID_INTERNAL])) {
+        if (empty($this->data[static::ID_INTERNAL]) || empty($this->data[static::ID_INTERNAL]->getValue())) {
             return true;
         } elseif (
             array_key_exists(static::ID_INTERNAL, $this->originalValues)
