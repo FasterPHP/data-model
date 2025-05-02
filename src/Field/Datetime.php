@@ -37,6 +37,6 @@ class Datetime extends Base
 
     public function __toString(): string
     {
-        return $this->value->format('d/m/Y');
+        return is_null($this->value) ? '' : $this->value->format('d/m/Y');
     }
 }
