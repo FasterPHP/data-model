@@ -139,14 +139,14 @@ abstract class Repository
     /* -------------------------------
      * Item / Set factories (override if needed)
      * ----------------------------- */
-    protected function createItem(array $data): Item
+    public function createItem(array $data): Item
     {
         $item = new $this->itemClassName($data);
 		$item->setPdo($this->pdo);
 		return $item;
     }
 
-    protected function createSet(array $data): Set
+    public function createSet(array $data): Set
     {
         $set = new $this->setClassName($data);
 		$set->setPdo($this->pdo);
