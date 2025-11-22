@@ -86,14 +86,13 @@ class UserItem extends Item
 // Define your Set class
 class UserSet extends Set
 {
-    protected string $itemClassName = UserItem::class;
+    // No properties needed - class names inferred from naming convention
 }
 
 // Define your Repository class
 class UserRepository extends Repository
 {
-    protected string $itemClassName = UserItem::class;
-    protected string $setClassName = UserSet::class;
+    // No properties needed - class names inferred from naming convention
 }
 
 // Example usage
@@ -147,7 +146,7 @@ echo "\n";
 
 // 5. Fetch users with conditions
 echo "5. Fetching users older than 28...\n";
-$olderUsers = $repo->getSetWithParams(['age' => ['>' => 28]]);
+$olderUsers = $repo->getSetWithParams(['age' => [Repository::GREATER => 28]]);
 echo "   Found " . count($olderUsers) . " users:\n";
 foreach ($olderUsers as $user) {
     echo "   - {$user->getName()}, age {$user->getAge()}\n";
