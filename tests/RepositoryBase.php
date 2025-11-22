@@ -180,11 +180,12 @@ abstract class RepositoryBase extends TestCase
             ->willReturnOnConsecutiveCalls($dataOne, $dataTwo);
 
         $mockDb = $this->getMockDb();
-        $matcher = $this->exactly(2);
-        $mockDb->expects($matcher)
+        $callCount = 0;
+        $mockDb->expects($this->exactly(2))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (string $sql) use (&$callCount, $sqlOne, $sqlTwo, $mockDbStatement) {
+                $callCount++;
+                match ($callCount) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlTwo, $sql),
                 };
@@ -271,11 +272,12 @@ abstract class RepositoryBase extends TestCase
             ->willReturnOnConsecutiveCalls($dataOne, $dataTwo);
 
         $mockDb = $this->getMockDb();
-        $matcher = $this->exactly(3);
-        $mockDb->expects($matcher)
+        $prepareCallCount = 0;
+        $mockDb->expects($this->exactly(3))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlCount, $sqlTwo, $mockDbStatement) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (string $sql) use (&$prepareCallCount, $sqlOne, $sqlCount, $sqlTwo, $mockDbStatement) {
+                $prepareCallCount++;
+                match ($prepareCallCount) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlCount, $sql),
                     3 => $this->assertEquals($sqlTwo, $sql),
@@ -329,11 +331,12 @@ abstract class RepositoryBase extends TestCase
             ->willReturnOnConsecutiveCalls($dataOne, $dataTwo);
 
         $mockDb = $this->getMockDb();
-        $matcher = $this->exactly(3);
-        $mockDb->expects($matcher)
+        $prepareCallCount = 0;
+        $mockDb->expects($this->exactly(3))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlCount, $sqlTwo, $mockDbStatement) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (string $sql) use (&$prepareCallCount, $sqlOne, $sqlCount, $sqlTwo, $mockDbStatement) {
+                $prepareCallCount++;
+                match ($prepareCallCount) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlCount, $sql),
                     3 => $this->assertEquals($sqlTwo, $sql),
@@ -372,11 +375,12 @@ abstract class RepositoryBase extends TestCase
         $sqlTwo = "DELETE FROM `users` WHERE `userId` IN (:del_0,:del_1,:del_2)";
 
         $mockDbStatement = $this->getMockDbStatement();
-        $matcher = $this->exactly(2);
-        $mockDbStatement->expects($matcher)
+        $executeCallCount = 0;
+        $mockDbStatement->expects($this->exactly(2))
             ->method('execute')
-            ->willReturnCallback(function (array $params) use ($matcher) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (array $params) use (&$executeCallCount) {
+                $executeCallCount++;
+                match ($executeCallCount) {
                     1 => $this->assertEquals([], $params),
                     2 => $this->assertEquals([':del_0' => 1, ':del_1' => 2, ':del_2' => 3], $params),
                 };
@@ -388,11 +392,12 @@ abstract class RepositoryBase extends TestCase
             ->willReturn($data);
 
         $mockDb = $this->getMockDb();
-        $matcher = $this->exactly(2);
-        $mockDb->expects($matcher)
+        $callCount = 0;
+        $mockDb->expects($this->exactly(2))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (string $sql) use (&$callCount, $sqlOne, $sqlTwo, $mockDbStatement) {
+                $callCount++;
+                match ($callCount) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlTwo, $sql),
                 };
@@ -416,11 +421,12 @@ abstract class RepositoryBase extends TestCase
         $nameTwo = 'Donald Duck';
 
         $mockDbStatement = $this->getMockDbStatement();
-        $matcher = $this->exactly(3);
-        $mockDbStatement->expects($matcher)
+        $executeCallCount = 0;
+        $mockDbStatement->expects($this->exactly(3))
             ->method('execute')
-            ->willReturnCallback(function (array $args) use ($matcher, $nameOne, $nameTwo) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (array $args) use (&$executeCallCount, $nameOne, $nameTwo) {
+                $executeCallCount++;
+                match ($executeCallCount) {
                     1 => $this->assertEquals([], $args),
                     2 => $this->assertEquals([':id' => 1, ':name' => $nameOne], $args),
                     3 => $this->assertEquals([':id' => 3, ':name' => $nameTwo], $args),
@@ -433,11 +439,12 @@ abstract class RepositoryBase extends TestCase
             ->willReturn($data);
 
         $mockDb = $this->getMockDb();
-        $matcher = $this->exactly(3);
-        $mockDb->expects($matcher)
+        $prepareCallCount = 0;
+        $mockDb->expects($this->exactly(3))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (string $sql) use (&$prepareCallCount, $sqlOne, $sqlTwo, $mockDbStatement) {
+                $prepareCallCount++;
+                match ($prepareCallCount) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlTwo, $sql),
                     3 => $this->assertEquals($sqlTwo, $sql),
@@ -473,11 +480,12 @@ abstract class RepositoryBase extends TestCase
         $paramsTwo = [':name' => $name, ':age' => $age, ':height' => $height, ':handsome' => 'n'];
 
         $mockDbStatement = $this->getMockDbStatement();
-        $matcher = $this->exactly(2);
-        $mockDbStatement->expects($matcher)
+        $executeCallCount = 0;
+        $mockDbStatement->expects($this->exactly(2))
             ->method('execute')
-            ->willReturnCallback(function (array $params) use ($matcher, $paramsOne, $paramsTwo) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (array $params) use (&$executeCallCount, $paramsOne, $paramsTwo) {
+                $executeCallCount++;
+                match ($executeCallCount) {
                     1 => $this->assertEquals($paramsOne, $params),
                     2 => $this->assertEquals($paramsTwo, $params),
                 };
@@ -489,11 +497,12 @@ abstract class RepositoryBase extends TestCase
             ->willReturn($data);
 
         $mockDb = $this->getMockDb();
-        $matcher = $this->exactly(2);
-        $mockDb->expects($matcher)
+        $callCount = 0;
+        $mockDb->expects($this->exactly(2))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (string $sql) use (&$callCount, $sqlOne, $sqlTwo, $mockDbStatement) {
+                $callCount++;
+                match ($callCount) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlTwo, $sql),
                 };
@@ -528,11 +537,12 @@ abstract class RepositoryBase extends TestCase
         $paramsTwo = [':del_0' => 1];
 
         $mockDbStatement = $this->getMockDbStatement();
-        $matcher = $this->exactly(2);
-        $mockDbStatement->expects($matcher)
+        $executeCallCount = 0;
+        $mockDbStatement->expects($this->exactly(2))
             ->method('execute')
-            ->willReturnCallback(function (array $params) use ($matcher, $paramsOne, $paramsTwo) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (array $params) use (&$executeCallCount, $paramsOne, $paramsTwo) {
+                $executeCallCount++;
+                match ($executeCallCount) {
                     1 => $this->assertEquals($paramsOne, $params),
                     2 => $this->assertEquals($paramsTwo, $params),
                 };
@@ -544,11 +554,12 @@ abstract class RepositoryBase extends TestCase
             ->willReturn($data);
 
         $mockDb = $this->getMockDb();
-        $matcher = $this->exactly(2);
-        $mockDb->expects($matcher)
+        $callCount = 0;
+        $mockDb->expects($this->exactly(2))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (string $sql) use (&$callCount, $sqlOne, $sqlTwo, $mockDbStatement) {
+                $callCount++;
+                match ($callCount) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlTwo, $sql),
                 };
@@ -577,11 +588,12 @@ abstract class RepositoryBase extends TestCase
         $paramsTwo = [':id' => 1, ':name' => $name, ':age' => $age];
 
         $mockDbStatement = $this->getMockDbStatement();
-        $matcher = $this->exactly(2);
-        $mockDbStatement->expects($matcher)
+        $executeCallCount = 0;
+        $mockDbStatement->expects($this->exactly(2))
             ->method('execute')
-            ->willReturnCallback(function (array $params) use ($matcher, $paramsOne, $paramsTwo) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (array $params) use (&$executeCallCount, $paramsOne, $paramsTwo) {
+                $executeCallCount++;
+                match ($executeCallCount) {
                     1 => $this->assertEquals($paramsOne, $params),
                     2 => $this->assertEquals($paramsTwo, $params),
                 };
@@ -593,11 +605,12 @@ abstract class RepositoryBase extends TestCase
             ->willReturn($data);
 
         $mockDb = $this->getMockDb();
-        $matcher = $this->exactly(2);
-        $mockDb->expects($matcher)
+        $callCount = 0;
+        $mockDb->expects($this->exactly(2))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use ($matcher, $sqlOne, $sqlTwo, $mockDbStatement) {
-                match ($matcher->numberOfInvocations()) {
+            ->willReturnCallback(function (string $sql) use (&$callCount, $sqlOne, $sqlTwo, $mockDbStatement) {
+                $callCount++;
+                match ($callCount) {
                     1 => $this->assertEquals($sqlOne, $sql),
                     2 => $this->assertEquals($sqlTwo, $sql),
                 };

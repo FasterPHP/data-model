@@ -13,7 +13,6 @@ use Countable;
 use InvalidArgumentException;
 use JsonSerializable;
 use OutOfBoundsException;
-use PDO;
 use SeekableIterator;
 use Stringable;
 
@@ -24,24 +23,12 @@ abstract class Set implements ArrayAccess, Countable, JsonSerializable, Seekable
 {
     protected array $data;
     protected string $itemClassName;
-    protected PDO $pdo;
 
     public function __construct(array $data = [])
     {
         $this->data = $data;
         $this->itemClassName = Util::getItemClassName(get_called_class());
     }
-
-	public function setPdo(PDO $pdo): static
-	{
-		$this->pdo = $pdo;
-		return $this;
-	}
-
-	public function preloadChildren(): void
-	{
-		// Override as required
-	}
 
 	#[\Override]
 	public function jsonSerialize(): mixed
@@ -71,9 +58,6 @@ abstract class Set implements ArrayAccess, Countable, JsonSerializable, Seekable
     public function createItem(): Item
     {
         $item = new $this->itemClassName();
-		if (isset($this->pdo)) {
-			$item->setPdo($this->pdo);
-		}
         $this->addItem($item);
         return $item;
     }
@@ -222,9 +206,6 @@ abstract class Set implements ArrayAccess, Countable, JsonSerializable, Seekable
     {
         if (is_array($this->data[$offset])) {
             $this->data[$offset] = new $this->itemClassName($this->data[$offset]);
-			if (isset($this->pdo)) {
-				$this->data[$offset]->setPdo($this->pdo);
-			}
         }
         if (!$this->data[$offset] instanceof $this->itemClassName) {
             throw new Exception('Invalid item in set: ' . json_encode($this->data[$offset]));
