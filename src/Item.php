@@ -11,7 +11,6 @@ namespace FasterPhp\DataModel;
 use BadMethodCallException;
 use JsonSerializable;
 use Laminas\Validator;
-use PDO;
 use Stringable;
 
 /**
@@ -34,18 +33,10 @@ abstract class Item implements Stringable, JsonSerializable
     protected bool $isValid;
     protected array $validationErrors;
 
-	protected PDO $pdo;
-
     public function __construct(array $data = [])
     {
         $this->data = $data;
     }
-
-	public function setPdo(PDO $pdo): static
-	{
-		$this->pdo = $pdo;
-		return $this;
-	}
 
     public function getRawData(): array
     {
@@ -138,18 +129,32 @@ abstract class Item implements Stringable, JsonSerializable
         $this->isValid = true;
         $this->validationErrors = [];
         foreach (static::VALIDATORS as $fieldName => $validators) {
-            $validatorChain = new Validator\ValidatorChain();
-            foreach ($validators as $args) {
-                $this->addValidator($validatorChain, $fieldName, $args);
-            }
+            $chain = $this->buildValidatorChain($fieldName, $validators);
 
-            if ($validatorChain->isValid($this->getField($fieldName)->getValue())) {
+            if ($chain->isValid($this->getField($fieldName)->getValue())) {
                 unset($this->validationErrors[$fieldName]);
             } else {
                 $this->isValid = false;
-                $this->validationErrors[$fieldName] = array_values($validatorChain->getMessages());
+                $this->validationErrors[$fieldName] = array_values($chain->getMessages());
             }
         }
+    }
+
+    /**
+     * Build a validator chain for a field. Override this method to integrate
+     * with different validation frameworks (e.g., Symfony, Laravel).
+     *
+     * @param string $fieldName The field name to validate
+     * @param array $configs Array of validator configurations
+     * @return mixed Object with isValid() and getMessages() methods
+     */
+    protected function buildValidatorChain(string $fieldName, array $configs)
+    {
+        $chain = new Validator\ValidatorChain();
+        foreach ($configs as $args) {
+            $this->addValidator($chain, $fieldName, $args);
+        }
+        return $chain;
     }
 
     public function getValidationErrors(): array
