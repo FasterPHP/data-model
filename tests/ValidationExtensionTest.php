@@ -17,7 +17,7 @@ final class ValidationExtensionTest extends TestCase
     {
         $item = new TestValidatorItem();
         $item->setName('ab'); // Too short
-        
+
         $this->assertFalse($item->isValid());
         $errors = $item->getValidationErrors();
         $this->assertArrayHasKey('name', $errors);
@@ -28,7 +28,7 @@ final class ValidationExtensionTest extends TestCase
     {
         $item = new CustomValidatorItem();
         $item->setName('test');
-        
+
         $this->assertFalse($item->isValid());
         $errors = $item->getValidationErrors();
         $this->assertArrayHasKey('name', $errors);
@@ -39,7 +39,7 @@ final class ValidationExtensionTest extends TestCase
     {
         $item = new CustomValidatorItem();
         $item->setName('valid');
-        
+
         $this->assertTrue($item->isValid());
         $this->assertSame([], $item->getValidationErrors());
     }
@@ -148,7 +148,7 @@ class CustomValidatorChain
     public function isValid($value): bool
     {
         $this->messages = [];
-        
+
         foreach ($this->configs as $config) {
             if (isset($config['rule']) && $config['rule'] === 'not_test') {
                 if ($value === 'test') {
@@ -157,7 +157,7 @@ class CustomValidatorChain
                 }
             }
         }
-        
+
         return true;
     }
 

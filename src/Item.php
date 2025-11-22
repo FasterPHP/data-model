@@ -66,7 +66,8 @@ abstract class Item implements Stringable, JsonSerializable
 
     public function isTemp(): bool
     {
-        if (empty($this->data[static::ID_INTERNAL])
+        if (
+            empty($this->data[static::ID_INTERNAL])
             || ($this->data[static::ID_INTERNAL] instanceof Field\Base
             && empty($this->data[static::ID_INTERNAL]->getValue()))
         ) {
@@ -165,11 +166,11 @@ abstract class Item implements Stringable, JsonSerializable
         return $this->validationErrors;
     }
 
-	#[\Override]
-	public function jsonSerialize(): mixed
-	{
+    #[\Override]
+    public function jsonSerialize(): mixed
+    {
         return $this->getValues();
-	}
+    }
 
     public function __serialize(): array
     {

@@ -67,7 +67,7 @@ final class SqlTest extends TestCase
     public function testExpandInWithValues(): void
     {
         [$sql, $params] = Sql::expandIn('userId', [1, 2, 3]);
-        
+
         $this->assertEquals('userId IN (:p0,:p1,:p2)', $sql);
         $this->assertEquals([':p0' => 1, ':p1' => 2, ':p2' => 3], $params);
     }
@@ -75,7 +75,7 @@ final class SqlTest extends TestCase
     public function testExpandInWithCustomPrefix(): void
     {
         [$sql, $params] = Sql::expandIn('userId', [10, 20], 'user');
-        
+
         $this->assertEquals('userId IN (:user0,:user1)', $sql);
         $this->assertEquals([':user0' => 10, ':user1' => 20], $params);
     }
@@ -83,7 +83,7 @@ final class SqlTest extends TestCase
     public function testExpandInWithSingleValue(): void
     {
         [$sql, $params] = Sql::expandIn('userId', [42]);
-        
+
         $this->assertEquals('userId IN (:p0)', $sql);
         $this->assertEquals([':p0' => 42], $params);
     }
@@ -91,7 +91,7 @@ final class SqlTest extends TestCase
     public function testExpandInWithEmptyArray(): void
     {
         [$sql, $params] = Sql::expandIn('userId', []);
-        
+
         $this->assertEquals('1 = 0', $sql);
         $this->assertEquals([], $params);
     }
@@ -99,7 +99,7 @@ final class SqlTest extends TestCase
     public function testExpandInWithStringValues(): void
     {
         [$sql, $params] = Sql::expandIn('name', ['Alice', 'Bob']);
-        
+
         $this->assertEquals('name IN (:p0,:p1)', $sql);
         $this->assertEquals([':p0' => 'Alice', ':p1' => 'Bob'], $params);
     }
@@ -107,7 +107,7 @@ final class SqlTest extends TestCase
     public function testExpandInWithMixedTypes(): void
     {
         [$sql, $params] = Sql::expandIn('value', [1, 'test', null]);
-        
+
         $this->assertEquals('value IN (:p0,:p1,:p2)', $sql);
         $this->assertEquals([':p0' => 1, ':p1' => 'test', ':p2' => null], $params);
     }
@@ -115,7 +115,7 @@ final class SqlTest extends TestCase
     public function testExpandInWithColumnExpression(): void
     {
         [$sql, $params] = Sql::expandIn('`users`.`userId`', [1, 2]);
-        
+
         $this->assertEquals('`users`.`userId` IN (:p0,:p1)', $sql);
         $this->assertEquals([':p0' => 1, ':p1' => 2], $params);
     }

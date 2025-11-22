@@ -30,13 +30,13 @@ abstract class Set implements ArrayAccess, Countable, JsonSerializable, Seekable
         $this->itemClassName = Util::getItemClassName(get_called_class());
     }
 
-	#[\Override]
-	public function jsonSerialize(): mixed
-	{
+    #[\Override]
+    public function jsonSerialize(): mixed
+    {
         return $this->getValues();
-	}
+    }
 
-	public function __toString(): string
+    public function __toString(): string
     {
         return json_encode($this->getValues());
     }
