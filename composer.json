@@ -29,6 +29,7 @@
     },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+		"faster-php/db": "dev-main",
         "phpunit/phpunit": "^11.5",
         "roave/security-advisories": "dev-latest"
     },
