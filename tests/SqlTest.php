@@ -1,0 +1,122 @@
+<?php
+
+declare(strict_types=1);
+
+namespace FasterPHP\DataModel\Tests;
+
+use FasterPHP\DataModel\Repository;
+use FasterPHP\DataModel\Sql;
+use PHPUnit\Framework\TestCase;
+
+final class SqlTest extends TestCase
+{
+    public function testIdentSimple(): void
+    {
+        $this->assertEquals('`users`', Sql::ident('users'));
+    }
+
+    public function testIdentWithDot(): void
+    {
+        $this->assertEquals('`users`.`userId`', Sql::ident('users.userId'));
+    }
+
+    public function testIdentWithMultipleDots(): void
+    {
+        $this->assertEquals('`db`.`users`.`userId`', Sql::ident('db.users.userId'));
+    }
+
+    public function testPlaceholderSimple(): void
+    {
+        $this->assertEquals(':userId', Sql::placeholder('userId'));
+    }
+
+    public function testPlaceholderWithSpecialChars(): void
+    {
+        $this->assertEquals(':user_id', Sql::placeholder('user-id'));
+        $this->assertEquals(':user_name', Sql::placeholder('user.name'));
+        $this->assertEquals(':user_email', Sql::placeholder('user@email'));
+    }
+
+    public function testPlaceholderWithMixedChars(): void
+    {
+        $this->assertEquals(':abc123_def', Sql::placeholder('abc123-def'));
+    }
+
+    public function testLikeWildcardsStarts(): void
+    {
+        $this->assertEquals('test%', Sql::likeWildcards('test', Repository::STARTS));
+    }
+
+    public function testLikeWildcardsEnds(): void
+    {
+        $this->assertEquals('%test', Sql::likeWildcards('test', Repository::ENDS));
+    }
+
+    public function testLikeWildcardsContains(): void
+    {
+        $this->assertEquals('%test%', Sql::likeWildcards('test', Repository::CONTAINS));
+    }
+
+    public function testLikeWildcardsDefault(): void
+    {
+        // Default case (no wildcards added for unknown search types)
+        $this->assertEquals('test', Sql::likeWildcards('test', 'unknown'));
+        $this->assertEquals('test', Sql::likeWildcards('test', 'exact'));
+    }
+
+    public function testExpandInWithValues(): void
+    {
+        [$sql, $params] = Sql::expandIn('userId', [1, 2, 3]);
+        
+        $this->assertEquals('userId IN (:p0,:p1,:p2)', $sql);
+        $this->assertEquals([':p0' => 1, ':p1' => 2, ':p2' => 3], $params);
+    }
+
+    public function testExpandInWithCustomPrefix(): void
+    {
+        [$sql, $params] = Sql::expandIn('userId', [10, 20], 'user');
+        
+        $this->assertEquals('userId IN (:user0,:user1)', $sql);
+        $this->assertEquals([':user0' => 10, ':user1' => 20], $params);
+    }
+
+    public function testExpandInWithSingleValue(): void
+    {
+        [$sql, $params] = Sql::expandIn('userId', [42]);
+        
+        $this->assertEquals('userId IN (:p0)', $sql);
+        $this->assertEquals([':p0' => 42], $params);
+    }
+
+    public function testExpandInWithEmptyArray(): void
+    {
+        [$sql, $params] = Sql::expandIn('userId', []);
+        
+        $this->assertEquals('1 = 0', $sql);
+        $this->assertEquals([], $params);
+    }
+
+    public function testExpandInWithStringValues(): void
+    {
+        [$sql, $params] = Sql::expandIn('name', ['Alice', 'Bob']);
+        
+        $this->assertEquals('name IN (:p0,:p1)', $sql);
+        $this->assertEquals([':p0' => 'Alice', ':p1' => 'Bob'], $params);
+    }
+
+    public function testExpandInWithMixedTypes(): void
+    {
+        [$sql, $params] = Sql::expandIn('value', [1, 'test', null]);
+        
+        $this->assertEquals('value IN (:p0,:p1,:p2)', $sql);
+        $this->assertEquals([':p0' => 1, ':p1' => 'test', ':p2' => null], $params);
+    }
+
+    public function testExpandInWithColumnExpression(): void
+    {
+        [$sql, $params] = Sql::expandIn('`users`.`userId`', [1, 2]);
+        
+        $this->assertEquals('`users`.`userId` IN (:p0,:p1)', $sql);
+        $this->assertEquals([':p0' => 1, ':p1' => 2], $params);
+    }
+}
