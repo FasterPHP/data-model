@@ -82,7 +82,7 @@ use FasterPhp\DataModel\Set;
 
 class UserSet extends Set
 {
-    protected string $itemClassName = UserItem::class;
+    // No properties needed - class names inferred from naming convention
 }
 ```
 
@@ -93,10 +93,11 @@ use FasterPhp\DataModel\Repository;
 
 class UserRepository extends Repository
 {
-    protected string $itemClassName = UserItem::class;
-    protected string $setClassName = UserSet::class;
+    // No properties needed - class names inferred from naming convention
 }
 ```
+
+**Note:** By default, `Set` and `Repository` automatically infer related class names using the `Util` class if you follow the `{Prefix}Item/{Prefix}Set/{Prefix}Repository` naming convention. You only need to override `$itemClassName` or `$setClassName` if your naming doesn't follow this convention.
 
 ### 4. Use Your Repository
 
@@ -110,7 +111,7 @@ $user = $repo->getItemWithId(123);
 echo $user->getName();
 
 // Fetch multiple users
-$users = $repo->getSetWithParams(['age' => ['>' => 18]]);
+$users = $repo->getSetWithParams(['age' => [Repository::GREATER => 18]]);
 foreach ($users as $user) {
     echo $user->getName() . "\n";
 }
@@ -272,8 +273,8 @@ $users = $repo->getSetWithParams(['name' => 'John']);
 
 // Comparison operators
 $users = $repo->getSetWithParams([
-    'age' => ['>' => 18],
-    'created' => ['<' => '2024-01-01']
+    'age' => [Repository::GREATER => 18],
+    'created' => [Repository::LESS => '2024-01-01']
 ]);
 
 // LIKE searches
