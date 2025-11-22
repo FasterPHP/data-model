@@ -6,16 +6,16 @@ namespace FasterPhp\DataModel;
 
 use PDO;
 use FasterPhp\Db\Db;
-use FasterPhp\Db\Statement;
+use FasterPhp\Db\DbStatement;
 
 /**
  * Tests for Data Model Repository class.
  */
 class RepositoryDbTest extends RepositoryBase
 {
-	protected function _getMockDbStatement(): Statement
+	protected function _getMockDbStatement(): DbStatement
 	{
-		return $this->getMockBuilder(Statement::class)
+		return $this->getMockBuilder(DbStatement::class)
 			->disableOriginalConstructor()
 			->setMethods(['execute', 'fetch', 'fetchAll', 'fetchColumn'])
 			->getMock();
