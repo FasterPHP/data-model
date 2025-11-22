@@ -110,8 +110,11 @@ $repo = new UserRepository($pdo);
 $user = $repo->getItemWithId(123);
 echo $user->getName();
 
-// Fetch multiple users
-$users = $repo->getSetWithParams(['age' => [Repository::GREATER => 18]]);
+// Fetch multiple users with comparison operators
+$users = $repo->getSetWithParams(
+    ['age' => 18],
+    ['age' => Repository::GREATER]
+);
 foreach ($users as $user) {
     echo $user->getName() . "\n";
 }
@@ -271,11 +274,17 @@ class SymfonyUserItem extends UserItem
 // Exact match
 $users = $repo->getSetWithParams(['name' => 'John']);
 
-// Comparison operators
-$users = $repo->getSetWithParams([
-    'age' => [Repository::GREATER => 18],
-    'created' => [Repository::LESS => '2024-01-01']
-]);
+// Comparison operators (use second $types parameter)
+$users = $repo->getSetWithParams(
+    [
+        'age' => 18,
+        'created' => '2024-01-01',
+    ],
+    [
+        'age' => Repository::GREATER,
+        'created' => Repository::LESS,
+    ]
+);
 
 // LIKE searches
 $users = $repo->getSetWithParams([

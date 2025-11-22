@@ -144,9 +144,12 @@ foreach ($users as $user) {
 }
 echo "\n";
 
-// 5. Fetch users with conditions
+// 5. Fetch users with conditions (using comparison operators)
 echo "5. Fetching users older than 28...\n";
-$olderUsers = $repo->getSetWithParams(['age' => [Repository::GREATER => 28]]);
+$olderUsers = $repo->getSetWithParams(
+    ['age' => 28],
+    ['age' => Repository::GREATER]
+);
 echo "   Found " . count($olderUsers) . " users:\n";
 foreach ($olderUsers as $user) {
     echo "   - {$user->getName()}, age {$user->getAge()}\n";
