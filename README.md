@@ -1,4 +1,4 @@
-# FasterPHP Data Model
+# FasterPHP/DataModel
 
 A lightweight, high-performance data model library for PHP 8.2+ that provides strict typing, lazy loading, and efficient database operations without the complexity of full ORMs like Doctrine.
 
@@ -37,7 +37,7 @@ class UserItem extends Item
 {
     public const DB_NAME = 'myapp';
     public const TABLE_NAME = 'users';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
@@ -45,7 +45,7 @@ class UserItem extends Item
         'age' => Field\Integer::class,
         'created' => Field\Datetime::class,
     ];
-    
+
     public const VALIDATORS = [
         'name' => [
             ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 2, 'max' => 100]],
@@ -54,23 +54,23 @@ class UserItem extends Item
             ['class' => \Laminas\Validator\EmailAddress::class],
         ],
     ];
-    
+
     public function getId(): ?int
     {
         return $this->getField('id')->getValue();
     }
-    
+
     public function getName(): ?string
     {
         return $this->getField('name')->getValue();
     }
-    
+
     public function setName(?string $value): static
     {
         $this->getField('name')->setValue($value);
         return $this;
     }
-    
+
     // ... other getters and setters
 }
 ```
@@ -173,11 +173,11 @@ class TicketItem extends Item
         'title' => Field\Varchar::class,
         'assignedTo' => Field\Integer::class,
     ];
-    
+
     public const FIELDS_READONLY = [
         'assigneeName' => Field\Varchar::class, // From join
     ];
-    
+
     public function getAssigneeName(): ?string
     {
         return $this->getField('assigneeName')->getValue();
@@ -190,10 +190,10 @@ class TicketRepository extends Repository
     {
         return parent::getSelectClause() . ', users.name AS assigneeName';
     }
-    
+
     protected function getFromClause(): string
     {
-        return parent::getFromClause() 
+        return parent::getFromClause()
             . ' LEFT JOIN users ON tickets.assignedTo = users.id';
     }
 }
