@@ -2,7 +2,7 @@
 
 /**
  * Example 04: Complex Queries with Joins
- * 
+ *
  * This example demonstrates:
  * - Extending Repository to add JOIN clauses
  * - Adding read-only fields from joined tables
@@ -16,13 +16,12 @@ use FasterPhp\DataModel\Item;
 use FasterPhp\DataModel\Set;
 use FasterPhp\DataModel\Repository;
 use FasterPhp\DataModel\Field;
-use FasterPhp\DataModel\Sql;
 
 // Define Department Item
 class DepartmentItem extends Item
 {
     public const ID_FIELD = 'deptId';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
@@ -39,33 +38,21 @@ class DepartmentRepository extends Repository
     protected const TABLE_NAME = 'departments';
 }
 
-// Define Employee Item with read-only department name field
+// Define Employee Item with external, read-only department name field
 class EmployeeItem extends Item
 {
     public const ID_FIELD = 'empId';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'departmentId' => Field\Integer::class,
         'salary' => Field\Integer::class,
     ];
-    
-    // Read-only field from joined table (not in FIELDS)
-    private ?string $departmentName = null;
-    
-    // Getter for read-only joined field
-    public function getDepartmentName(): ?string
-    {
-        return $this->departmentName;
-    }
-    
-    // Setter for read-only joined field (used by Repository)
-    public function setDepartmentName(?string $value): static
-    {
-        $this->departmentName = $value;
-        return $this;
-    }
+
+    public const FIELDS_EXTERNAL = [
+        'departmentName' => Field\Varchar::class,
+    ];
 }
 
 class EmployeeSet extends Set
@@ -77,43 +64,22 @@ class EmployeeRepository extends Repository
 {
     protected const DB_NAME = 'example';
     protected const TABLE_NAME = 'employees';
-    
+
     /**
      * Override to add department name from joined table
      */
     protected function getSelectClause(): string
     {
-        $baseFields = parent::getSelectClause();
-        $tableName = Sql::ident($this->getTableName());
-        $deptName = Sql::ident('departments.name');
-        
-        return "{$baseFields}, {$deptName} AS departmentName";
+        return parent::getSelectClause() . ', `departments`.`name` AS departmentName';
     }
-    
+
     /**
      * Override to add LEFT JOIN with departments table
      */
     protected function getFromClause(): string
     {
-        $tableName = Sql::ident($this->getTableName());
-        $deptTable = Sql::ident('departments');
-        
-        return "{$tableName} LEFT JOIN {$deptTable} ON {$tableName}.departmentId = {$deptTable}.deptId";
-    }
-    
-    /**
-     * Override to populate the read-only departmentName field
-     */
-    protected function createItem(array $data = []): Item
-    {
-        $item = parent::createItem($data);
-        
-        // Set the read-only field if present in data
-        if (isset($data['departmentName'])) {
-            $item->setDepartmentName($data['departmentName']);
-        }
-        
-        return $item;
+        return parent::getFromClause()
+            . " LEFT JOIN `departments` ON `departments`.`deptId` = `employees`.`departmentId`";
     }
 }
 
@@ -144,7 +110,7 @@ $pdo->exec("
 
 // Insert departments
 $pdo->exec("
-    INSERT INTO departments (name) VALUES 
+    INSERT INTO departments (name) VALUES
     ('Engineering'),
     ('Sales'),
     ('Marketing'),
@@ -153,7 +119,7 @@ $pdo->exec("
 
 // Insert employees
 $pdo->exec("
-    INSERT INTO employees (name, departmentId, salary) VALUES 
+    INSERT INTO employees (name, departmentId, salary) VALUES
     ('Alice Smith', 1, 90000),
     ('Bob Jones', 1, 85000),
     ('Charlie Brown', 2, 75000),
@@ -177,44 +143,12 @@ foreach ($employees as $employee) {
 }
 echo "\n";
 
-// 3. Filter by department using joined data
+// 3. Filter by department name using joined data
 echo "3. Fetching Engineering employees...\n";
-$engineers = $repo->getSetWithParams(['departmentId' => 1]);
+$engineers = $repo->getSetWithParams(['departments.name' => 'Engineering']);
 
 echo "   Found " . count($engineers) . " engineers:\n";
 foreach ($engineers as $employee) {
     echo "   - {$employee->getName()} ({$employee->getDepartmentName()}) - \${$employee->getSalary()}\n";
 }
-echo "\n";
-
-// 4. Filter by salary range
-echo "4. Fetching employees earning more than \$80,000...\n";
-$highEarners = $repo->getSetWithParams(
-    ['salary' => 80000],
-    ['salary' => Repository::GREATER]
-);
-
-echo "   Found " . count($highEarners) . " high earners:\n";
-foreach ($highEarners as $employee) {
-    echo "   - {$employee->getName()} ({$employee->getDepartmentName()}) - \${$employee->getSalary()}\n";
-}
-echo "\n";
-
-// 5. Demonstrate that read-only field is not saved
-echo "5. Demonstrating read-only field behavior...\n";
-$employee = $repo->getItemWithId(1);
-echo "   Original: {$employee->getName()} - {$employee->getDepartmentName()}\n";
-
-// Try to change department name (this won't affect the database)
-$employee->setDepartmentName('Modified Department');
-echo "   After setDepartmentName: {$employee->getDepartmentName()}\n";
-
-// Save the employee (departmentName is not saved)
-$repo->saveItem($employee);
-
-// Fetch again to verify departmentName wasn't saved
-$employee = $repo->getItemWithId(1);
-echo "   After save and reload: {$employee->getName()} - {$employee->getDepartmentName()}\n";
-echo "   (departmentName remains unchanged because it's read-only)\n";
-
 echo "\n=== Example Complete ===\n";

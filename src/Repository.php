@@ -366,21 +366,21 @@ abstract class Repository
     protected function insertItem(Item $item): void
     {
         $sqlValues = $item->getSqlValues(false);
-        
+
         // Build portable INSERT INTO (cols) VALUES (...) syntax
         $columns = array_keys($sqlValues);
         $idents  = array_map([Sql::class, 'ident'], $columns);
         $placeholders = array_map(fn($name) => ':' . $name, $columns);
-        
+
         $sql = 'INSERT INTO ' . Sql::ident($this->getTableName())
              . ' (' . implode(', ', $idents) . ')'
              . ' VALUES (' . implode(', ', $placeholders) . ')';
-        
+
         $params = [];
         foreach ($sqlValues as $name => $value) {
             $params[':' . $name] = $value;
         }
-        
+
         $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($params);
         if (empty($item->getId())) {
