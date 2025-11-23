@@ -207,6 +207,12 @@ abstract class Item implements Stringable, JsonSerializable
     protected function setValue(string $fieldName, $value): Field\Base
     {
         $field = $this->getField($fieldName);
+        if (isset(static::FIELDS_READONLY[$fieldName])
+            || isset(static::FIELDS_EXTERNAL[$fieldName])
+            || isset(static::FIELDS_AGGREGATE[$fieldName])
+        ) {
+            throw new Exception("Cannot update value for read-only field '$fieldName'");
+        }
         $oldValue = isset($this->originalValues[$fieldName]) ? $this->originalValues[$fieldName] : $field->getValue();
         $field->setValue($value);
         $newValue = $field->getValue();
