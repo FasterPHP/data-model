@@ -21,6 +21,7 @@ class UserItem extends Item
 {
     public const DB_NAME = 'example';
     public const TABLE_NAME = 'users';
+    public const ID_FIELD = 'id';
     
     public const FIELDS = [
         'id' => Field\Integer::class,
