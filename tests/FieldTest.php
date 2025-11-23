@@ -8,7 +8,6 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
-use FasterPhp\DataModel\Field;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use DateTime;

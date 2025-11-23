@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-namespace FasterPHP\DataModel\Tests;
+namespace FasterPHP\DataModel;
 
-use FasterPHP\DataModel\Repository;
-use FasterPHP\DataModel\Sql;
 use PHPUnit\Framework\TestCase;
 
 final class SqlTest extends TestCase

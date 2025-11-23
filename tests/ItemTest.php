@@ -8,8 +8,6 @@ namespace FasterPhp\DataModel;
 
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
-use FasterPhp\DataModel\Field;
-use FasterPhp\DataModel\TestModel;
 
 /**
  * Tests for Data Model Item class.
