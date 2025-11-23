@@ -20,9 +20,7 @@ use FasterPhp\DataModel\Field;
 // Define your Item class with comprehensive validation
 class UserItem extends Item
 {
-    public const DB_NAME = 'example';
-    public const TABLE_NAME = 'users';
-    public const ID_FIELD = 'id';
+    public const ID_FIELD = 'userId';
     
     public const FIELDS = [
         'id' => Field\Integer::class,
@@ -49,61 +47,6 @@ class UserItem extends Item
             ['class' => \Laminas\Validator\Regex::class, 'options' => ['pattern' => '/^[a-zA-Z0-9_]+$/']],
         ],
     ];
-    
-    public function getId(): ?int
-    {
-        return $this->getField('id')->getValue();
-    }
-    
-    public function setId(?int $value): static
-    {
-        $this->getField('id')->setValue($value);
-        return $this;
-    }
-    
-    public function getName(): ?string
-    {
-        return $this->getField('name')->getValue();
-    }
-    
-    public function setName(?string $value): static
-    {
-        $this->getField('name')->setValue($value);
-        return $this;
-    }
-    
-    public function getEmail(): ?string
-    {
-        return $this->getField('email')->getValue();
-    }
-    
-    public function setEmail(?string $value): static
-    {
-        $this->getField('email')->setValue($value);
-        return $this;
-    }
-    
-    public function getAge(): ?int
-    {
-        return $this->getField('age')->getValue();
-    }
-    
-    public function setAge(?int $value): static
-    {
-        $this->getField('age')->setValue($value);
-        return $this;
-    }
-    
-    public function getUsername(): ?string
-    {
-        return $this->getField('username')->getValue();
-    }
-    
-    public function setUsername(?string $value): static
-    {
-        $this->getField('username')->setValue($value);
-        return $this;
-    }
 }
 
 // Define your Set class
@@ -130,7 +73,7 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 // Create example table
 $pdo->exec("
     CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100),
         email VARCHAR(100),
         age INTEGER,

@@ -21,24 +21,12 @@ use FasterPhp\DataModel\Sql;
 // Define Department Item
 class DepartmentItem extends Item
 {
-    public const DB_NAME = 'example';
-    public const TABLE_NAME = 'departments';
-    public const ID_FIELD = 'id';
+    public const ID_FIELD = 'deptId';
     
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
     ];
-    
-    public function getId(): ?int
-    {
-        return $this->getField('id')->getValue();
-    }
-    
-    public function getName(): ?string
-    {
-        return $this->getField('name')->getValue();
-    }
 }
 
 class DepartmentSet extends Set
@@ -54,9 +42,7 @@ class DepartmentRepository extends Repository
 // Define Employee Item with read-only department name field
 class EmployeeItem extends Item
 {
-    public const DB_NAME = 'example';
-    public const TABLE_NAME = 'employees';
-    public const ID_FIELD = 'id';
+    public const ID_FIELD = 'empId';
     
     public const FIELDS = [
         'id' => Field\Integer::class,
@@ -67,38 +53,6 @@ class EmployeeItem extends Item
     
     // Read-only field from joined table (not in FIELDS)
     private ?string $departmentName = null;
-    
-    public function getId(): ?int
-    {
-        return $this->getField('id')->getValue();
-    }
-    
-    public function getName(): ?string
-    {
-        return $this->getField('name')->getValue();
-    }
-    
-    public function getDepartmentId(): ?int
-    {
-        return $this->getField('departmentId')->getValue();
-    }
-    
-    public function setDepartmentId(?int $value): static
-    {
-        $this->getField('departmentId')->setValue($value);
-        return $this;
-    }
-    
-    public function getSalary(): ?int
-    {
-        return $this->getField('salary')->getValue();
-    }
-    
-    public function setSalary(?int $value): static
-    {
-        $this->getField('salary')->setValue($value);
-        return $this;
-    }
     
     // Getter for read-only joined field
     public function getDepartmentName(): ?string
@@ -144,7 +98,7 @@ class EmployeeRepository extends Repository
         $tableName = Sql::ident($this->getTableName());
         $deptTable = Sql::ident('departments');
         
-        return "{$tableName} LEFT JOIN {$deptTable} ON {$tableName}.departmentId = {$deptTable}.id";
+        return "{$tableName} LEFT JOIN {$deptTable} ON {$tableName}.departmentId = {$deptTable}.deptId";
     }
     
     /**
@@ -174,14 +128,14 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 // Create tables
 $pdo->exec("
     CREATE TABLE departments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        deptId INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100)
     )
 ");
 
 $pdo->exec("
     CREATE TABLE employees (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empId INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100),
         departmentId INTEGER,
         salary INTEGER
@@ -212,29 +166,8 @@ $pdo->exec("
 
 echo "   ✓ Database setup complete\n\n";
 
-// 2. Fetch employees WITHOUT join (N+1 problem)
-echo "2. Fetching employees WITHOUT join (N+1 problem)...\n";
-$basicRepo = new Repository($pdo);
-$basicRepo->setItemClassName('EmployeeItem');
-$basicRepo->setSetClassName('EmployeeSet');
-$employees = $basicRepo->getSetOfAll();
-
-$deptRepo = new DepartmentRepository($pdo);
-echo "   This would require 1 query for employees + N queries for departments:\n";
-$queryCount = 1;
-foreach ($employees as $employee) {
-    // In real code, this would be: $dept = $deptRepo->getItemWithId($employee->getDepartmentId());
-    // Each iteration = 1 additional query
-    $queryCount++;
-    if ($queryCount > 3) {
-        echo "   ... (total: " . count($employees) . " + 1 queries)\n";
-        break;
-    }
-}
-echo "\n";
-
-// 3. Fetch employees WITH join (efficient)
-echo "3. Fetching employees WITH join (single query)...\n";
+// 2. Fetch employees WITH join (efficient)
+echo "2. Fetching employees WITH join (single query)...\n";
 $repo = new EmployeeRepository($pdo);
 $employees = $repo->getSetOfAll();
 
@@ -244,8 +177,8 @@ foreach ($employees as $employee) {
 }
 echo "\n";
 
-// 4. Filter by department using joined data
-echo "4. Fetching Engineering employees...\n";
+// 3. Filter by department using joined data
+echo "3. Fetching Engineering employees...\n";
 $engineers = $repo->getSetWithParams(['departmentId' => 1]);
 
 echo "   Found " . count($engineers) . " engineers:\n";
@@ -254,8 +187,8 @@ foreach ($engineers as $employee) {
 }
 echo "\n";
 
-// 5. Filter by salary range
-echo "5. Fetching employees earning more than \$80,000...\n";
+// 4. Filter by salary range
+echo "4. Fetching employees earning more than \$80,000...\n";
 $highEarners = $repo->getSetWithParams(
     ['salary' => 80000],
     ['salary' => Repository::GREATER]
@@ -267,8 +200,8 @@ foreach ($highEarners as $employee) {
 }
 echo "\n";
 
-// 6. Demonstrate that read-only field is not saved
-echo "6. Demonstrating read-only field behavior...\n";
+// 5. Demonstrate that read-only field is not saved
+echo "5. Demonstrating read-only field behavior...\n";
 $employee = $repo->getItemWithId(1);
 echo "   Original: {$employee->getName()} - {$employee->getDepartmentName()}\n";
 
