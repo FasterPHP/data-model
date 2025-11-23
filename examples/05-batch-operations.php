@@ -20,9 +20,7 @@ use FasterPhp\DataModel\Field;
 // Define your Item class
 class UserItem extends Item
 {
-    public const DB_NAME = 'example';
-    public const TABLE_NAME = 'users';
-    public const ID_FIELD = 'id';
+    public const ID_FIELD = 'userId';
     
     public const FIELDS = [
         'id' => Field\Integer::class,
@@ -31,55 +29,6 @@ class UserItem extends Item
         'active' => Field\Boolean::class,
         'loginCount' => Field\Integer::class,
     ];
-    
-    public function getId(): ?int
-    {
-        return $this->getField('id')->getValue();
-    }
-    
-    public function getName(): ?string
-    {
-        return $this->getField('name')->getValue();
-    }
-    
-    public function setName(?string $value): static
-    {
-        $this->getField('name')->setValue($value);
-        return $this;
-    }
-    
-    public function getEmail(): ?string
-    {
-        return $this->getField('email')->getValue();
-    }
-    
-    public function setEmail(?string $value): static
-    {
-        $this->getField('email')->setValue($value);
-        return $this;
-    }
-    
-    public function getActive(): ?bool
-    {
-        return $this->getField('active')->getValue();
-    }
-    
-    public function setActive(?bool $value): static
-    {
-        $this->getField('active')->setValue($value);
-        return $this;
-    }
-    
-    public function getLoginCount(): ?int
-    {
-        return $this->getField('loginCount')->getValue();
-    }
-    
-    public function setLoginCount(?int $value): static
-    {
-        $this->getField('loginCount')->setValue($value);
-        return $this;
-    }
 }
 
 // Define your Set class
@@ -106,7 +55,7 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 // Create example table
 $pdo->exec("
     CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100),
         email VARCHAR(100),
         active INTEGER DEFAULT 1,
@@ -141,7 +90,7 @@ echo "\n";
 
 // 3. Batch update: Activate all inactive users
 echo "3. Batch update: Activating all inactive users...\n";
-$inactiveUsers = $repo->getSetWithParams(['active' => false]);
+$inactiveUsers = $repo->getSetWithParams(['active' => 0]);
 echo "   Found " . count($inactiveUsers) . " inactive users\n";
 
 foreach ($inactiveUsers as $user) {

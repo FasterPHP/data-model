@@ -56,9 +56,7 @@ class CustomValidatorChain
  */
 class StandardUserItem extends Item
 {
-    public const DB_NAME = 'example';
-    public const TABLE_NAME = 'users';
-    public const ID_FIELD = 'id';
+    public const ID_FIELD = 'userId';
     
     public const FIELDS = [
         'id' => Field\Integer::class,
@@ -74,33 +72,6 @@ class StandardUserItem extends Item
             ['class' => \Laminas\Validator\EmailAddress::class],
         ],
     ];
-    
-    public function getId(): ?int
-    {
-        return $this->getField('id')->getValue();
-    }
-    
-    public function getName(): ?string
-    {
-        return $this->getField('name')->getValue();
-    }
-    
-    public function setName(?string $value): static
-    {
-        $this->getField('name')->setValue($value);
-        return $this;
-    }
-    
-    public function getEmail(): ?string
-    {
-        return $this->getField('email')->getValue();
-    }
-    
-    public function setEmail(?string $value): static
-    {
-        $this->getField('email')->setValue($value);
-        return $this;
-    }
 }
 
 /**
@@ -108,9 +79,7 @@ class StandardUserItem extends Item
  */
 class CustomUserItem extends Item
 {
-    public const DB_NAME = 'example';
-    public const TABLE_NAME = 'users';
-    public const ID_FIELD = 'id';
+    public const ID_FIELD = 'userId';
     
     public const FIELDS = [
         'id' => Field\Integer::class,
@@ -181,44 +150,6 @@ class CustomUserItem extends Item
         
         return $chain;
     }
-    
-    public function getId(): ?int
-    {
-        return $this->getField('id')->getValue();
-    }
-    
-    public function getName(): ?string
-    {
-        return $this->getField('name')->getValue();
-    }
-    
-    public function setName(?string $value): static
-    {
-        $this->getField('name')->setValue($value);
-        return $this;
-    }
-    
-    public function getEmail(): ?string
-    {
-        return $this->getField('email')->getValue();
-    }
-    
-    public function setEmail(?string $value): static
-    {
-        $this->getField('email')->setValue($value);
-        return $this;
-    }
-    
-    public function getUsername(): ?string
-    {
-        return $this->getField('username')->getValue();
-    }
-    
-    public function setUsername(?string $value): static
-    {
-        $this->getField('username')->setValue($value);
-        return $this;
-    }
 }
 
 class CustomUserSet extends Set
@@ -242,7 +173,7 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 // Create example table
 $pdo->exec("
     CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100),
         email VARCHAR(100),
         username VARCHAR(60)
