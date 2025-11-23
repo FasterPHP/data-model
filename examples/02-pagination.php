@@ -21,9 +21,7 @@ use FasterPhp\DataModel\Sort;
 // Define your Item class
 class UserItem extends Item
 {
-    public const DB_NAME = 'example';
-    public const TABLE_NAME = 'users';
-    public const ID_FIELD = 'id';
+    public const ID_FIELD = 'userId';
     
     public const FIELDS = [
         'id' => Field\Integer::class,
@@ -31,26 +29,6 @@ class UserItem extends Item
         'email' => Field\Varchar::class,
         'age' => Field\Integer::class,
     ];
-    
-    public function getId(): ?int
-    {
-        return $this->getField('id')->getValue();
-    }
-    
-    public function getName(): ?string
-    {
-        return $this->getField('name')->getValue();
-    }
-    
-    public function getEmail(): ?string
-    {
-        return $this->getField('email')->getValue();
-    }
-    
-    public function getAge(): ?int
-    {
-        return $this->getField('age')->getValue();
-    }
 }
 
 // Define your Set class
@@ -77,7 +55,7 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 // Create example table
 $pdo->exec("
     CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100),
         email VARCHAR(100),
         age INTEGER
