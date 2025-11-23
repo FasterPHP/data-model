@@ -286,10 +286,11 @@ $users = $repo->getSetWithParams(
     ]
 );
 
-// LIKE searches
-$users = $repo->getSetWithParams([
-    'name' => [Repository::STARTS => 'John']  // name LIKE 'John%'
-]);
+// LIKE searches (use second $types parameter)
+$users = $repo->getSetWithParams(
+    ['name' => 'John'],
+    ['name' => Repository::STARTS]  // name LIKE 'John%'
+);
 
 // IN clause
 $users = $repo->getSetWithParams([
