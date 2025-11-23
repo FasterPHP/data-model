@@ -488,7 +488,7 @@ abstract class RepositoryBase extends TestCase
         $height = 4.3;
         $handsome = false;
 
-        $sqlTwo = 'INSERT INTO `users` SET `name` = :name, `age` = :age, `height` = :height, `handsome` = :handsome';
+        $sqlTwo = 'INSERT INTO `users` (`name`, `age`, `height`, `handsome`) VALUES (:name, :age, :height, :handsome)';
         $paramsTwo = [':name' => $name, ':age' => $age, ':height' => $height, ':handsome' => 'n'];
 
         $mockDbStatement = $this->getMockDbStatement();
@@ -647,7 +647,7 @@ abstract class RepositoryBase extends TestCase
         $height = 4.3;
         $handsome = false;
 
-        $sql = 'INSERT INTO `users` SET `name` = :name, `age` = :age, `height` = :height, `handsome` = :handsome';
+        $sql = 'INSERT INTO `users` (`name`, `age`, `height`, `handsome`) VALUES (:name, :age, :height, :handsome)';
         $params = [':name' => $name, ':age' => $age, ':height' => $height, ':handsome' => 'n'];
 
         $mockDbStatement = $this->getMockDbStatement();
