@@ -2,10 +2,7 @@
 
 declare(strict_types=1);
 
-namespace FasterPhp\DataModel\Tests;
-
-use FasterPhp\DataModel\Item;
-use FasterPhp\DataModel\Field;
+namespace FasterPhp\DataModel;
 
 /**
  * Test item using default Laminas validators.

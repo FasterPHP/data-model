@@ -2,11 +2,7 @@
 
 declare(strict_types=1);
 
-namespace FasterPhp\DataModel\Tests;
-
-require_once __DIR__ . '/TestValidatorItem.php';
-require_once __DIR__ . '/CustomValidatorItem.php';
-require_once __DIR__ . '/CustomValidatorChain.php';
+namespace FasterPhp\DataModel;
 
 use PHPUnit\Framework\TestCase;
 

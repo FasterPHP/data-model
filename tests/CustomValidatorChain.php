@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace FasterPhp\DataModel\Tests;
+namespace FasterPhp\DataModel;
 
 /**
  * Custom validator chain that mimics the interface expected by Item::validate().

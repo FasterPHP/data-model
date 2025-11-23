@@ -275,7 +275,13 @@ abstract class RepositoryBase extends TestCase
         $prepareCallCount = 0;
         $mockDb->expects($this->exactly(3))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use (&$prepareCallCount, $sqlOne, $sqlCount, $sqlTwo, $mockDbStatement) {
+            ->willReturnCallback(function (string $sql) use (
+                &$prepareCallCount,
+                $sqlOne,
+                $sqlCount,
+                $sqlTwo,
+                $mockDbStatement
+            ) {
                 $prepareCallCount++;
                 match ($prepareCallCount) {
                     1 => $this->assertEquals($sqlOne, $sql),
@@ -334,7 +340,13 @@ abstract class RepositoryBase extends TestCase
         $prepareCallCount = 0;
         $mockDb->expects($this->exactly(3))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use (&$prepareCallCount, $sqlOne, $sqlCount, $sqlTwo, $mockDbStatement) {
+            ->willReturnCallback(function (string $sql) use (
+                &$prepareCallCount,
+                $sqlOne,
+                $sqlCount,
+                $sqlTwo,
+                $mockDbStatement
+            ) {
                 $prepareCallCount++;
                 match ($prepareCallCount) {
                     1 => $this->assertEquals($sqlOne, $sql),
