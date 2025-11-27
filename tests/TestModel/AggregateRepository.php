@@ -13,13 +13,13 @@ class AggregateRepository extends Repository
 {
     protected const DB_NAME = 'test';
     protected const TABLE_NAME = 'orders';
-    
+
     /**
      * Override to add aggregate fields
      */
     protected function getSelectClause(): string
     {
-        return parent::getSelectClause() 
+        return parent::getSelectClause()
             . ', SUM(`orders`.`amount`) AS totalAmount'
             . ', COUNT(*) AS orderCount';
     }

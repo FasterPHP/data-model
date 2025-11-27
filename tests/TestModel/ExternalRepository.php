@@ -13,7 +13,7 @@ class ExternalRepository extends Repository
 {
     protected const DB_NAME = 'test';
     protected const TABLE_NAME = 'employees';
-    
+
     /**
      * Override to add department name from joined table
      */
@@ -21,7 +21,7 @@ class ExternalRepository extends Repository
     {
         return parent::getSelectClause() . ', `departments`.`name` AS departmentName';
     }
-    
+
     /**
      * Override to add LEFT JOIN with departments table
      */

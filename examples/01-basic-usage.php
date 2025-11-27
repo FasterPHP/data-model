@@ -2,7 +2,7 @@
 
 /**
  * Example 01: Basic CRUD Operations
- * 
+ *
  * This example demonstrates:
  * - Defining Item, Set, and Repository classes
  * - Creating, reading, updating, and deleting items
@@ -20,14 +20,14 @@ use FasterPhp\DataModel\Field;
 class UserItem extends Item
 {
     public const ID_FIELD = 'userId';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'email' => Field\Varchar::class,
         'age' => Field\Integer::class,
     ];
-    
+
     public const VALIDATORS = [
         'name' => [
             ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 2, 'max' => 100]],
