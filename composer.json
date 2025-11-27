@@ -24,12 +24,12 @@
     "prefer-stable": true,
     "require": {
         "php": ">=8.2",
-        "laminas/laminas-validator": "^2.38",
         "ext-pdo": "*"
     },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
-		"faster-php/db": "dev-main",
+        "faster-php/db": "dev-main",
+        "laminas/laminas-validator": "^2.38",
         "phpunit/phpunit": "^11.5",
         "roave/security-advisories": "dev-latest"
     },
