@@ -22,7 +22,7 @@ class Boolean extends Base
         return is_null($this->value) ? null : ($this->value ? 'y' : 'n');
     }
 
-    public function setValue($value): self
+    protected function setValueInternal($value): self
     {
         if (null === $value) {
             $this->value = $value;

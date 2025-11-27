@@ -240,17 +240,35 @@ abstract class Item implements Stringable, JsonSerializable
                 ?? static::FIELDS_READONLY[$fieldName]
                 ?? static::FIELDS_EXTERNAL[$fieldName]
                 ?? static::FIELDS_AGGREGATE[$fieldName];
-            $field = new $fieldClassName($fieldName);
+            $isReadonly = isset(static::FIELDS_READONLY[$fieldName])
+                || isset(static::FIELDS_EXTERNAL[$fieldName])
+                || isset(static::FIELDS_AGGREGATE[$fieldName]);
+
+            // Determine initial value
+            $initialValue = null;
+            $hasInitialValue = false;
             if (array_key_exists($fieldName, $this->data)) {
-                $field->setValue($this->data[$fieldName]);
+                $initialValue = $this->data[$fieldName];
+                $hasInitialValue = true;
             } elseif (array_key_exists($fieldName, static::DEFAULTS)) {
                 if ($fieldName === static::ID_INTERNAL) {
                     throw new Exception('Cannot set default id, please omit from DEFAULTS');
                 }
-                $field->setValue(static::DEFAULTS[$fieldName]);
-            } elseif ($fieldName === 'id' && $field->getValue() === 0) {
-                $field->setValue(null);
+                $initialValue = static::DEFAULTS[$fieldName];
+                $hasInitialValue = true;
+            } elseif ($fieldName === 'id') {
+                // For id field, we want to set null if no value provided
+                $initialValue = null;
+                $hasInitialValue = true;
             }
+
+            // Create field with initial value (bypasses readonly check)
+            if ($hasInitialValue) {
+                $field = new $fieldClassName($fieldName, $isReadonly, $initialValue);
+            } else {
+                $field = new $fieldClassName($fieldName, $isReadonly);
+            }
+
             $this->data[$fieldName] = $field;
         }
         return $this->data[$fieldName];

@@ -16,7 +16,7 @@ use JsonException;
  */
 class Json extends Base
 {
-    public function setValue($value): self
+    protected function setValueInternal($value): self
     {
         if (is_null($value)) {
             $this->value = $value;

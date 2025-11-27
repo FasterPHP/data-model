@@ -15,7 +15,7 @@ use InvalidArgumentException;
  */
 class Integer extends Base
 {
-    public function setValue($value): self
+    protected function setValueInternal($value): self
     {
         if (!is_null($value) && !is_int($value) && intval($value) != $value) {
             throw new InvalidArgumentException("{$this->name} value '$value' must be an integer");
