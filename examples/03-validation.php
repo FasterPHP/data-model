@@ -2,7 +2,7 @@
 
 /**
  * Example 03: Validation and Error Handling
- * 
+ *
  * This example demonstrates:
  * - Defining validation rules using VALIDATORS constant
  * - Checking validation status with isValid()
@@ -21,7 +21,7 @@ use FasterPhp\DataModel\Field;
 class UserItem extends Item
 {
     public const ID_FIELD = 'userId';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
@@ -29,7 +29,7 @@ class UserItem extends Item
         'age' => Field\Integer::class,
         'username' => Field\Varchar::class,
     ];
-    
+
     public const VALIDATORS = [
         'name' => [
             ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 2, 'max' => 100]],

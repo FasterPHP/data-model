@@ -1,5 +1,18 @@
-<?xml version="1.0"?>
+﻿<?xml version='1.0'?>
 <ruleset>
-	<rule ref="PSR12"/>
-	<arg name="colors"/>
+	<file>src</file>
+	<file>tests</file>
+	<file>examples</file>
+	<rule ref='PSR12'/>
+	<!-- Exclude side effects and namespace warnings for example files -->
+	<rule ref='PSR1.Files.SideEffects.FoundWithSymbols'>
+		<exclude-pattern>examples/*</exclude-pattern>
+	</rule>
+	<rule ref='PSR1.Classes.ClassDeclaration.MissingNamespace'>
+		<exclude-pattern>examples/*</exclude-pattern>
+	</rule>
+	<rule ref='PSR1.Classes.ClassDeclaration.MultipleClasses'>
+		<exclude-pattern>examples/*</exclude-pattern>
+	</rule>
+	<arg name='colors'/>
 </ruleset>

@@ -2,7 +2,7 @@
 
 /**
  * Example 05: Batch Updates and Deletes
- * 
+ *
  * This example demonstrates:
  * - Fetching a Set and updating multiple items
  * - Using saveSet() for efficient batch operations
@@ -21,7 +21,7 @@ use FasterPhp\DataModel\Field;
 class UserItem extends Item
 {
     public const ID_FIELD = 'userId';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
@@ -156,7 +156,7 @@ $users = $repo->getSetOfAll();
 
 foreach ($users as $user) {
     $loginCount = $user->getLoginCount();
-    
+
     if ($loginCount >= 10) {
         // High performers: Give them a bonus (represented by incrementing login count)
         $user->setLoginCount($loginCount + 5);

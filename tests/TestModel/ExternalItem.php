@@ -13,13 +13,13 @@ use FasterPhp\DataModel\Field;
 class ExternalItem extends Item
 {
     public const ID_FIELD = 'empId';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'departmentId' => Field\Integer::class,
     ];
-    
+
     public const FIELDS_EXTERNAL = [
         'departmentName' => Field\Varchar::class,
     ];

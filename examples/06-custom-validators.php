@@ -2,7 +2,7 @@
 
 /**
  * Example 06: Framework Validator Integration
- * 
+ *
  * This example demonstrates:
  * - Overriding buildValidatorChain() to use custom validators
  * - Integrating with framework-specific validation (Symfony, Laravel, etc.)
@@ -25,26 +25,26 @@ class CustomValidatorChain
 {
     private array $validators = [];
     private array $messages = [];
-    
+
     public function addValidator(callable $validator, string $message): void
     {
         $this->validators[] = ['validator' => $validator, 'message' => $message];
     }
-    
+
     public function isValid($value): bool
     {
         $this->messages = [];
-        
+
         foreach ($this->validators as $validatorConfig) {
             $validator = $validatorConfig['validator'];
             if (!$validator($value)) {
                 $this->messages[] = $validatorConfig['message'];
             }
         }
-        
+
         return empty($this->messages);
     }
-    
+
     public function getMessages(): array
     {
         return $this->messages;
@@ -57,13 +57,13 @@ class CustomValidatorChain
 class StandardUserItem extends Item
 {
     public const ID_FIELD = 'userId';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'email' => Field\Varchar::class,
     ];
-    
+
     public const VALIDATORS = [
         'name' => [
             ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 3, 'max' => 60]],
@@ -80,14 +80,14 @@ class StandardUserItem extends Item
 class CustomUserItem extends Item
 {
     public const ID_FIELD = 'userId';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'email' => Field\Varchar::class,
         'username' => Field\Varchar::class,
     ];
-    
+
     // Custom validation config (not Laminas-specific)
     public const VALIDATORS = [
         'name' => [
@@ -102,7 +102,7 @@ class CustomUserItem extends Item
             ['rule' => 'minLength', 'value' => 3, 'message' => 'Username must be at least 3 characters'],
         ],
     ];
-    
+
     /**
      * Override buildValidatorChain to use custom validators instead of Laminas.
      * This is where you would integrate Symfony Validator, Laravel Validator, etc.
@@ -110,12 +110,12 @@ class CustomUserItem extends Item
     protected function buildValidatorChain(string $fieldName, array $configs)
     {
         $chain = new CustomValidatorChain();
-        
+
         foreach ($configs as $config) {
             $rule = $config['rule'];
             $message = $config['message'];
             $value = $config['value'] ?? null;
-            
+
             // Map rules to validation logic
             switch ($rule) {
                 case 'minLength':
@@ -124,21 +124,21 @@ class CustomUserItem extends Item
                         $message
                     );
                     break;
-                    
+
                 case 'maxLength':
                     $chain->addValidator(
                         fn($v) => strlen((string)$v) <= $value,
                         $message
                     );
                     break;
-                    
+
                 case 'email':
                     $chain->addValidator(
                         fn($v) => filter_var($v, FILTER_VALIDATE_EMAIL) !== false,
                         $message
                     );
                     break;
-                    
+
                 case 'alphanumeric':
                     $chain->addValidator(
                         fn($v) => ctype_alnum((string)$v),
@@ -147,7 +147,7 @@ class CustomUserItem extends Item
                     break;
             }
         }
-        
+
         return $chain;
     }
 }

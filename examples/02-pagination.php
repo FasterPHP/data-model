@@ -2,7 +2,7 @@
 
 /**
  * Example 02: Pagination and Sorting
- * 
+ *
  * This example demonstrates:
  * - Using SqlPaginator for pagination
  * - Using Sort for ordering results
@@ -22,7 +22,7 @@ use FasterPhp\DataModel\Sort;
 class UserItem extends Item
 {
     public const ID_FIELD = 'userId';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,

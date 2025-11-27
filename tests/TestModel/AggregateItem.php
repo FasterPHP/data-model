@@ -13,13 +13,13 @@ use FasterPhp\DataModel\Field;
 class AggregateItem extends Item
 {
     public const ID_FIELD = 'orderId';
-    
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'userId' => Field\Integer::class,
         'status' => Field\Varchar::class,
     ];
-    
+
     public const FIELDS_AGGREGATE = [
         'totalAmount' => Field\Integer::class,
         'orderCount' => Field\Integer::class,
