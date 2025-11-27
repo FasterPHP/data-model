@@ -23,7 +23,7 @@ class Datetime extends Base
         return is_null($this->value) ? null : $this->value->format('Y-m-d H:i:s');
     }
 
-    public function setValue($value): self
+    protected function setValueInternal($value): self
     {
         if (null === $value || $value instanceof \DateTime) {
             $this->value = $value;
