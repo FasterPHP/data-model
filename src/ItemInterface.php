@@ -90,26 +90,4 @@ interface ItemInterface extends Stringable, JsonSerializable
      * @return static
      */
     public function clearOriginalValues(): static;
-
-    /**
-     * Check if item passes validation.
-     *
-     * @return bool
-     */
-    public function isValid(): bool;
-
-    /**
-     * Run validation on the item.
-     *
-     * @return void
-     */
-    public function validate(): void;
-
-    /**
-     * Get validation error messages.
-     *
-     * @return array
-     * @throws Exception if item has not been validated
-     */
-    public function getValidationErrors(): array;
 }

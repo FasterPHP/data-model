@@ -9,7 +9,6 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use BadMethodCallException;
-use Laminas\Validator;
 
 /**
  * Data Model Item class.
@@ -23,13 +22,10 @@ abstract class Item implements ItemInterface
     public const FIELDS_EXTERNAL = [];
     public const FIELDS_AGGREGATE = [];
     public const DEFAULTS = [];
-    public const VALIDATORS = [];
 
     protected array $data;
     protected array $originalValues = [];
     protected bool $toDelete = false;
-    protected bool $isValid;
-    protected array $validationErrors;
 
     public function __construct(array $data = [])
     {
@@ -113,55 +109,6 @@ abstract class Item implements ItemInterface
     {
         $this->originalValues = [];
         return $this;
-    }
-
-    public function isValid(): bool
-    {
-        if (!isset($this->isValid)) {
-            $this->validate();
-        }
-        return $this->isValid;
-    }
-
-    public function validate(): void
-    {
-        $this->isValid = true;
-        $this->validationErrors = [];
-        foreach (static::VALIDATORS as $fieldName => $validators) {
-            $chain = $this->buildValidatorChain($fieldName, $validators);
-
-            if ($chain->isValid($this->getField($fieldName)->getValue())) {
-                unset($this->validationErrors[$fieldName]);
-            } else {
-                $this->isValid = false;
-                $this->validationErrors[$fieldName] = array_values($chain->getMessages());
-            }
-        }
-    }
-
-    /**
-     * Build a validator chain for a field. Override this method to integrate
-     * with different validation frameworks (e.g., Symfony, Laravel).
-     *
-     * @param string $fieldName The field name to validate
-     * @param array $configs Array of validator configurations
-     * @return mixed Object with isValid() and getMessages() methods
-     */
-    protected function buildValidatorChain(string $fieldName, array $configs)
-    {
-        $chain = new Validator\ValidatorChain();
-        foreach ($configs as $args) {
-            $this->addValidator($chain, $fieldName, $args);
-        }
-        return $chain;
-    }
-
-    public function getValidationErrors(): array
-    {
-        if (!isset($this->validationErrors)) {
-            throw new Exception('Item not validated');
-        }
-        return $this->validationErrors;
     }
 
     #[\Override]
@@ -271,40 +218,5 @@ abstract class Item implements ItemInterface
             $this->data[$fieldName] = $field;
         }
         return $this->data[$fieldName];
-    }
-
-    protected function addValidator(Validator\ValidatorChain $validatorChain, string $fieldName, array $args): void
-    {
-        if (!isset($args['class'])) {
-            throw new Exception("Validator class name missing for field '$fieldName'");
-        }
-
-        if (
-            isset($args['skipIfEmpty'])
-            && true === $args['skipIfEmpty']
-            && empty($this->getField($fieldName)->getValue())
-        ) {
-            return;
-        }
-
-        $options = $args['options'] ?? [];
-        // If using callback validator, add item instance as last callback option
-        if ($args['class'] == Validator\Callback::class) {
-            if (!isset($options['callbackOptions'])) {
-                $options['callbackOptions'] = [];
-            }
-            $options['callbackOptions'][] = $this;
-        }
-
-        $validator = new $args['class']($options);
-        if (isset($args['message'])) {
-            $validator->setMessage($args['message']);
-        }
-
-        $validatorChain->attach(
-            $validator,
-            breakChainOnFailure: $args['break'] ?? null,
-            priority: $args['priority'] ?? null
-        );
     }
 }

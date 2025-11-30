@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
+use FasterPhp\DataModel\Validation\ValidatableTrait;
+
 /**
  * Test item with custom validator chain implementation.
  */
 class CustomValidatorItem extends Item
 {
+    use ValidatableTrait;
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
