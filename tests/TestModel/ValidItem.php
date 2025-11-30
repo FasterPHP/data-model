@@ -9,12 +9,17 @@ namespace FasterPhp\DataModel\TestModel;
 use Laminas\Validator;
 use FasterPhp\DataModel\Item as BaseItem;
 use FasterPhp\DataModel\Field;
+use FasterPhp\DataModel\Validation\ValidatableTrait;
+use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
 
 /**
  * Test Item class.
  */
 class ValidItem extends BaseItem
 {
+    use ValidatableTrait;
+    use LaminasValidatorTrait;
+
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [

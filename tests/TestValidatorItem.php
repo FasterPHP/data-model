@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
+use FasterPhp\DataModel\Validation\ValidatableTrait;
+use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
+
 /**
  * Test item using default Laminas validators.
  */
 class TestValidatorItem extends Item
 {
+    use ValidatableTrait;
+    use LaminasValidatorTrait;
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,

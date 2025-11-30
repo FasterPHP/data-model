@@ -10,14 +10,14 @@ A lightweight, high-performance data model library for PHP 8.2+ that provides st
 - **Built-in Pagination & Sorting**: Efficient COUNT wrapping that leverages MySQL's query optimizer and cache
 - **No SQL Abstractions**: Write raw SQL for maximum flexibility and performance
 - **Dependency Injection**: Explicit PDO injection with no hidden global state
-- **Validation Support**: Built-in Laminas validator integration with framework extension hooks
+- **Optional Validation**: Opt-in validation via traits - use Laminas, Symfony, Laravel, or custom validators
 - **Modern PHP**: PHP 8.2+ with typed properties, match expressions, and JsonSerializable support
 
 ## Requirements
 
 - PHP 8.2 or higher
 - PDO extension
-- laminas/laminas-validator (for validation features)
+- laminas/laminas-validator (optional, only if using validation features)
 
 ## Installation
 
@@ -44,15 +44,6 @@ class UserItem extends Item
         'email' => Field\Varchar::class,
         'age' => Field\Integer::class,
         'created' => Field\Datetime::class,
-    ];
-
-    public const VALIDATORS = [
-        'name' => [
-            ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 2, 'max' => 100]],
-        ],
-        'email' => [
-            ['class' => \Laminas\Validator\EmailAddress::class],
-        ],
     ];
 
     public function getId(): ?int
@@ -230,12 +221,43 @@ echo "Total users: " . $paginator->getNumItemsTotal();
 echo "Page 1 of " . $paginator->getNumPages();
 ```
 
-### Validation
+### Validation (Optional)
 
-Validate items before saving:
+Validation is opt-in via traits. Add validation to your Item classes:
+
+#### Using Laminas Validators
 
 ```php
-$user = new UserItem();
+use FasterPhp\DataModel\Item;
+use FasterPhp\DataModel\Field;
+use FasterPhp\DataModel\Validation\ValidatableTrait;
+use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
+
+class ValidatedUserItem extends Item
+{
+    use ValidatableTrait;
+    use LaminasValidatorTrait;
+
+    public const FIELDS = [
+        'id' => Field\Integer::class,
+        'name' => Field\Varchar::class,
+        'email' => Field\Varchar::class,
+    ];
+
+    public const VALIDATORS = [
+        'name' => [
+            ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 2, 'max' => 100]],
+        ],
+        'email' => [
+            ['class' => \Laminas\Validator\EmailAddress::class],
+        ],
+    ];
+
+    // ... getters and setters
+}
+
+// Usage
+$user = new ValidatedUserItem();
 $user->setName('J'); // Too short
 $user->setEmail('invalid-email');
 
@@ -248,16 +270,22 @@ if (!$user->isValid()) {
 }
 ```
 
-### Framework Integration
-
-Override the validator hook to integrate with your framework:
+#### Using Custom Validators (Symfony, Laravel, etc.)
 
 ```php
-class SymfonyUserItem extends UserItem
+use FasterPhp\DataModel\Validation\ValidatableTrait;
+
+class SymfonyUserItem extends Item
 {
+    use ValidatableTrait;
+
+    public const VALIDATORS = [
+        'email' => [/* Symfony constraint config */],
+    ];
+
+    // Implement buildValidatorChain to return object with isValid() and getMessages()
     protected function buildValidatorChain(string $fieldName, array $configs)
     {
-        // Return an object with isValid() and getMessages() methods
         return new SymfonyValidatorAdapter(
             $this->getSymfonyValidator(),
             $this->buildSymfonyConstraints($fieldName, $configs)
@@ -265,6 +293,8 @@ class SymfonyUserItem extends UserItem
     }
 }
 ```
+
+**Note:** Items without validation traits have no validation overhead.
 
 ## Advanced Usage
 
