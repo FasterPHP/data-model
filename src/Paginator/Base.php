@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel\Paginator;
 
+use FasterPhp\DataModel\Exception;
 use FasterPhp\DataModel\Sort;
 
 /**
@@ -19,6 +20,7 @@ abstract class Base
     protected static ?int $defaultMaxPageLinks = null;
     protected ?Sort $sort;
     private ?int $maxItemsPerPage;
+    private ?int $maxPageLinks;
     protected int $pageNum = 1;
     private int $numPages;
     protected int $numItemsOnPage;

@@ -15,7 +15,7 @@ use InvalidArgumentException;
  */
 class Double extends Base
 {
-    protected function setValueInternal($value): self
+    protected function setValueInternal(mixed $value): self
     {
         if (null === $value) {
             $this->value = $value;

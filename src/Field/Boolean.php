@@ -15,14 +15,12 @@ use InvalidArgumentException;
  */
 class Boolean extends Base
 {
-    protected $value = false;
-
     public function getSqlValue(): mixed
     {
         return is_null($this->value) ? null : ($this->value ? 'y' : 'n');
     }
 
-    protected function setValueInternal($value): self
+    protected function setValueInternal(mixed $value): self
     {
         if (null === $value) {
             $this->value = $value;

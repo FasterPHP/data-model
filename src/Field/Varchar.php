@@ -15,7 +15,7 @@ use InvalidArgumentException;
  */
 class Varchar extends Base
 {
-    protected function setValueInternal($value): self
+    protected function setValueInternal(mixed $value): self
     {
         if (
             !is_null($value)

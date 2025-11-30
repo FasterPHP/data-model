@@ -16,7 +16,7 @@ use Stringable;
 abstract class Base implements Stringable
 {
     protected string $name;
-    protected $value;
+    protected mixed $value = null;
     protected bool $isReadonly = false;
 
     /**
@@ -26,7 +26,7 @@ abstract class Base implements Stringable
      * @param bool $isReadonly Whether the field is readonly
      * @param mixed $initialValue Optional initial value to set (bypasses readonly check)
      */
-    public function __construct(string $name, bool $isReadonly = false, $initialValue = null)
+    public function __construct(string $name, bool $isReadonly = false, mixed $initialValue = null)
     {
         $this->name = $name;
         $this->isReadonly = $isReadonly;
@@ -58,7 +58,7 @@ abstract class Base implements Stringable
         return isset($this->value);
     }
 
-    abstract protected function setValueInternal($value): self;
+    abstract protected function setValueInternal(mixed $value): self;
 
     /**
      * Set the field value.
@@ -67,7 +67,7 @@ abstract class Base implements Stringable
      * @return self
      * @throws \FasterPhp\DataModel\Exception if field is readonly
      */
-    public function setValue($value): self
+    public function setValue(mixed $value): self
     {
         if ($this->isReadonly) {
             throw new \FasterPhp\DataModel\Exception(
@@ -77,12 +77,12 @@ abstract class Base implements Stringable
         return $this->setValueInternal($value);
     }
 
-    public function getValue()
+    public function getValue(): mixed
     {
         return $this->value;
     }
 
-    public function getSqlValue()
+    public function getSqlValue(): mixed
     {
         return $this->getValue();
     }

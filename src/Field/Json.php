@@ -16,14 +16,14 @@ use JsonException;
  */
 class Json extends Base
 {
-    protected function setValueInternal($value): self
+    protected function setValueInternal(mixed $value): self
     {
         if (is_null($value)) {
             $this->value = $value;
 
-        // Decode value
+        // Decode JSON string to array
         } elseif (is_string($value)) {
-            // Fast‑path on PHP 8.3+
+            // Fast-path on PHP 8.3+
             if (function_exists('json_validate') && false === json_validate($value)) {
                 throw new InvalidArgumentException('Invalid JSON string');
             }
@@ -33,14 +33,25 @@ class Json extends Base
                 throw new InvalidArgumentException($ex->getMessage());
             }
 
-        // Encode value
+        // Store array/object directly
+        } elseif (is_array($value) || is_object($value)) {
+            $this->value = is_object($value) ? (array) $value : $value;
+
         } else {
-            try {
-                $this->value = json_encode($value, JSON_THROW_ON_ERROR);
-            } catch (JsonException $ex) {
-                throw new InvalidArgumentException($ex->getMessage());
-            }
+            throw new InvalidArgumentException("{$this->name} value must be a JSON string, array, or object");
         }
         return $this;
+    }
+
+    public function getSqlValue(): ?string
+    {
+        if (is_null($this->value)) {
+            return null;
+        }
+        try {
+            return json_encode($this->value, JSON_THROW_ON_ERROR);
+        } catch (JsonException $ex) {
+            throw new InvalidArgumentException($ex->getMessage());
+        }
     }
 }
