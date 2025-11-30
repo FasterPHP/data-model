@@ -10,7 +10,7 @@ use PDO;
 /**
  * @template TItem of Item
  */
-abstract class Repository
+abstract class Repository implements RepositoryInterface
 {
     /* -------------------------------
      * Model metadata – override in subclass
@@ -113,25 +113,25 @@ abstract class Repository
     /* -------------------------------
      * Public retrieval API
      * ----------------------------- */
-    public function getItemWithId(mixed $id): ?Item
+    public function getItemWithId(mixed $id): ?ItemInterface
     {
         return $this->getItemWithParams([
             $this->getTableName() . '.' . $this->getIdField() => $id,
         ]);
     }
 
-    public function getItemWithParams(array $params, array $types = []): ?Item
+    public function getItemWithParams(array $params, array $types = []): ?ItemInterface
     {
         $set = $this->getSetWithParams($params, $types);
         return $set[0] ?? null;
     }
 
-    public function getSetOfAll(): Set
+    public function getSetOfAll(): SetInterface
     {
         return $this->createSet($this->getDataWithParams([]));
     }
 
-    public function getSetWithParams(array $params, array $types = []): Set
+    public function getSetWithParams(array $params, array $types = []): SetInterface
     {
         return $this->createSet($this->getDataWithParams($params, $types));
     }
@@ -152,7 +152,7 @@ abstract class Repository
     /**
      * Persist a Set: insert new, update dirty, delete removed.
      */
-    public function saveSet(Set $set): void
+    public function saveSet(SetInterface $set): void
     {
         if (!$set instanceof $this->setClassName) {
             throw new Exception("Cannot save Set of class '" . get_class($set) . "'");
@@ -177,7 +177,7 @@ abstract class Repository
     /**
      * Persist a single Item: insert, update, or delete.
      */
-    public function saveItem(Item $item): void
+    public function saveItem(ItemInterface $item): void
     {
         if (!$item instanceof $this->itemClassName) {
             throw new Exception("Cannot save Item of class '" . get_class($item) . "'");

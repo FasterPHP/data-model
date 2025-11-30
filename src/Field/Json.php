@@ -36,7 +36,6 @@ class Json extends Base
         // Store array/object directly
         } elseif (is_array($value) || is_object($value)) {
             $this->value = is_object($value) ? (array) $value : $value;
-
         } else {
             throw new InvalidArgumentException("{$this->name} value must be a JSON string, array, or object");
         }

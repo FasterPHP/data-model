@@ -8,18 +8,13 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
-use ArrayAccess;
-use Countable;
 use InvalidArgumentException;
-use JsonSerializable;
 use OutOfBoundsException;
-use SeekableIterator;
-use Stringable;
 
 /**
  * Data Model Set class.
  */
-abstract class Set implements ArrayAccess, Countable, JsonSerializable, SeekableIterator, Stringable
+abstract class Set implements SetInterface
 {
     protected array $data;
     protected string $itemClassName;
@@ -55,14 +50,14 @@ abstract class Set implements ArrayAccess, Countable, JsonSerializable, Seekable
         return $values;
     }
 
-    public function createItem(): Item
+    public function createItem(): ItemInterface
     {
         $item = new $this->itemClassName();
         $this->addItem($item);
         return $item;
     }
 
-    public function addItem(Item $item, $offset = null): void
+    public function addItem(ItemInterface $item, $offset = null): void
     {
         if (!$item instanceof $this->itemClassName) {
             throw new InvalidArgumentException('Cannot add ' . get_class($item) . ' to ' . get_called_class());
@@ -98,7 +93,7 @@ abstract class Set implements ArrayAccess, Countable, JsonSerializable, Seekable
         return isset($this->data[$offset]);
     }
 
-    public function offsetGet($offset): ?Item
+    public function offsetGet($offset): ?ItemInterface
     {
         if (is_null($offset)) {
             return null;
@@ -130,7 +125,7 @@ abstract class Set implements ArrayAccess, Countable, JsonSerializable, Seekable
         };
     }
 
-    public function current(): Item|false
+    public function current(): ItemInterface|false
     {
         if (false === current($this->data)) {
             return false;
@@ -202,7 +197,7 @@ abstract class Set implements ArrayAccess, Countable, JsonSerializable, Seekable
         return $result;
     }
 
-    protected function getItem(int $offset): Item
+    protected function getItem(int $offset): ItemInterface
     {
         if (is_array($this->data[$offset])) {
             $this->data[$offset] = new $this->itemClassName($this->data[$offset]);
