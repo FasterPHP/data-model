@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace FasterPHP\DataModel;
+namespace FasterPhp\DataModel;
 
 final class Sql
 {

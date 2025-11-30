@@ -201,13 +201,13 @@ class FieldTest extends TestCase
     {
         $f = (new Field\Json('meta'))->setValue('{"a":1}');
         $this->assertSame(['a' => 1], $f->getValue());
-        $this->assertSame(['a' => 1], $f->getSqlValue());
+        $this->assertSame('{"a":1}', $f->getSqlValue());
     }
 
     public function testJsonEncode(): void
     {
         $f = (new Field\Json('meta'))->setValue(['b' => 2]);
-        $this->assertSame('{"b":2}', $f->getValue());
+        $this->assertSame(['b' => 2], $f->getValue());
         $this->assertSame('{"b":2}', $f->getSqlValue());
     }
 
