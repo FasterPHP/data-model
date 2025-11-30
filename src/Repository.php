@@ -151,43 +151,81 @@ abstract class Repository implements RepositoryInterface
 
     /**
      * Persist a Set: insert new, update dirty, delete removed.
+     *
+     * @param SetInterface $set
+     * @param bool $useTransaction Wrap operations in a transaction
      */
-    public function saveSet(SetInterface $set): void
+    public function saveSet(SetInterface $set, bool $useTransaction = false): void
     {
         if (!$set instanceof $this->setClassName) {
             throw new Exception("Cannot save Set of class '" . get_class($set) . "'");
         }
-        $idsToDelete = [];
-        foreach ($set->getRawData() as $item) {
-            if (!is_object($item)) {
-                continue;
-            } elseif ($item->isToDelete()) {
-                $idsToDelete[] = $item->getId();
-            } elseif ($item->isTemp()) {
-                $this->insertItem($item);
-            } elseif ($item->isDirty()) {
-                $this->updateItem($item);
-            }
+
+        if ($useTransaction) {
+            $this->pdo->beginTransaction();
         }
-        if (!empty($idsToDelete)) {
-            $this->deleteItemIds($idsToDelete);
+
+        try {
+            $idsToDelete = [];
+            foreach ($set->getRawData() as $item) {
+                if (!is_object($item)) {
+                    continue;
+                } elseif ($item->isToDelete()) {
+                    $idsToDelete[] = $item->getId();
+                } elseif ($item->isTemp()) {
+                    $this->insertItem($item);
+                } elseif ($item->isDirty()) {
+                    $this->updateItem($item);
+                }
+            }
+            if (!empty($idsToDelete)) {
+                $this->deleteItemIds($idsToDelete);
+            }
+
+            if ($useTransaction) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($useTransaction) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
         }
     }
 
     /**
      * Persist a single Item: insert, update, or delete.
+     *
+     * @param ItemInterface $item
+     * @param bool $useTransaction Wrap operation in a transaction
      */
-    public function saveItem(ItemInterface $item): void
+    public function saveItem(ItemInterface $item, bool $useTransaction = false): void
     {
         if (!$item instanceof $this->itemClassName) {
             throw new Exception("Cannot save Item of class '" . get_class($item) . "'");
         }
-        if ($item->isToDelete()) {
-            $this->deleteItemIds([$item->getId()]);
-        } elseif ($item->isTemp()) {
-            $this->insertItem($item);
-        } elseif ($item->isDirty()) {
-            $this->updateItem($item);
+
+        if ($useTransaction) {
+            $this->pdo->beginTransaction();
+        }
+
+        try {
+            if ($item->isToDelete()) {
+                $this->deleteItemIds([$item->getId()]);
+            } elseif ($item->isTemp()) {
+                $this->insertItem($item);
+            } elseif ($item->isDirty()) {
+                $this->updateItem($item);
+            }
+
+            if ($useTransaction) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($useTransaction) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
         }
     }
 

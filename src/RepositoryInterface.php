@@ -92,15 +92,17 @@ interface RepositoryInterface
      * Save a set of items (insert/update/delete as needed).
      *
      * @param SetInterface $set
+     * @param bool $useTransaction Wrap operations in a transaction
      * @return void
      */
-    public function saveSet(SetInterface $set): void;
+    public function saveSet(SetInterface $set, bool $useTransaction = false): void;
 
     /**
      * Save a single item (insert/update/delete as needed).
      *
      * @param ItemInterface $item
+     * @param bool $useTransaction Wrap operation in a transaction
      * @return void
      */
-    public function saveItem(ItemInterface $item): void;
+    public function saveItem(ItemInterface $item, bool $useTransaction = false): void;
 }
