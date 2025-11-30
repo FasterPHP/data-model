@@ -9,14 +9,12 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use BadMethodCallException;
-use JsonSerializable;
 use Laminas\Validator;
-use Stringable;
 
 /**
  * Data Model Item class.
  */
-abstract class Item implements Stringable, JsonSerializable
+abstract class Item implements ItemInterface
 {
     public const ID_FIELD = '';
     public const ID_INTERNAL = 'id';
