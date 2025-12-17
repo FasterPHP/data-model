@@ -19,6 +19,8 @@ use Laminas\Validator;
  */
 trait LaminasValidatorTrait
 {
+    use ValidatableTrait;
+
     /**
      * Build a validator chain for a field using Laminas validators.
      *
