@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
-use FasterPhp\DataModel\Validation\ValidatableTrait;
 use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
 
 /**
@@ -12,7 +11,6 @@ use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
  */
 class TestValidatorItem extends Item
 {
-    use ValidatableTrait;
     use LaminasValidatorTrait;
 
     public const FIELDS = [
