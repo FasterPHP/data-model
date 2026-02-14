@@ -1,0 +1,20 @@
+schema: spec-driven
+
+context: |
+  Package: faster-php/data-model
+  Tech stack: PHP 8.2+, PDO, PHPUnit 11, PSR-12 (phpcs)
+  Optional dependency: laminas/laminas-validator (for validation trait)
+
+  Architecture: lightweight data model library (not a full ORM)
+  - Repository: query builder + persistence, receives PDO via constructor injection
+  - Set: lazy-loading collection (2D array until items are accessed)
+  - Item: lazy-loading entity (fields instantiated on access, strict type casting)
+  - Field\*: value objects for type casting (Integer, Varchar, Datetime, Json, etc.)
+  - Validation is opt-in via traits (ValidatableTrait + LaminasValidatorTrait)
+
+  Naming convention: {Prefix}Item / {Prefix}Set / {Prefix}Repository
+  Class names are inferred by Util — only override if naming diverges.
+
+  No hidden global state. No SQL abstraction — raw SQL for flexibility.
+
+  See docs/standards/ for coding and testing guidelines.
