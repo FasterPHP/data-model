@@ -6,6 +6,7 @@
 
 namespace FasterPhp\DataModel;
 
+use BadMethodCallException;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 
@@ -177,5 +178,127 @@ class ItemTest extends TestCase
     {
         $item = new TestModel\ValidItem($this->data);
         $this->assertSame('{"id":123,"name":"Marcus","age":25,"height":6.25,"handsome":true}', strval($item));
+    }
+
+    public function testGetRawData(): void
+    {
+        $item = new TestModel\ValidItem($this->data);
+        $this->assertSame($this->data, $item->getRawData());
+    }
+
+    public function testGetChangedSqlValues(): void
+    {
+        $item = new TestModel\ValidItem($this->data);
+        $item->setName('NewName');
+        $changed = $item->getChangedSqlValues();
+        $this->assertArrayHasKey('name', $changed);
+        $this->assertSame('NewName', $changed['name']);
+        $this->assertArrayNotHasKey('age', $changed);
+    }
+
+    public function testHasFieldChanged(): void
+    {
+        $item = new TestModel\ValidItem($this->data);
+        $this->assertFalse($item->hasFieldChanged('name'));
+        $item->setName('NewName');
+        $this->assertTrue($item->hasFieldChanged('name'));
+    }
+
+    public function testJsonSerialize(): void
+    {
+        $item = new TestModel\ValidItem($this->data);
+        $this->assertSame($item->getValues(), $item->jsonSerialize());
+    }
+
+    public function testBadMethodCall(): void
+    {
+        $item = new TestModel\ValidItem($this->data);
+        $this->expectException(BadMethodCallException::class);
+        $item->doSomething();
+    }
+
+    public function testGetFieldNotDefined(): void
+    {
+        $item = new TestModel\ValidItem($this->data);
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Field 'nonexistent' not defined");
+        $item->getNonexistent();
+    }
+
+    public function testCreateItemOnSet(): void
+    {
+        $set = new TestModel\ValidSet();
+        $this->assertCount(0, $set);
+        $item = $set->createItem();
+        $this->assertInstanceOf(TestModel\ValidItem::class, $item);
+        $this->assertCount(1, $set);
+    }
+
+    public function testSetReadonlyFieldThrowsOnSet(): void
+    {
+        $item = new TestModel\ReadonlyItem(['id' => 1, 'name' => 'Test', 'email' => 'a@b.com', 'createdAt' => '2025-01-01 00:00:00']);
+        // Getting a readonly field value should work
+        $this->assertNotNull($item->getCreatedAt());
+
+        // Setting a readonly field via Item::setValue should throw
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Cannot update value for read-only field 'createdAt'");
+        $item->setCreatedAt('2025-06-01 00:00:00');
+    }
+
+    public function testUtilGetRepositoryClassName(): void
+    {
+        $this->assertSame(
+            'FasterPhp\DataModel\TestModel\ValidRepository',
+            Util::getRepositoryClassName('FasterPhp\DataModel\TestModel\ValidItem')
+        );
+    }
+
+    public function testValidatorMissingClass(): void
+    {
+        $item = new TestModel\MissingClassItem();
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Validator class name missing for field 'noclass'");
+        $item->isValid();
+    }
+
+    public function testValidatorSkipIfEmpty(): void
+    {
+        $item = new TestModel\SkipIfEmptyItem();
+        // name is empty (default ''), skipIfEmpty=true should skip validation
+        $this->assertTrue($item->isValid());
+    }
+
+    public function testValidatorSkipIfEmptyNotSkipped(): void
+    {
+        $item = new TestModel\SkipIfEmptyItem();
+        $item->setName('x');
+        // name is not empty, validator runs — 'x' is too short (min 3)
+        $this->assertFalse($item->isValid());
+    }
+
+    public function testValidateWithNoValidatorsConst(): void
+    {
+        $item = new TestModel\NoValidatorsItem();
+        $item->setName('anything');
+        $this->assertTrue($item->isValid());
+        $this->assertSame([], $item->getValidationErrors());
+    }
+
+    public function testCallbackValidatorPass(): void
+    {
+        $item = new TestModel\CallbackValidatorItem();
+        $item->setName('Hello');
+        $this->assertTrue($item->isValid());
+    }
+
+    public function testCallbackValidatorFail(): void
+    {
+        $item = new TestModel\CallbackValidatorItem();
+        $item->setName('H');
+        $this->assertFalse($item->isValid());
+        $errors = $item->getValidationErrors();
+        $this->assertArrayHasKey('name', $errors);
+        $this->assertSame('Name is invalid', $errors['name'][0]);
     }
 }

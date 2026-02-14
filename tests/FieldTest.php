@@ -222,4 +222,74 @@ class FieldTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         (new Field\Json('meta'))->setValue(INF);
     }
+
+    /*
+     * Base — readonly, getSqlValue default, __toString null
+     */
+    public function testSetReadonly(): void
+    {
+        $f = new Field\Integer('age');
+        $f->setValue(10);
+        $this->assertSame(10, $f->getValue());
+
+        $f->setReadonly(true);
+        $this->assertTrue($f->isReadonly());
+
+        $this->expectException(\FasterPhp\DataModel\Exception::class);
+        $f->setValue(20);
+    }
+
+    public function testSetReadonlyToggleOff(): void
+    {
+        $f = new Field\Integer('age');
+        $f->setReadonly(true);
+        $f->setReadonly(false);
+        $this->assertFalse($f->isReadonly());
+        $f->setValue(42);
+        $this->assertSame(42, $f->getValue());
+    }
+
+    public function testGetSqlValueDefault(): void
+    {
+        $f = (new Field\Integer('age'))->setValue(99);
+        $this->assertSame(99, $f->getSqlValue());
+    }
+
+    public function testToStringNull(): void
+    {
+        $f = new Field\Integer('age');
+        $this->assertSame('', (string) $f);
+    }
+
+    /*
+     * Datetime — invalid format string, __toString null
+     */
+    public function testDatetimeInvalidFormat(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        (new Field\Datetime('created_at'))->setValue('not-a-date');
+    }
+
+    public function testDatetimeToStringNull(): void
+    {
+        $f = new Field\Datetime('created_at');
+        $this->assertSame('', (string) $f);
+    }
+
+    /*
+     * Json — object input, getSqlValue null
+     */
+    public function testJsonFromObject(): void
+    {
+        $obj = new \stdClass();
+        $obj->foo = 'bar';
+        $f = (new Field\Json('meta'))->setValue($obj);
+        $this->assertSame(['foo' => 'bar'], $f->getValue());
+    }
+
+    public function testJsonGetSqlValueNull(): void
+    {
+        $f = new Field\Json('meta');
+        $this->assertNull($f->getSqlValue());
+    }
 }
