@@ -8,6 +8,7 @@ namespace FasterPhp\DataModel\Paginator;
 
 use FasterPhp\DataModel\Exception;
 use FasterPhp\DataModel\Sort;
+use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -254,5 +255,72 @@ class PaginatorBaseTest extends TestCase
     {
         $paginator = $this->createPaginator();
         $this->assertNull($paginator->getSort());
+    }
+
+    /*
+     * SqlPaginator-specific tests
+     */
+    private function createMockPdo(): PDO
+    {
+        return $this->getMockBuilder(PDO::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare'])
+            ->getMock();
+    }
+
+    public function testSqlPaginatorSetPdo(): void
+    {
+        $pdo1 = $this->createMockPdo();
+        $pdo2 = $this->createMockPdo();
+
+        $paginator = new SqlPaginator($pdo1);
+        $result = $paginator->setPdo($pdo2);
+        $this->assertSame($paginator, $result);
+    }
+
+    public function testSqlPaginatorSetSql(): void
+    {
+        $pdo = $this->createMockPdo();
+        $paginator = new SqlPaginator($pdo);
+        $result = $paginator->setSql('SELECT 1');
+        $this->assertSame($paginator, $result);
+
+        // Setting the same SQL should not clear results
+        $paginator->setSql('SELECT 1');
+    }
+
+    public function testSqlPaginatorSetParams(): void
+    {
+        $pdo = $this->createMockPdo();
+        $paginator = new SqlPaginator($pdo);
+        $result = $paginator->setParams([':id' => 1]);
+        $this->assertSame($paginator, $result);
+    }
+
+    public function testSqlPaginatorGetSqlThrows(): void
+    {
+        $pdo = $this->createMockPdo();
+        $paginator = new SqlPaginator($pdo);
+        $paginator->setParams([]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('SQL not set');
+        $paginator->getItems();
+    }
+
+    public function testSqlPaginatorGetParamsThrows(): void
+    {
+        $pdo = $this->createMockPdo();
+        $stmt = $this->getMockBuilder(\PDOStatement::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $pdo->method('prepare')->willReturn($stmt);
+
+        $paginator = new SqlPaginator($pdo);
+        $paginator->setSql('SELECT 1');
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Params not set');
+        $paginator->getItems();
     }
 }

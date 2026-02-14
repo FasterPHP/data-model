@@ -675,6 +675,388 @@ abstract class RepositoryBase extends TestCase
         $this->assertFalse($item->isTemp());
     }
 
+    public function testSetMaxItemsPerPage(): void
+    {
+        $mockDb = $this->getMockDb();
+        $repo = new TestModel\ValidRepository($mockDb);
+
+        $result = $repo->setMaxItemsPerPage(50);
+        $this->assertSame($repo, $result);
+    }
+
+    public function testGetItemWithParamsReturnsNull(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willReturn(true);
+        $mockDbStatement->expects($this->once())
+            ->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturn([]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())
+            ->method('prepare')
+            ->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $item = $repo->getItemWithId(999);
+        $this->assertNull($item);
+    }
+
+    public function testSaveSetWrongType(): void
+    {
+        $mockDb = $this->getMockDb();
+        $repo = new TestModel\ValidRepository($mockDb);
+
+        $wrongSet = new TestModel\ReadonlySet();
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Cannot save Set of class");
+        $repo->saveSet($wrongSet);
+    }
+
+    public function testSaveItemWrongType(): void
+    {
+        $mockDb = $this->getMockDb();
+        $repo = new TestModel\ValidRepository($mockDb);
+
+        $wrongItem = new TestModel\ReadonlyItem(['id' => 1, 'name' => 'Test', 'email' => 'a@b.com']);
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Cannot save Item of class");
+        $repo->saveItem($wrongItem);
+    }
+
+    public function testSaveSetWithTransaction(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willReturn(true);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->method('prepare')->willReturn($mockDbStatement);
+
+        $pdo = $this->getMockBuilder(PDO::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare', 'beginTransaction', 'commit', 'rollBack', 'quote', 'lastInsertId'])
+            ->getMock();
+
+        $pdo->method('quote')->willReturnCallback(fn($v) => "'$v'");
+        $pdo->method('lastInsertId')->willReturn('99');
+        $pdo->method('prepare')->willReturn($mockDbStatement);
+        $pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
+        $pdo->expects($this->once())->method('commit')->willReturn(true);
+
+        $repo = new TestModel\ValidRepository($pdo);
+
+        $item = new TestModel\ValidItem();
+        $item->setName('Test');
+        $item->setAge(25);
+        $item->setHeight(5.5);
+        $item->setHandsome(true);
+
+        $set = new TestModel\ValidSet();
+        $set->addItem($item);
+
+        $repo->saveSet($set, true);
+    }
+
+    public function testSaveSetTransactionRollback(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willThrowException(new \RuntimeException('DB error'));
+
+        $pdo = $this->getMockBuilder(PDO::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare', 'beginTransaction', 'commit', 'rollBack', 'quote', 'lastInsertId'])
+            ->getMock();
+
+        $pdo->method('quote')->willReturnCallback(fn($v) => "'$v'");
+        $pdo->method('lastInsertId')->willReturn('99');
+        $pdo->method('prepare')->willReturn($mockDbStatement);
+        $pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
+        $pdo->expects($this->never())->method('commit');
+        $pdo->expects($this->once())->method('rollBack')->willReturn(true);
+
+        $repo = new TestModel\ValidRepository($pdo);
+
+        $item = new TestModel\ValidItem();
+        $item->setName('Test');
+        $item->setAge(25);
+        $item->setHeight(5.5);
+        $item->setHandsome(true);
+
+        $set = new TestModel\ValidSet();
+        $set->addItem($item);
+
+        $this->expectException(\RuntimeException::class);
+        $repo->saveSet($set, true);
+    }
+
+    public function testSaveItemWithTransaction(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willReturn(true);
+
+        $pdo = $this->getMockBuilder(PDO::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare', 'beginTransaction', 'commit', 'rollBack', 'quote', 'lastInsertId'])
+            ->getMock();
+
+        $pdo->method('quote')->willReturnCallback(fn($v) => "'$v'");
+        $pdo->method('lastInsertId')->willReturn('99');
+        $pdo->method('prepare')->willReturn($mockDbStatement);
+        $pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
+        $pdo->expects($this->once())->method('commit')->willReturn(true);
+
+        $repo = new TestModel\ValidRepository($pdo);
+
+        $item = new TestModel\ValidItem();
+        $item->setName('Test');
+        $item->setAge(25);
+        $item->setHeight(5.5);
+        $item->setHandsome(true);
+
+        $repo->saveItem($item, true);
+    }
+
+    public function testSaveItemTransactionRollback(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willThrowException(new \RuntimeException('DB error'));
+
+        $pdo = $this->getMockBuilder(PDO::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare', 'beginTransaction', 'commit', 'rollBack', 'quote', 'lastInsertId'])
+            ->getMock();
+
+        $pdo->method('quote')->willReturnCallback(fn($v) => "'$v'");
+        $pdo->method('lastInsertId')->willReturn('99');
+        $pdo->method('prepare')->willReturn($mockDbStatement);
+        $pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
+        $pdo->expects($this->never())->method('commit');
+        $pdo->expects($this->once())->method('rollBack')->willReturn(true);
+
+        $repo = new TestModel\ValidRepository($pdo);
+
+        $item = new TestModel\ValidItem();
+        $item->setName('Test');
+        $item->setAge(25);
+        $item->setHeight(5.5);
+        $item->setHandsome(true);
+
+        $this->expectException(\RuntimeException::class);
+        $repo->saveItem($item, true);
+    }
+
+    public function testNotEquals(): void
+    {
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
+            . "WHERE `users`.`name` != :name";
+        $params = [':name' => 'Marcus Don'];
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[1], self::$data[2]]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $set = $repo->getSetWithParams(['name' => 'Marcus Don'], ['name' => Repository::NOT_EQUALS]);
+        $this->assertCount(2, $set);
+    }
+
+    public function testStarts(): void
+    {
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
+            . "WHERE `users`.`name` LIKE :name";
+        $params = [':name' => 'Mar%'];
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $set = $repo->getSetWithParams(['name' => 'Mar'], ['name' => Repository::STARTS]);
+        $this->assertCount(1, $set);
+    }
+
+    public function testEnds(): void
+    {
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
+            . "WHERE `users`.`name` LIKE :name";
+        $params = [':name' => '%Don'];
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $set = $repo->getSetWithParams(['name' => 'Don'], ['name' => Repository::ENDS]);
+        $this->assertCount(1, $set);
+    }
+
+    public function testContains(): void
+    {
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
+            . "WHERE `users`.`name` LIKE :name";
+        $params = [':name' => '%arc%'];
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $set = $repo->getSetWithParams(['name' => 'arc'], ['name' => Repository::CONTAINS]);
+        $this->assertCount(1, $set);
+    }
+
+    public function testGreater(): void
+    {
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
+            . "WHERE `users`.`age` > :age";
+        $params = [':age' => '25'];
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[1]]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $set = $repo->getSetWithParams(['age' => 25], ['age' => Repository::GREATER]);
+        $this->assertCount(1, $set);
+    }
+
+    public function testLess(): void
+    {
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
+            . "WHERE `users`.`age` < :age";
+        $params = [':age' => '25'];
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[2]]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $set = $repo->getSetWithParams(['age' => 25], ['age' => Repository::LESS]);
+        $this->assertCount(1, $set);
+    }
+
+    public function testLessOrEquals(): void
+    {
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
+            . "WHERE `users`.`age` <= :age";
+        $params = [':age' => '25'];
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0], self::$data[2]]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $set = $repo->getSetWithParams(['age' => 25], ['age' => Repository::LESS_OR_EQUALS]);
+        $this->assertCount(2, $set);
+    }
+
+    public function testUnsupportedSearchType(): void
+    {
+        $mockDb = $this->getMockDb();
+        $repo = new TestModel\ValidRepository($mockDb);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Unsupported search type 'invalid'");
+        $repo->getSetWithParams(['name' => 'test'], ['name' => 'invalid']);
+    }
+
+    public function testNullValue(): void
+    {
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
+            . "WHERE `users`.`name` IS NULL";
+        $params = [];
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $set = $repo->getSetWithParams(['name' => null]);
+        $this->assertCount(0, $set);
+    }
+
+    public function testArrayValue(): void
+    {
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
+            . "WHERE (`users`.`age` IN (:age_0,:age_1))";
+        $params = [':age_0' => 25, ':age_1' => 32];
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0], self::$data[1]]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $set = $repo->getSetWithParams(['age' => [25, 32]]);
+        $this->assertCount(2, $set);
+    }
+
+    public function testArrayWithNull(): void
+    {
+        // [25, null] has 2 elements with 1 null, so code reduces to scalar 25 + hasNull flag
+        $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
+            . " FROM `users`\n"
+            . "WHERE (`users`.`age` = :age OR `users`.`age` IS NULL)";
+        $params = [':age' => '25'];
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $set = $repo->getSetWithParams(['age' => [25, null]]);
+        $this->assertCount(1, $set);
+    }
+
     abstract protected function getMockDbStatement(): PDOStatement|Statement;
 
     abstract protected function getMockDb(): PDO|Db;
