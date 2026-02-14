@@ -14,7 +14,7 @@ vendor/bin/phpunit
 vendor/bin/phpunit --no-coverage
 ```
 
-Tests stop on first defect (`stopOnDefect="true"`).
+Coverage reports are written to `build/` (HTML) and `build/coverage.txt` (text summary).
 
 ## Test Organisation
 
