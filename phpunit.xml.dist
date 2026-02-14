@@ -33,7 +33,7 @@
     <coverage>
         <report>
             <html outputDirectory="build" />
-            <text outputFile="build/coverage.txt" showOnlySummary="true" />
+            <text outputFile="build/coverage.txt" />
         </report>
     </coverage>
 </phpunit>
