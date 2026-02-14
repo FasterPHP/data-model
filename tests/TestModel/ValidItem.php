@@ -10,12 +10,14 @@ use Laminas\Validator;
 use FasterPhp\DataModel\Item as BaseItem;
 use FasterPhp\DataModel\Field;
 use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
+use FasterPhp\DataModel\Validation\ValidatableTrait;
 
 /**
  * Test Item class.
  */
 class ValidItem extends BaseItem
 {
+    use ValidatableTrait;
     use LaminasValidatorTrait;
 
     public const ID_FIELD = 'userId';
@@ -35,38 +37,43 @@ class ValidItem extends BaseItem
         'handsome' => false,
     ];
 
-    public const VALIDATORS = [
-        'name' => [
-            [
-                'class' => Validator\StringLength::class,
-                'options' => [
-                    'min' => 2,
-                    'max' => 60,
-                    'message' => 'Name must be between 2 and 60 characters',
+    protected function validateName(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+
+        $this->attachValidator(
+            $chain,
+            new Validator\StringLength(['min' => 2, 'max' => 60]),
+            message: 'Name must be between 2 and 60 characters',
+            breakOnFailure: false,
+            priority: 1,
+        );
+
+        $this->attachValidator(
+            $chain,
+            new Validator\Regex(['pattern' => '/[^0-9]/']),
+            message: 'Name cannot contain numbers',
+        );
+
+        return $chain;
+    }
+
+    protected function validateAge(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+
+        $this->attachValidator(
+            $chain,
+            new Validator\GreaterThan([
+                'min' => 18,
+                'inclusive' => true,
+                'messages' => [
+                    Validator\GreaterThan::NOT_GREATER => 'You must be over 17 to use this app',
+                    Validator\GreaterThan::NOT_GREATER_INCLUSIVE => 'You must be at least 18 to use this app',
                 ],
-                'break' => false,
-                'priority' => 1,
-            ],
-            [
-                'class' => Validator\Regex::class,
-                'options' => [
-                    'pattern' => '/[^0-9]/',
-                    'message' => 'Name cannot contain numbers',
-                ],
-            ]
-        ],
-        'age' => [
-            [
-                'class' => Validator\GreaterThan::class,
-                'options' => [
-                    'min' => 18,
-                    'inclusive' => true,
-                    'messages' => [
-                        Validator\GreaterThan::NOT_GREATER => 'You must be over 17 to use this app',
-                        Validator\GreaterThan::NOT_GREATER_INCLUSIVE => 'You must be at least 18 to use this app',
-                    ],
-                ],
-            ],
-        ],
-    ];
+            ]),
+        );
+
+        return $chain;
+    }
 }

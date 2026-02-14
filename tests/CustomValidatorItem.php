@@ -7,7 +7,8 @@ namespace FasterPhp\DataModel;
 use FasterPhp\DataModel\Validation\ValidatableTrait;
 
 /**
- * Test item with custom validator chain implementation.
+ * Test item with custom validator chain implementation (no LaminasValidatorTrait).
+ * Demonstrates that ValidatableTrait works independently with any chain-like object.
  */
 class CustomValidatorItem extends Item
 {
@@ -16,12 +17,6 @@ class CustomValidatorItem extends Item
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
-    ];
-
-    public const VALIDATORS = [
-        'name' => [
-            ['rule' => 'not_test'], // Custom validator config format
-        ],
     ];
 
     public function getId(): ?int
@@ -46,12 +41,10 @@ class CustomValidatorItem extends Item
         return $this;
     }
 
-    /**
-     * Override buildValidatorChain to use custom validation logic.
-     * This demonstrates how frameworks can integrate their own validators.
-     */
-    protected function buildValidatorChain(string $fieldName, array $configs)
+    protected function validateName(): CustomValidatorChain
     {
-        return new CustomValidatorChain($configs);
+        return new CustomValidatorChain([
+            ['rule' => 'not_test'],
+        ]);
     }
 }

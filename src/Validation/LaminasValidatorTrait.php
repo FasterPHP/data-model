@@ -8,76 +8,37 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel\Validation;
 
-use FasterPhp\DataModel\Exception;
-use Laminas\Validator;
+use Laminas\Validator\ValidatorChain;
+use Laminas\Validator\ValidatorInterface;
 
 /**
  * Laminas Validator Trait.
  *
- * Provides Laminas-specific validation implementation.
+ * Provides convenience helpers for building Laminas validator chains.
  * Requires laminas/laminas-validator package.
  */
 trait LaminasValidatorTrait
 {
-    use ValidatableTrait;
-
-    /**
-     * Build a validator chain for a field using Laminas validators.
-     *
-     * @param string $fieldName The field name to validate
-     * @param array $configs Array of validator configurations
-     * @return Validator\ValidatorChain
-     */
-    protected function buildValidatorChain(string $fieldName, array $configs): Validator\ValidatorChain
+    protected function createChain(): ValidatorChain
     {
-        $chain = new Validator\ValidatorChain();
-        foreach ($configs as $args) {
-            $this->addValidator($chain, $fieldName, $args);
-        }
-        return $chain;
+        return new ValidatorChain();
     }
 
-    /**
-     * Add a validator to the chain.
-     *
-     * @param Validator\ValidatorChain $validatorChain
-     * @param string $fieldName
-     * @param array $args
-     * @return void
-     * @throws Exception
-     */
-    protected function addValidator(Validator\ValidatorChain $validatorChain, string $fieldName, array $args): void
-    {
-        if (!isset($args['class'])) {
-            throw new Exception("Validator class name missing for field '$fieldName'");
+    protected function attachValidator(
+        ValidatorChain $chain,
+        ValidatorInterface $validator,
+        ?string $message = null,
+        ?bool $breakOnFailure = null,
+        ?int $priority = null,
+    ): void {
+        if ($message !== null) {
+            $validator->setMessage($message);
         }
 
-        if (
-            isset($args['skipIfEmpty'])
-            && true === $args['skipIfEmpty']
-            && empty($this->getField($fieldName)->getValue())
-        ) {
-            return;
-        }
-
-        $options = $args['options'] ?? [];
-        // If using callback validator, add item instance as last callback option
-        if ($args['class'] == Validator\Callback::class) {
-            if (!isset($options['callbackOptions'])) {
-                $options['callbackOptions'] = [];
-            }
-            $options['callbackOptions'][] = $this;
-        }
-
-        $validator = new $args['class']($options);
-        if (isset($args['message'])) {
-            $validator->setMessage($args['message']);
-        }
-
-        $validatorChain->attach(
+        $chain->attach(
             $validator,
-            breakChainOnFailure: $args['break'] ?? null,
-            priority: $args['priority'] ?? null
+            breakChainOnFailure: $breakOnFailure,
+            priority: $priority,
         );
     }
 }
