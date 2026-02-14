@@ -254,12 +254,18 @@ class ItemTest extends TestCase
         );
     }
 
-    public function testValidatorMissingClass(): void
+    public function testFieldsWithoutValidatorMethodSkipped(): void
     {
-        $item = new TestModel\MissingClassItem();
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessage("Validator class name missing for field 'noclass'");
-        $item->isValid();
+        // ValidItem has 5 fields but only validateName() and validateAge() methods.
+        // height, handsome, id should be silently skipped with no errors.
+        $item = new TestModel\ValidItem();
+        $item->setName('Donald Duck');
+        $item->setAge(18);
+        $this->assertTrue($item->isValid());
+        $errors = $item->getValidationErrors();
+        $this->assertArrayNotHasKey('height', $errors);
+        $this->assertArrayNotHasKey('handsome', $errors);
+        $this->assertArrayNotHasKey('id', $errors);
     }
 
     public function testValidatorSkipIfEmpty(): void
@@ -277,7 +283,7 @@ class ItemTest extends TestCase
         $this->assertFalse($item->isValid());
     }
 
-    public function testValidateWithNoValidatorsConst(): void
+    public function testValidateWithNoValidatorMethods(): void
     {
         $item = new TestModel\NoValidatorsItem();
         $item->setName('anything');

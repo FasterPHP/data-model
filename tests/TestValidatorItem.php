@@ -5,23 +5,20 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
+use FasterPhp\DataModel\Validation\ValidatableTrait;
+use Laminas\Validator;
 
 /**
  * Test item using default Laminas validators.
  */
 class TestValidatorItem extends Item
 {
+    use ValidatableTrait;
     use LaminasValidatorTrait;
 
     public const FIELDS = [
         'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
-    ];
-
-    public const VALIDATORS = [
-        'name' => [
-            ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 3, 'max' => 60]],
-        ],
     ];
 
     public function getId(): ?int
@@ -44,5 +41,17 @@ class TestValidatorItem extends Item
     {
         $this->getField('name')->setValue($value);
         return $this;
+    }
+
+    protected function validateName(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+
+        $this->attachValidator(
+            $chain,
+            new Validator\StringLength(['min' => 3, 'max' => 60]),
+        );
+
+        return $chain;
     }
 }

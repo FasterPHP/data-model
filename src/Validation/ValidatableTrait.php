@@ -14,7 +14,7 @@ use FasterPhp\DataModel\Exception;
  * Validatable Trait.
  *
  * Provides validation functionality for Item classes.
- * Requires implementing class to provide buildValidatorChain() method.
+ * Discovers validate{FieldName}() methods by convention.
  */
 trait ValidatableTrait
 {
@@ -44,12 +44,13 @@ trait ValidatableTrait
         $this->isValid = true;
         $this->validationErrors = [];
 
-        if (!defined('static::VALIDATORS')) {
-            return;
-        }
+        foreach (array_keys(static::FIELDS) as $fieldName) {
+            $method = 'validate' . ucfirst($fieldName);
+            if (!method_exists($this, $method)) {
+                continue;
+            }
 
-        foreach (static::VALIDATORS as $fieldName => $validators) {
-            $chain = $this->buildValidatorChain($fieldName, $validators);
+            $chain = $this->$method();
 
             if ($chain->isValid($this->getField($fieldName)->getValue())) {
                 unset($this->validationErrors[$fieldName]);
@@ -73,14 +74,4 @@ trait ValidatableTrait
         }
         return $this->validationErrors;
     }
-
-    /**
-     * Build a validator chain for a field. Must be implemented by a concrete trait
-     * (e.g., LaminasValidatorTrait) or overridden in the Item class.
-     *
-     * @param string $fieldName The field name to validate
-     * @param array $configs Array of validator configurations
-     * @return mixed Object with isValid() and getMessages() methods
-     */
-    abstract protected function buildValidatorChain(string $fieldName, array $configs);
 }
