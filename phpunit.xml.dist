@@ -9,7 +9,6 @@
 	displayDetailsOnTestsThatTriggerErrors="true"
 	displayDetailsOnTestsThatTriggerWarnings="true"
 	displayDetailsOnTestsThatTriggerNotices="true"
-    stopOnDefect="true"
 >
     <php>
         <ini name="error_reporting" value="E_ALL"/>
@@ -34,6 +33,7 @@
     <coverage>
         <report>
             <html outputDirectory="build" />
+            <text outputFile="build/coverage.txt" showOnlySummary="true" />
         </report>
     </coverage>
 </phpunit>
