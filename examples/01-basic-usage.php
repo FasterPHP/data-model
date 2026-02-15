@@ -15,10 +15,16 @@ use FasterPhp\DataModel\Item;
 use FasterPhp\DataModel\Set;
 use FasterPhp\DataModel\Repository;
 use FasterPhp\DataModel\Field;
+use FasterPhp\DataModel\Validation\ValidatableTrait;
+use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
+use Laminas\Validator;
 
 // Define your Item class
 class UserItem extends Item
 {
+    use ValidatableTrait;
+    use LaminasValidatorTrait;
+
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [
@@ -28,14 +34,23 @@ class UserItem extends Item
         'age' => Field\Integer::class,
     ];
 
-    public const VALIDATORS = [
-        'name' => [
-            ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 2, 'max' => 100]],
-        ],
-        'email' => [
-            ['class' => \Laminas\Validator\EmailAddress::class],
-        ],
-    ];
+    protected function validateName(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+        $this->attachValidator(
+            $chain,
+            new Validator\StringLength(['min' => 2, 'max' => 100]),
+            message: 'Name must be between 2 and 100 characters',
+        );
+        return $chain;
+    }
+
+    protected function validateEmail(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+        $this->attachValidator($chain, new Validator\EmailAddress());
+        return $chain;
+    }
 }
 
 // Define your Set class

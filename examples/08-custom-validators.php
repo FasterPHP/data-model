@@ -4,9 +4,9 @@
  * Example 06: Framework Validator Integration
  *
  * This example demonstrates:
- * - Overriding buildValidatorChain() to use custom validators
+ * - Using validate{FieldName}() methods with custom (non-Laminas) validator chains
  * - Integrating with framework-specific validation (Symfony, Laravel, etc.)
- * - Creating a custom validator chain that mimics framework behavior
+ * - Creating a custom validator chain that satisfies the duck-type contract
  * - Maintaining the same validation API (isValid(), getValidationErrors())
  */
 
@@ -16,10 +16,17 @@ use FasterPhp\DataModel\Item;
 use FasterPhp\DataModel\Set;
 use FasterPhp\DataModel\Repository;
 use FasterPhp\DataModel\Field;
+use FasterPhp\DataModel\Validation\ValidatableTrait;
+use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
+use Laminas\Validator;
 
 /**
  * Custom validator chain that mimics framework validator interfaces.
  * In real applications, this would be your framework's validator (e.g., Symfony Validator, Laravel Validator).
+ *
+ * ValidatableTrait requires each validate{FieldName}() method to return an object with:
+ *   - isValid($value): bool
+ *   - getMessages(): array
  */
 class CustomValidatorChain
 {
@@ -56,6 +63,9 @@ class CustomValidatorChain
  */
 class StandardUserItem extends Item
 {
+    use ValidatableTrait;
+    use LaminasValidatorTrait;
+
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [
@@ -64,21 +74,35 @@ class StandardUserItem extends Item
         'email' => Field\Varchar::class,
     ];
 
-    public const VALIDATORS = [
-        'name' => [
-            ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 3, 'max' => 60]],
-        ],
-        'email' => [
-            ['class' => \Laminas\Validator\EmailAddress::class],
-        ],
-    ];
+    protected function validateName(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+        $this->attachValidator(
+            $chain,
+            new Validator\StringLength(['min' => 3, 'max' => 60]),
+            message: 'Name must be between 3 and 60 characters',
+        );
+        return $chain;
+    }
+
+    protected function validateEmail(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+        $this->attachValidator($chain, new Validator\EmailAddress());
+        return $chain;
+    }
 }
 
 /**
  * Item using custom validator chain (framework integration pattern).
+ *
+ * Uses only ValidatableTrait (no LaminasValidatorTrait). Each validate{FieldName}()
+ * method builds and returns a CustomValidatorChain instead of a Laminas ValidatorChain.
  */
 class CustomUserItem extends Item
 {
+    use ValidatableTrait;
+
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [
@@ -88,66 +112,41 @@ class CustomUserItem extends Item
         'username' => Field\Varchar::class,
     ];
 
-    // Custom validation config (not Laminas-specific)
-    public const VALIDATORS = [
-        'name' => [
-            ['rule' => 'minLength', 'value' => 3, 'message' => 'Name must be at least 3 characters'],
-            ['rule' => 'maxLength', 'value' => 60, 'message' => 'Name must not exceed 60 characters'],
-        ],
-        'email' => [
-            ['rule' => 'email', 'message' => 'Email must be a valid email address'],
-        ],
-        'username' => [
-            ['rule' => 'alphanumeric', 'message' => 'Username must contain only letters and numbers'],
-            ['rule' => 'minLength', 'value' => 3, 'message' => 'Username must be at least 3 characters'],
-        ],
-    ];
-
-    /**
-     * Override buildValidatorChain to use custom validators instead of Laminas.
-     * This is where you would integrate Symfony Validator, Laravel Validator, etc.
-     */
-    protected function buildValidatorChain(string $fieldName, array $configs)
+    protected function validateName(): CustomValidatorChain
     {
         $chain = new CustomValidatorChain();
+        $chain->addValidator(
+            fn($v) => strlen((string)$v) >= 3,
+            'Name must be at least 3 characters'
+        );
+        $chain->addValidator(
+            fn($v) => strlen((string)$v) <= 60,
+            'Name must not exceed 60 characters'
+        );
+        return $chain;
+    }
 
-        foreach ($configs as $config) {
-            $rule = $config['rule'];
-            $message = $config['message'];
-            $value = $config['value'] ?? null;
+    protected function validateEmail(): CustomValidatorChain
+    {
+        $chain = new CustomValidatorChain();
+        $chain->addValidator(
+            fn($v) => filter_var($v, FILTER_VALIDATE_EMAIL) !== false,
+            'Email must be a valid email address'
+        );
+        return $chain;
+    }
 
-            // Map rules to validation logic
-            switch ($rule) {
-                case 'minLength':
-                    $chain->addValidator(
-                        fn($v) => strlen((string)$v) >= $value,
-                        $message
-                    );
-                    break;
-
-                case 'maxLength':
-                    $chain->addValidator(
-                        fn($v) => strlen((string)$v) <= $value,
-                        $message
-                    );
-                    break;
-
-                case 'email':
-                    $chain->addValidator(
-                        fn($v) => filter_var($v, FILTER_VALIDATE_EMAIL) !== false,
-                        $message
-                    );
-                    break;
-
-                case 'alphanumeric':
-                    $chain->addValidator(
-                        fn($v) => ctype_alnum((string)$v),
-                        $message
-                    );
-                    break;
-            }
-        }
-
+    protected function validateUsername(): CustomValidatorChain
+    {
+        $chain = new CustomValidatorChain();
+        $chain->addValidator(
+            fn($v) => ctype_alnum((string)$v),
+            'Username must contain only letters and numbers'
+        );
+        $chain->addValidator(
+            fn($v) => strlen((string)$v) >= 3,
+            'Username must be at least 3 characters'
+        );
         return $chain;
     }
 }
@@ -291,17 +290,17 @@ echo "\n";
 
 // 8. Framework integration notes
 echo "8. Framework integration notes...\n";
+echo "   The extension point is validate{FieldName}() methods.\n";
+echo "   Each method returns any object with isValid(\$value) and getMessages().\n";
+echo "\n";
 echo "   To integrate with Symfony Validator:\n";
-echo "   - Override buildValidatorChain() to return Symfony\\Component\\Validator\\Validator\\ValidatorInterface\n";
-echo "   - Use Symfony constraints in VALIDATORS config\n";
-echo "   - Call \$validator->validate(\$value, \$constraints) in validate() method\n";
+echo "   - Define validate{FieldName}() methods that return a Symfony adapter\n";
+echo "   - The adapter wraps Symfony's validate() call behind isValid()/getMessages()\n";
 echo "\n";
 echo "   To integrate with Laravel Validator:\n";
-echo "   - Override buildValidatorChain() to return Illuminate\\Validation\\Validator\n";
-echo "   - Use Laravel validation rules in VALIDATORS config\n";
-echo "   - Call Validator::make([\$field => \$value], [\$field => \$rules])\n";
+echo "   - Define validate{FieldName}() methods that return a Laravel adapter\n";
+echo "   - The adapter wraps Validator::make() behind isValid()/getMessages()\n";
 echo "\n";
-echo "   The key is that buildValidatorChain() has no return type hint,\n";
-echo "   so you can return any validator object that implements isValid() and getMessages().\n";
+echo "   Use only ValidatableTrait (skip LaminasValidatorTrait) for non-Laminas frameworks.\n";
 
 echo "\n=== Example Complete ===\n";
