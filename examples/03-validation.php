@@ -16,10 +16,16 @@ use FasterPhp\DataModel\Item;
 use FasterPhp\DataModel\Set;
 use FasterPhp\DataModel\Repository;
 use FasterPhp\DataModel\Field;
+use FasterPhp\DataModel\Validation\ValidatableTrait;
+use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
+use Laminas\Validator;
 
 // Define your Item class with comprehensive validation
 class UserItem extends Item
 {
+    use ValidatableTrait;
+    use LaminasValidatorTrait;
+
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [
@@ -30,23 +36,60 @@ class UserItem extends Item
         'username' => Field\Varchar::class,
     ];
 
-    public const VALIDATORS = [
-        'name' => [
-            ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 2, 'max' => 100]],
-            ['class' => \Laminas\Validator\NotEmpty::class],
-        ],
-        'email' => [
-            ['class' => \Laminas\Validator\EmailAddress::class],
-            ['class' => \Laminas\Validator\NotEmpty::class],
-        ],
-        'age' => [
-            ['class' => \Laminas\Validator\Between::class, 'options' => ['min' => 18, 'max' => 120]],
-        ],
-        'username' => [
-            ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 3, 'max' => 20]],
-            ['class' => \Laminas\Validator\Regex::class, 'options' => ['pattern' => '/^[a-zA-Z0-9_]+$/']],
-        ],
-    ];
+    protected function validateName(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+        $this->attachValidator(
+            $chain,
+            new Validator\NotEmpty(),
+            message: 'Name is required',
+        );
+        $this->attachValidator(
+            $chain,
+            new Validator\StringLength(['min' => 2, 'max' => 100]),
+            message: 'Name must be between 2 and 100 characters',
+        );
+        return $chain;
+    }
+
+    protected function validateEmail(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+        $this->attachValidator(
+            $chain,
+            new Validator\NotEmpty(),
+            message: 'Email is required',
+        );
+        $this->attachValidator($chain, new Validator\EmailAddress());
+        return $chain;
+    }
+
+    protected function validateAge(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+        $this->attachValidator(
+            $chain,
+            new Validator\Between(['min' => 18, 'max' => 120]),
+            message: 'Age must be between 18 and 120',
+        );
+        return $chain;
+    }
+
+    protected function validateUsername(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+        $this->attachValidator(
+            $chain,
+            new Validator\StringLength(['min' => 3, 'max' => 20]),
+            message: 'Username must be between 3 and 20 characters',
+        );
+        $this->attachValidator(
+            $chain,
+            new Validator\Regex(['pattern' => '/^[a-zA-Z0-9_]+$/']),
+            message: 'Username must contain only letters, numbers, and underscores',
+        );
+        return $chain;
+    }
 }
 
 // Define your Set class

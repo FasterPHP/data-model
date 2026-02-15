@@ -35,8 +35,7 @@ use FasterPhp\DataModel\Field;
 
 class UserItem extends Item
 {
-    public const DB_NAME = 'myapp';
-    public const TABLE_NAME = 'users';
+    public const ID_FIELD = 'userId';
 
     public const FIELDS = [
         'id' => Field\Integer::class,
@@ -45,26 +44,10 @@ class UserItem extends Item
         'age' => Field\Integer::class,
         'created' => Field\Datetime::class,
     ];
-
-    public function getId(): ?int
-    {
-        return $this->getField('id')->getValue();
-    }
-
-    public function getName(): ?string
-    {
-        return $this->getField('name')->getValue();
-    }
-
-    public function setName(?string $value): static
-    {
-        $this->getField('name')->setValue($value);
-        return $this;
-    }
-
-    // ... other getters and setters
 }
 ```
+
+**Note:** Getters and setters are provided automatically via `__call` magic methods. `$user->getName()` and `$user->setName('value')` work for any field defined in `FIELDS`. You can optionally define explicit methods for IDE autocompletion and static analysis.
 
 ### 2. Define Your Set Class
 
@@ -84,7 +67,8 @@ use FasterPhp\DataModel\Repository;
 
 class UserRepository extends Repository
 {
-    // No properties needed - class names inferred from naming convention
+    protected const DB_NAME = 'myapp';
+    protected const TABLE_NAME = 'users';
 }
 ```
 
@@ -114,10 +98,7 @@ foreach ($users as $user) {
 $user = new UserItem();
 $user->setName('John Doe');
 $user->setEmail('john@example.com');
-
-if ($user->isValid()) {
-    $repo->saveItem($user);
-}
+$repo->saveItem($user);
 ```
 
 ## Core Concepts
@@ -146,7 +127,7 @@ MySQL returns all values as strings by default. This library automatically casts
 $user->getAge(); // Returns 123 (int)
 
 // Database returns '1' or '0' (string)
-$user->isActive(); // Returns true or false (bool)
+$user->getActive(); // Returns true or false (bool)
 
 // Database returns '2024-01-15 10:30:00' (string)
 $user->getCreated(); // Returns DateTime object
@@ -159,20 +140,17 @@ Avoid N+1 problems by extending your classes to add joins:
 ```php
 class TicketItem extends Item
 {
+    public const ID_FIELD = 'ticketId';
+
     public const FIELDS = [
         'id' => Field\Integer::class,
         'title' => Field\Varchar::class,
         'assignedTo' => Field\Integer::class,
     ];
 
-    public const FIELDS_READONLY = [
+    public const FIELDS_EXTERNAL = [
         'assigneeName' => Field\Varchar::class, // From join
     ];
-
-    public function getAssigneeName(): ?string
-    {
-        return $this->getField('assigneeName')->getValue();
-    }
 }
 
 class TicketRepository extends Repository
@@ -232,11 +210,14 @@ use FasterPhp\DataModel\Item;
 use FasterPhp\DataModel\Field;
 use FasterPhp\DataModel\Validation\ValidatableTrait;
 use FasterPhp\DataModel\Validation\LaminasValidatorTrait;
+use Laminas\Validator;
 
 class ValidatedUserItem extends Item
 {
     use ValidatableTrait;
     use LaminasValidatorTrait;
+
+    public const ID_FIELD = 'userId';
 
     public const FIELDS = [
         'id' => Field\Integer::class,
@@ -244,16 +225,23 @@ class ValidatedUserItem extends Item
         'email' => Field\Varchar::class,
     ];
 
-    public const VALIDATORS = [
-        'name' => [
-            ['class' => \Laminas\Validator\StringLength::class, 'options' => ['min' => 2, 'max' => 100]],
-        ],
-        'email' => [
-            ['class' => \Laminas\Validator\EmailAddress::class],
-        ],
-    ];
+    protected function validateName(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+        $this->attachValidator(
+            $chain,
+            new Validator\StringLength(['min' => 2, 'max' => 100]),
+            message: 'Name must be between 2 and 100 characters',
+        );
+        return $chain;
+    }
 
-    // ... getters and setters
+    protected function validateEmail(): Validator\ValidatorChain
+    {
+        $chain = $this->createChain();
+        $this->attachValidator($chain, new Validator\EmailAddress());
+        return $chain;
+    }
 }
 
 // Usage
@@ -264,35 +252,19 @@ $user->setEmail('invalid-email');
 if (!$user->isValid()) {
     $errors = $user->getValidationErrors();
     // [
-    //   'name' => ['The input is less than 2 characters long'],
-    //   'email' => ['The input is not a valid email address']
+    //   'name' => ['Name must be between 2 and 100 characters'],
+    //   'email' => ['...is not a valid email address...']
     // ]
 }
 ```
 
-#### Using Custom Validators (Symfony, Laravel, etc.)
+#### Using Other Frameworks (Symfony, Laravel, etc.)
 
-```php
-use FasterPhp\DataModel\Validation\ValidatableTrait;
+`ValidatableTrait` does not require Laminas. Each `validate{FieldName}()` method just needs to return any object with `isValid($value): bool` and `getMessages(): array`. You write a small adapter class once per project to bridge your framework's validator, then use it in all your Items. See the examples directory for complete working integrations:
 
-class SymfonyUserItem extends Item
-{
-    use ValidatableTrait;
-
-    public const VALIDATORS = [
-        'email' => [/* Symfony constraint config */],
-    ];
-
-    // Implement buildValidatorChain to return object with isValid() and getMessages()
-    protected function buildValidatorChain(string $fieldName, array $configs)
-    {
-        return new SymfonyValidatorAdapter(
-            $this->getSymfonyValidator(),
-            $this->buildSymfonyConstraints($fieldName, $configs)
-        );
-    }
-}
-```
+- `examples/06-symfony-validation.php` - Symfony Validator adapter and usage
+- `examples/07-laravel-validation.php` - Laravel Validator adapter and usage
+- `examples/08-custom-validators.php` - Generic custom validator (any framework)
 
 **Note:** Items without validation traits have no validation overhead.
 
@@ -408,10 +380,12 @@ See the `examples/` directory for complete working examples:
 
 - `examples/01-basic-usage.php` - Basic CRUD operations
 - `examples/02-pagination.php` - Pagination and sorting
-- `examples/03-validation.php` - Validation and error handling
+- `examples/03-validation.php` - Validation with Laminas validators
 - `examples/04-joins.php` - Complex queries with joins
 - `examples/05-batch-operations.php` - Batch updates and deletes
-- `examples/06-custom-validators.php` - Framework validator integration
+- `examples/06-symfony-validation.php` - Symfony Validator integration
+- `examples/07-laravel-validation.php` - Laravel Validator integration
+- `examples/08-custom-validators.php` - Generic custom validator (any framework)
 
 ## Testing
 
