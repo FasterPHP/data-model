@@ -16,6 +16,12 @@ See [openspec/](openspec/) for workflow instructions.
 
 Configuration: [openspec/config.yaml](openspec/config.yaml)
 
+## Documentation upkeep
+When modifying public API in `src/` (adding, removing, or renaming classes, constants, methods, or method signatures), check whether `README.md` or files in `examples/` reference the changed symbol. If so, update the documentation and examples in the same change.
+
+## Test upkeep
+When modifying or adding code in `src/`, update or add corresponding tests in `tests/` in the same change. Ensure existing tests still pass and new behaviour is covered.
+
 ## Constraints
 - PHP 8.2+ with `declare(strict_types=1)` in every PHP file
 - PSR-12 coding standard — run `vendor/bin/phpcs` before committing
