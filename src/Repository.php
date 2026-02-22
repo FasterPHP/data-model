@@ -423,7 +423,10 @@ abstract class Repository implements RepositoryInterface
         $stmt->execute($params);
         if (empty($item->getId())) {
             $newId = $this->getPdo()->lastInsertId();
-            $item->markItemPersisted($newId ?: null);
+            if (empty($newId)) {
+                throw new Exception('Insert succeeded but lastInsertId() returned no value');
+            }
+            $item->markItemPersisted($newId);
         } else {
             $item->markItemPersisted();
         }
