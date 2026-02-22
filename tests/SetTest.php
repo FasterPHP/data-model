@@ -25,8 +25,8 @@ class SetTest extends TestCase
     public static function setUpBeforeClass(): void
     {
         self::$items = [
-            new TestModel\ValidItem(self::$data[0]),
-            new TestModel\ValidItem(self::$data[1]),
+            new TestModel\ValidItem(self::$data[0], isTemp: false),
+            new TestModel\ValidItem(self::$data[1], isTemp: false),
         ];
     }
 
@@ -105,7 +105,7 @@ class SetTest extends TestCase
     public function testOffsetSetNullPosition(): void
     {
         $set = new TestModel\ValidSet(self::$items);
-        $newItem = new TestModel\ValidItem(['id' => 3, 'name' => 'Wendy']);
+        $newItem = new TestModel\ValidItem(['id' => 3, 'name' => 'Wendy'], isTemp: false);
         $set[] = $newItem;
         $this->assertSame($newItem, $set[2]);
     }
@@ -113,7 +113,7 @@ class SetTest extends TestCase
     public function testOffsetSetSpecificPosition(): void
     {
         $set = new TestModel\ValidSet(self::$items);
-        $newItem = new TestModel\ValidItem(['id' => 3, 'name' => 'Wendy']);
+        $newItem = new TestModel\ValidItem(['id' => 3, 'name' => 'Wendy'], isTemp: false);
         $set[1] = $newItem;
         $this->assertSame($newItem, $set[1]);
     }
@@ -208,7 +208,7 @@ class SetTest extends TestCase
     public function testAddItemWrongType(): void
     {
         $set = new TestModel\ValidSet();
-        $wrongItem = new TestModel\ExternalItem(['id' => 1, 'name' => 'Wrong']);
+        $wrongItem = new TestModel\ExternalItem(['id' => 1, 'name' => 'Wrong'], isTemp: false);
         $this->expectException(InvalidArgumentException::class);
         $set->addItem($wrongItem);
     }
@@ -218,5 +218,19 @@ class SetTest extends TestCase
         $set = new TestModel\ValidSet(['not-an-array-or-item']);
         $this->expectException(Exception::class);
         $set->current();
+    }
+
+    public function testGetItemProducesNonTempItems(): void
+    {
+        $set = new TestModel\ValidSet(self::$data);
+        $item = $set[0];
+        $this->assertFalse($item->isTemp());
+    }
+
+    public function testCreateItemProducesTempItems(): void
+    {
+        $set = new TestModel\ValidSet();
+        $item = $set->createItem();
+        $this->assertTrue($item->isTemp());
     }
 }

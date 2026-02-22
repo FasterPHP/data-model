@@ -122,8 +122,11 @@ abstract class Repository implements RepositoryInterface
 
     public function getItemWithParams(array $params, array $types = []): ?ItemInterface
     {
-        $set = $this->getSetWithParams($params, $types);
-        return $set[0] ?? null;
+        $data = $this->getDataWithParams($params, $types);
+        if (empty($data)) {
+            return null;
+        }
+        return $this->createItem($data[0]);
     }
 
     public function getSetOfAll(): SetInterface
@@ -141,7 +144,7 @@ abstract class Repository implements RepositoryInterface
      * ----------------------------- */
     protected function createItem(array $data): Item
     {
-        return new $this->itemClassName($data);
+        return new $this->itemClassName($data, isTemp: false);
     }
 
     protected function createSet(array $data): Set
@@ -418,12 +421,11 @@ abstract class Repository implements RepositoryInterface
 
         $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($params);
-        $item->clearOriginalValues();
         if (empty($item->getId())) {
             $newId = $this->getPdo()->lastInsertId();
-            if ($newId) {
-                $item->assignId($newId);
-            }
+            $item->markItemPersisted($newId ?: null);
+        } else {
+            $item->markItemPersisted();
         }
     }
 
@@ -437,7 +439,7 @@ abstract class Repository implements RepositoryInterface
              . ' WHERE ' . Sql::ident($this->getIdField()) . ' = :id';
         $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($params);
-        $item->clearOriginalValues();
+        $item->markItemPersisted();
     }
 
     protected function deleteItemIds(array $ids): void

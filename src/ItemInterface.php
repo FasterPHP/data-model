@@ -84,10 +84,4 @@ interface ItemInterface extends Stringable, JsonSerializable
      */
     public function hasFieldChanged(string $fieldName): bool;
 
-    /**
-     * Clear the original values tracking (after save).
-     *
-     * @return static
-     */
-    public function clearOriginalValues(): static;
 }

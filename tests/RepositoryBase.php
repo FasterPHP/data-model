@@ -721,7 +721,7 @@ abstract class RepositoryBase extends TestCase
         $mockDb = $this->getMockDb();
         $repo = new TestModel\ValidRepository($mockDb);
 
-        $wrongItem = new TestModel\ReadonlyItem(['id' => 1, 'name' => 'Test', 'email' => 'a@b.com']);
+        $wrongItem = new TestModel\ReadonlyItem(['id' => 1, 'name' => 'Test', 'email' => 'a@b.com'], isTemp: false);
         $this->expectException(Exception::class);
         $this->expectExceptionMessage("Cannot save Item of class");
         $repo->saveItem($wrongItem);

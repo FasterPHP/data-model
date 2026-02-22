@@ -24,14 +24,22 @@ abstract class Item implements ItemInterface
     public const FIELDS_AGGREGATE = [];
     public const DEFAULTS = [];
 
+    private const ITEM_STATE_TEMP = 'temp';
+    private const ITEM_STATE_CURRENT = 'current';
+    private const ITEM_STATE_MODIFIED = 'modified';
+
     protected array $data;
     protected array $originalValues = [];
     protected bool $toDelete = false;
-    private bool $persisted = false;
+    private string $itemState;
 
-    public function __construct(array $data = [])
+    public function __construct(array $data = [], bool $isTemp = true)
     {
+        if ($isTemp && !empty($data[static::ID_INTERNAL])) {
+            throw new Exception("Cannot construct a temporary item with an id value");
+        }
         $this->data = $data;
+        $this->itemState = $isTemp ? self::ITEM_STATE_TEMP : self::ITEM_STATE_CURRENT;
     }
 
     public function getRawData(): array
@@ -62,24 +70,12 @@ abstract class Item implements ItemInterface
 
     public function isTemp(): bool
     {
-        if (
-            empty($this->data[static::ID_INTERNAL])
-            || ($this->data[static::ID_INTERNAL] instanceof Field\Base
-            && empty($this->data[static::ID_INTERNAL]->getValue()))
-        ) {
-            return true;
-        } elseif (
-            array_key_exists(static::ID_INTERNAL, $this->originalValues)
-            && is_null($this->originalValues[static::ID_INTERNAL])
-        ) {
-            return true;
-        }
-        return false;
+        return $this->itemState === self::ITEM_STATE_TEMP;
     }
 
     public function isDirty(): bool
     {
-        return !empty($this->originalValues);
+        return $this->itemState === self::ITEM_STATE_MODIFIED;
     }
 
     public function setToDelete(bool $toDelete = true): static
@@ -107,22 +103,16 @@ abstract class Item implements ItemInterface
         return isset($this->originalValues[$fieldName]);
     }
 
-    public function clearOriginalValues(): static
+    public function markItemPersisted(mixed $id = null): void
     {
-        $this->originalValues = [];
-        $this->persisted = true;
-        return $this;
-    }
-
-    /** @internal For Repository use after INSERT — bypasses the __call setId() guard. */
-    public function assignId(mixed $id): void
-    {
-        if (!$this->persisted || !$this->isTemp()) {
-            throw new Exception(
-                "Cannot set id directly; the id field is managed automatically"
-            );
+        if ($id !== null) {
+            if ($this->itemState !== self::ITEM_STATE_TEMP) {
+                throw new Exception("Cannot set id on a non-temporary item");
+            }
+            $this->getField(static::ID_INTERNAL)->setValue($id);
         }
-        $this->getField(static::ID_INTERNAL)->setValue($id);
+        $this->originalValues = [];
+        $this->itemState = self::ITEM_STATE_CURRENT;
     }
 
     #[\Override]
@@ -133,18 +123,33 @@ abstract class Item implements ItemInterface
 
     public function __serialize(): array
     {
-        return [static::ID_INTERNAL => $this->getId()] + $this->getValues();
+        return [
+            'values' => [static::ID_INTERNAL => $this->getId()] + $this->getValues(),
+            'originalValues' => $this->originalValues,
+            'toDelete' => $this->toDelete,
+        ];
     }
 
-    public function __unserialize(array $data): void
+    public function __unserialize(array $serialized): void
     {
-        $this->data = $data;
+        $this->data = $serialized['values'];
+        $this->originalValues = $serialized['originalValues'];
+        $this->toDelete = $serialized['toDelete'];
+
+        $hasId = !empty($this->data[static::ID_INTERNAL]);
+        if (!$hasId) {
+            $this->itemState = self::ITEM_STATE_TEMP;
+        } elseif (!empty($this->originalValues)) {
+            $this->itemState = self::ITEM_STATE_MODIFIED;
+        } else {
+            $this->itemState = self::ITEM_STATE_CURRENT;
+        }
     }
 
     #[\Override]
     public function __toString(): string
     {
-        return json_encode([static::ID_INTERNAL => $this->getId()] + $this->getValues());
+        return json_encode($this->jsonSerialize());
     }
 
     public function __call(string $name, array $args): mixed
@@ -186,6 +191,11 @@ abstract class Item implements ItemInterface
             unset($this->originalValues[$fieldName]);
         } else {
             $this->originalValues[$fieldName] = $oldValue;
+        }
+        if ($this->itemState === self::ITEM_STATE_CURRENT && !empty($this->originalValues)) {
+            $this->itemState = self::ITEM_STATE_MODIFIED;
+        } elseif ($this->itemState === self::ITEM_STATE_MODIFIED && empty($this->originalValues)) {
+            $this->itemState = self::ITEM_STATE_CURRENT;
         }
         unset($this->isValid);
         return $field;
