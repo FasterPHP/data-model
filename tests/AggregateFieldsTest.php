@@ -17,7 +17,7 @@ class AggregateFieldsTest extends TestCase
      */
     public function testAggregateFieldCanBeRead(): void
     {
-        $item = new AggregateItem([
+        $item = new AggregateItem(isTemp: false, data: [
             'id' => 1,
             'userId' => 100,
             'status' => 'completed',
@@ -36,7 +36,7 @@ class AggregateFieldsTest extends TestCase
      */
     public function testAggregateFieldsExcludedFromGetSqlValues(): void
     {
-        $item = new AggregateItem([
+        $item = new AggregateItem(isTemp: false, data: [
             'id' => 1,
             'userId' => 100,
             'status' => 'completed',
@@ -62,7 +62,7 @@ class AggregateFieldsTest extends TestCase
      */
     public function testSetAggregateFieldThrowsException(): void
     {
-        $item = new AggregateItem([
+        $item = new AggregateItem(isTemp: false, data: [
             'id' => 1,
             'userId' => 100,
             'status' => 'completed',
@@ -80,7 +80,7 @@ class AggregateFieldsTest extends TestCase
      */
     public function testSetAggregateFieldViaMagicSetterThrowsException(): void
     {
-        $item = new AggregateItem([
+        $item = new AggregateItem(isTemp: false, data: [
             'id' => 1,
             'userId' => 100,
             'status' => 'completed',
@@ -98,7 +98,7 @@ class AggregateFieldsTest extends TestCase
      */
     public function testAggregateFieldExceptionDoesNotMarkItemDirty(): void
     {
-        $item = new AggregateItem([
+        $item = new AggregateItem(isTemp: false, data: [
             'id' => 1,
             'userId' => 100,
             'status' => 'completed',
@@ -124,7 +124,7 @@ class AggregateFieldsTest extends TestCase
      */
     public function testRegularFieldsCanBeSetNormally(): void
     {
-        $item = new AggregateItem([
+        $item = new AggregateItem(isTemp: false, data: [
             'id' => 1,
             'userId' => 100,
             'status' => 'completed',
@@ -150,7 +150,7 @@ class AggregateFieldsTest extends TestCase
      */
     public function testAggregateFieldsExcludedFromGetChangedSqlValues(): void
     {
-        $item = new AggregateItem([
+        $item = new AggregateItem(isTemp: false, data: [
             'id' => 1,
             'userId' => 100,
             'status' => 'completed',

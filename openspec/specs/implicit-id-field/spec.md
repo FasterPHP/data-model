@@ -13,8 +13,8 @@ The Item base class SHALL automatically create and manage the id field using the
 - **WHEN** an Item subclass overrides `ID_TYPE` (e.g. `public const ID_TYPE = Field\Varchar::class`)
 - **THEN** the id field SHALL be created using that field type
 
-#### Scenario: Id field initialised from constructor data
-- **WHEN** an Item is constructed with `['id' => 42]` in the data array
+#### Scenario: Id field initialised from constructor data for non-temp items
+- **WHEN** an Item is constructed with `['id' => 42]` in the data array and `isTemp: false`
 - **THEN** `getId()` SHALL return the value cast by the `ID_TYPE` field (e.g. `42` as int)
 
 ### Requirement: Id field excluded from user-facing field lists
@@ -29,15 +29,15 @@ The id field SHALL NOT appear in the output of `getValues()` or `getSqlValues()`
 - **THEN** the returned array SHALL NOT contain an `'id'` key
 
 ### Requirement: Serialisation includes id
-The `jsonSerialize()`, `__serialize()`, and `__toString()` methods SHALL include the id value in their output, prepended to the field values from `getValues()`.
+The `jsonSerialize()` and `__toString()` methods SHALL include the id value in their output, prepended to the field values from `getValues()`. The `__serialize()` method SHALL include the id value within the `'values'` key of a structured array that also contains `'originalValues'` and `'toDelete'`.
 
 #### Scenario: JSON serialisation includes id
 - **WHEN** `json_encode($item)` is called on an Item with id `5` and name `'Alice'`
 - **THEN** the JSON output SHALL contain `"id":5` alongside the other field values
 
-#### Scenario: __serialize includes id
+#### Scenario: __serialize includes id within values key
 - **WHEN** `serialize($item)` is called on an Item with id `5`
-- **THEN** the serialised array SHALL contain the `'id'` key with value `5`
+- **THEN** the serialised array's `'values'` key SHALL contain the `'id'` key with value `5`
 
 #### Scenario: __toString includes id
 - **WHEN** an Item with id `5` is cast to string
@@ -54,29 +54,6 @@ Calling `setId()` on an Item (via the magic `__call` dispatcher) SHALL throw an 
 - **WHEN** `setId(456)` is called on an Item loaded from the database with id `1`
 - **THEN** an `Exception` SHALL be thrown with a message containing "managed automatically"
 
-### Requirement: assignId() for internal use
-The Item class SHALL provide a public `assignId(mixed $id): void` method that sets the id field value. This method SHALL only succeed when both conditions are met: the item has been through a persistence operation (`clearOriginalValues()` has been called) AND the item is temporary (has no id). The method MUST NOT be declared on `ItemInterface`.
-
-#### Scenario: assignId succeeds after clearOriginalValues on a temp item
-- **WHEN** a new Item has `clearOriginalValues()` called, then `assignId(99)` is called
-- **THEN** `getId()` SHALL return `99` and `isTemp()` SHALL return `false`
-
-#### Scenario: assignId throws on a temp item before persistence
-- **WHEN** `assignId(99)` is called on a newly constructed Item without `clearOriginalValues()` having been called
-- **THEN** an `Exception` SHALL be thrown with a message containing "managed automatically"
-
-#### Scenario: assignId throws on a loaded item
-- **WHEN** `assignId(2)` is called on an Item loaded from the database with id `1`
-- **THEN** an `Exception` SHALL be thrown with a message containing "managed automatically"
-
-#### Scenario: assignId throws on a loaded item even after clearOriginalValues
-- **WHEN** an Item with id `1` has `clearOriginalValues()` called, then `assignId(2)` is called
-- **THEN** an `Exception` SHALL be thrown with a message containing "managed automatically" (because `isTemp()` is false)
-
-#### Scenario: assignId is not on ItemInterface
-- **WHEN** the `ItemInterface` is inspected
-- **THEN** it SHALL NOT declare an `assignId` method
-
 ### Requirement: ID_TYPE constant with default
 The Item base class SHALL define `public const ID_TYPE = Field\Integer::class` as the default id field type. Subclasses MAY override this constant to use a different field type.
 
@@ -91,46 +68,9 @@ If an Item subclass declares a key matching `ID_INTERNAL` in `FIELDS`, the syste
 - **WHEN** `getField('id')` is called on an Item subclass that has `'id' => Field\Integer::class` in `FIELDS`
 - **THEN** an `Exception` SHALL be thrown with a message containing "Do not declare" and "ID_TYPE"
 
-### Requirement: Persisted flag on Item
-The Item class SHALL maintain a private `$persisted` flag, initially `false`, that is set to `true` when `clearOriginalValues()` is called. This flag is not directly accessible or inspectable from outside the class.
-
-#### Scenario: Persisted flag is false on new item
-- **WHEN** a new Item is constructed
-- **THEN** the internal persisted flag SHALL be `false`
-
-#### Scenario: clearOriginalValues sets persisted flag
-- **WHEN** `clearOriginalValues()` is called on an Item
-- **THEN** the internal persisted flag SHALL be `true`
-
-### Requirement: Repository insertItem call order
-The `Repository::insertItem()` method SHALL call `clearOriginalValues()` before `assignId()`, so that the persisted flag is set before the id assignment is attempted.
-
-#### Scenario: Insert flow order
-- **WHEN** a new Item (with null id) is saved via `Repository::saveItem()`
-- **THEN** the Repository SHALL execute the INSERT, call `clearOriginalValues()`, then call `assignId()` with the value from `PDO::lastInsertId()`
-
-#### Scenario: Id not overwritten when already set
-- **WHEN** a new Item already has an id assigned before save
-- **THEN** the Repository SHALL NOT call `assignId()` again (preserving the existing id)
-
 ### Requirement: Repository getFieldList includes id in SELECT
 The `Repository::getFieldList()` method SHALL include the id column (aliased from `ID_FIELD` to `ID_INTERNAL`) in its SELECT output, even though the id is not in `FIELDS` or `FIELDS_READONLY`.
 
 #### Scenario: SELECT includes aliased id column
 - **WHEN** `getFieldList()` is called for an Item with `ID_FIELD = 'userId'` and fields `['name', 'email']`
 - **THEN** the output SHALL contain `"userId" AS "id"` alongside `"name"` and `"email"`
-
-### Requirement: isTemp and isDirty unaffected
-The `isTemp()` and `isDirty()` methods SHALL continue to function as before, using the id value from the internal data array.
-
-#### Scenario: New item is temporary
-- **WHEN** an Item is constructed with no data
-- **THEN** `isTemp()` SHALL return `true`
-
-#### Scenario: Item with assigned id is not temporary
-- **WHEN** a new Item has `clearOriginalValues()` called, then `assignId(1)` is called
-- **THEN** `isTemp()` SHALL return `false`
-
-#### Scenario: Dirty tracking unaffected by id changes via assignId
-- **WHEN** a new Item has `clearOriginalValues()` called, then `assignId(1)` is called
-- **THEN** `isDirty()` SHALL return `false` (assignId does not track changes in originalValues)

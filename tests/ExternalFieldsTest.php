@@ -17,7 +17,7 @@ class ExternalFieldsTest extends TestCase
      */
     public function testExternalFieldCanBeRead(): void
     {
-        $item = new ExternalItem([
+        $item = new ExternalItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'departmentId' => 10,
@@ -34,7 +34,7 @@ class ExternalFieldsTest extends TestCase
      */
     public function testExternalFieldsExcludedFromGetSqlValues(): void
     {
-        $item = new ExternalItem([
+        $item = new ExternalItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'departmentId' => 10,
@@ -58,7 +58,7 @@ class ExternalFieldsTest extends TestCase
      */
     public function testSetExternalFieldThrowsException(): void
     {
-        $item = new ExternalItem([
+        $item = new ExternalItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'departmentId' => 10,
@@ -76,7 +76,7 @@ class ExternalFieldsTest extends TestCase
      */
     public function testSetExternalFieldViaMagicSetterThrowsException(): void
     {
-        $item = new ExternalItem([
+        $item = new ExternalItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'departmentId' => 10,
@@ -94,7 +94,7 @@ class ExternalFieldsTest extends TestCase
      */
     public function testExternalFieldExceptionDoesNotMarkItemDirty(): void
     {
-        $item = new ExternalItem([
+        $item = new ExternalItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'departmentId' => 10,
@@ -120,7 +120,7 @@ class ExternalFieldsTest extends TestCase
      */
     public function testRegularFieldsCanBeSetNormally(): void
     {
-        $item = new ExternalItem([
+        $item = new ExternalItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'departmentId' => 10,
@@ -146,7 +146,7 @@ class ExternalFieldsTest extends TestCase
      */
     public function testExternalFieldsExcludedFromGetChangedSqlValues(): void
     {
-        $item = new ExternalItem([
+        $item = new ExternalItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'departmentId' => 10,

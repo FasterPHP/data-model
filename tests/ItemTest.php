@@ -8,6 +8,7 @@ namespace FasterPhp\DataModel;
 
 use BadMethodCallException;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use ReflectionProperty;
 
 /**
@@ -25,7 +26,7 @@ class ItemTest extends TestCase
 
     public function testSetViaConstructor(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
 
         $this->assertSame($this->data['id'], $item->getId());
         $this->assertSame($this->data['name'], $item->getName());
@@ -41,8 +42,7 @@ class ItemTest extends TestCase
         $item->setAge($this->data['age']);
         $item->setHeight($this->data['height']);
         $item->setHandsome($this->data['handsome']);
-        $item->clearOriginalValues();
-        $item->assignId($this->data['id']);
+        $item->markItemPersisted($this->data['id']);
 
         $this->assertSame($this->data['id'], $item->getId());
         $this->assertSame($this->data['name'], $item->getName());
@@ -63,7 +63,7 @@ class ItemTest extends TestCase
 
     public function testIsTempFalse(): void
     {
-        $item = new TestModel\ValidItem(['id' => 123]);
+        $item = new TestModel\ValidItem(['id' => 123], isTemp: false);
         $this->assertFalse($item->isTemp());
     }
 
@@ -75,7 +75,7 @@ class ItemTest extends TestCase
 
     public function testIsDirtyFalse(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
         $this->assertFalse($item->isDirty());
 
         $item->setName($this->data['name']);
@@ -84,7 +84,7 @@ class ItemTest extends TestCase
 
     public function testIsDirtyTrue(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
 
         $item->setName('NewName');
         $this->assertTrue($item->isDirty());
@@ -92,20 +92,20 @@ class ItemTest extends TestCase
 
     public function testIsToDeleteFalse(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
         $this->assertFalse($item->isToDelete());
     }
 
     public function testIsToDeleteTrue(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
         $item->setToDelete();
         $this->assertTrue($item->isToDelete());
     }
 
     public function testLazyLoadFields(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
 
         $dataProperty = new ReflectionProperty($item, 'data');
 
@@ -159,7 +159,7 @@ class ItemTest extends TestCase
 
     public function testSerializeUnserialize(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
 
         $serialized = serialize($item);
         $unserialized = unserialize($serialized);
@@ -177,19 +177,19 @@ class ItemTest extends TestCase
 
     public function testToString(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
         $this->assertSame('{"id":123,"name":"Marcus","age":25,"height":6.25,"handsome":true}', strval($item));
     }
 
     public function testGetRawData(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
         $this->assertSame($this->data, $item->getRawData());
     }
 
     public function testGetChangedSqlValues(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
         $item->setName('NewName');
         $changed = $item->getChangedSqlValues();
         $this->assertArrayHasKey('name', $changed);
@@ -199,7 +199,7 @@ class ItemTest extends TestCase
 
     public function testHasFieldChanged(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
         $this->assertFalse($item->hasFieldChanged('name'));
         $item->setName('NewName');
         $this->assertTrue($item->hasFieldChanged('name'));
@@ -207,21 +207,21 @@ class ItemTest extends TestCase
 
     public function testJsonSerialize(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
         $expected = ['id' => $this->data['id']] + $item->getValues();
         $this->assertSame($expected, $item->jsonSerialize());
     }
 
     public function testBadMethodCall(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
         $this->expectException(BadMethodCallException::class);
         $item->doSomething();
     }
 
     public function testGetFieldNotDefined(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
         $this->expectException(Exception::class);
         $this->expectExceptionMessage("Field 'nonexistent' not defined");
         $item->getNonexistent();
@@ -238,7 +238,7 @@ class ItemTest extends TestCase
 
     public function testSetReadonlyFieldThrowsOnSet(): void
     {
-        $item = new TestModel\ReadonlyItem(['id' => 1, 'name' => 'Test', 'email' => 'a@b.com', 'createdAt' => '2025-01-01 00:00:00']);
+        $item = new TestModel\ReadonlyItem(['id' => 1, 'name' => 'Test', 'email' => 'a@b.com', 'createdAt' => '2025-01-01 00:00:00'], isTemp: false);
         // Getting a readonly field value should work
         $this->assertNotNull($item->getCreatedAt());
 
@@ -317,7 +317,7 @@ class ItemTest extends TestCase
         $item = new TestModel\ValidItem();
         $this->assertNull($item->getId());
 
-        $item = new TestModel\ValidItem(['id' => 42]);
+        $item = new TestModel\ValidItem(['id' => 42], isTemp: false);
         $this->assertSame(42, $item->getId());
     }
 
@@ -337,56 +337,10 @@ class ItemTest extends TestCase
 
     public function testSetIdThrowsOnLoadedItem(): void
     {
-        $item = new TestModel\ValidItem(['id' => 1]);
+        $item = new TestModel\ValidItem(['id' => 1], isTemp: false);
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('managed automatically');
         $item->setId(456);
-    }
-
-    public function testAssignIdSetsValueAndAffectsIsTemp(): void
-    {
-        $item = new TestModel\ValidItem();
-        $this->assertTrue($item->isTemp());
-
-        $item->clearOriginalValues();
-        $item->assignId(99);
-        $this->assertSame(99, $item->getId());
-        $this->assertFalse($item->isTemp());
-    }
-
-    public function testAssignIdDoesNotAffectIsDirty(): void
-    {
-        $item = new TestModel\ValidItem();
-        $this->assertFalse($item->isDirty());
-
-        $item->clearOriginalValues();
-        $item->assignId(1);
-        $this->assertFalse($item->isDirty());
-    }
-
-    public function testAssignIdThrowsWithoutClearOriginalValues(): void
-    {
-        $item = new TestModel\ValidItem();
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessage('managed automatically');
-        $item->assignId(99);
-    }
-
-    public function testAssignIdThrowsOnLoadedItem(): void
-    {
-        $item = new TestModel\ValidItem(['id' => 1]);
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessage('managed automatically');
-        $item->assignId(2);
-    }
-
-    public function testAssignIdThrowsOnLoadedItemAfterClearOriginalValues(): void
-    {
-        $item = new TestModel\ValidItem(['id' => 1]);
-        $item->clearOriginalValues();
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessage('managed automatically');
-        $item->assignId(2);
     }
 
     public function testIdInFieldsThrowsMigrationGuard(): void
@@ -408,17 +362,18 @@ class ItemTest extends TestCase
 
     public function testSerialisationMethodsIncludeId(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
 
         // jsonSerialize includes id
         $json = $item->jsonSerialize();
         $this->assertArrayHasKey('id', $json);
         $this->assertSame(123, $json['id']);
 
-        // __serialize includes id
+        // __serialize includes id within 'values' key
         $serialized = $item->__serialize();
-        $this->assertArrayHasKey('id', $serialized);
-        $this->assertSame(123, $serialized['id']);
+        $this->assertArrayHasKey('values', $serialized);
+        $this->assertArrayHasKey('id', $serialized['values']);
+        $this->assertSame(123, $serialized['values']['id']);
 
         // __toString includes id
         $string = (string) $item;
@@ -427,7 +382,7 @@ class ItemTest extends TestCase
 
     public function testGetValuesAndGetSqlValuesExcludeId(): void
     {
-        $item = new TestModel\ValidItem($this->data);
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
 
         $values = $item->getValues();
         $this->assertArrayNotHasKey('id', $values);
@@ -436,5 +391,218 @@ class ItemTest extends TestCase
         $sqlValues = $item->getSqlValues();
         $this->assertArrayNotHasKey('id', $sqlValues);
         $this->assertArrayHasKey('name', $sqlValues);
+    }
+
+    // --- Item state model tests ---
+
+    public function testStateConstantsArePrivate(): void
+    {
+        $ref = new ReflectionClass(Item::class);
+        foreach (['ITEM_STATE_TEMP', 'ITEM_STATE_CURRENT', 'ITEM_STATE_MODIFIED'] as $name) {
+            $const = $ref->getReflectionConstant($name);
+            $this->assertNotFalse($const, "Constant $name should exist");
+            $this->assertTrue($const->isPrivate(), "Constant $name should be private");
+        }
+    }
+
+    public function testStatePropertyIsPrivate(): void
+    {
+        $ref = new ReflectionClass(Item::class);
+        $prop = $ref->getProperty('itemState');
+        $this->assertTrue($prop->isPrivate());
+    }
+
+    public function testConstructorIsTempDefaultCreatesTemp(): void
+    {
+        $item = new TestModel\ValidItem();
+        $this->assertTrue($item->isTemp());
+        $this->assertFalse($item->isDirty());
+    }
+
+    public function testConstructorIsTempFalseCreatesCurrent(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 5, 'name' => 'Alice'], isTemp: false);
+        $this->assertFalse($item->isTemp());
+        $this->assertFalse($item->isDirty());
+    }
+
+    public function testConstructorGuardTempWithIdThrows(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('temporary item');
+        new TestModel\ValidItem(['id' => 5]);
+    }
+
+    public function testConstructorGuardTempWithoutIdAllowed(): void
+    {
+        $item = new TestModel\ValidItem(['name' => 'Alice']);
+        $this->assertTrue($item->isTemp());
+    }
+
+    public function testConstructorGuardNonTempWithIdAllowed(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 5, 'name' => 'Alice'], isTemp: false);
+        $this->assertSame(5, $item->getId());
+    }
+
+    public function testIsTempNewItem(): void
+    {
+        $item = new TestModel\ValidItem();
+        $this->assertTrue($item->isTemp());
+    }
+
+    public function testIsTempLoadedItem(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 1], isTemp: false);
+        $this->assertFalse($item->isTemp());
+    }
+
+    public function testIsTempAfterMarkItemPersisted(): void
+    {
+        $item = new TestModel\ValidItem();
+        $item->markItemPersisted(42);
+        $this->assertFalse($item->isTemp());
+    }
+
+    public function testIsDirtyNewItem(): void
+    {
+        $item = new TestModel\ValidItem();
+        $this->assertFalse($item->isDirty());
+    }
+
+    public function testIsDirtyLoadedItem(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 1, 'name' => 'Alice'], isTemp: false);
+        $this->assertFalse($item->isDirty());
+    }
+
+    public function testIsDirtyModifiedItem(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 1, 'name' => 'Alice'], isTemp: false);
+        $item->setName('Bob');
+        $this->assertTrue($item->isDirty());
+    }
+
+    public function testIsDirtyTempItemWithSetValues(): void
+    {
+        $item = new TestModel\ValidItem();
+        $item->setName('Bob');
+        $this->assertFalse($item->isDirty());
+    }
+
+    public function testSetValueCurrentToModified(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 1, 'name' => 'Alice'], isTemp: false);
+        $item->setName('Bob');
+        $this->assertTrue($item->isDirty());
+    }
+
+    public function testSetValueModifiedToCurrentOnRevert(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 1, 'name' => 'Alice'], isTemp: false);
+        $item->setName('Bob');
+        $this->assertTrue($item->isDirty());
+        $item->setName('Alice');
+        $this->assertFalse($item->isDirty());
+    }
+
+    public function testSetValueTempStaysTemp(): void
+    {
+        $item = new TestModel\ValidItem();
+        $item->setName('Bob');
+        $this->assertTrue($item->isTemp());
+        $this->assertFalse($item->isDirty());
+    }
+
+    public function testMarkItemPersistedTempWithId(): void
+    {
+        $item = new TestModel\ValidItem();
+        $item->markItemPersisted(99);
+        $this->assertSame(99, $item->getId());
+        $this->assertFalse($item->isTemp());
+        $this->assertFalse($item->isDirty());
+    }
+
+    public function testMarkItemPersistedTempWithoutId(): void
+    {
+        $item = new TestModel\ValidItem();
+        $item->markItemPersisted();
+        $this->assertFalse($item->isTemp());
+    }
+
+    public function testMarkItemPersistedModifiedItem(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 1, 'name' => 'Alice'], isTemp: false);
+        $item->setName('Bob');
+        $this->assertTrue($item->isDirty());
+        $item->markItemPersisted();
+        $this->assertFalse($item->isDirty());
+    }
+
+    public function testMarkItemPersistedThrowsOnNonTempWithId(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 1], isTemp: false);
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('non-temporary');
+        $item->markItemPersisted(2);
+    }
+
+    public function testMarkItemPersistedNotOnItemInterface(): void
+    {
+        $ref = new ReflectionClass(ItemInterface::class);
+        $this->assertFalse($ref->hasMethod('markItemPersisted'));
+    }
+
+    public function testMarkItemPersistedReturnsVoid(): void
+    {
+        $ref = new ReflectionClass(TestModel\ValidItem::class);
+        $method = $ref->getMethod('markItemPersisted');
+        $returnType = $method->getReturnType();
+        $this->assertNotNull($returnType);
+        $this->assertSame('void', $returnType->getName());
+    }
+
+    public function testSerializeUnserializeCurrentItem(): void
+    {
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
+        $unserialized = unserialize(serialize($item));
+        $this->assertFalse($unserialized->isTemp());
+        $this->assertFalse($unserialized->isDirty());
+        $this->assertFalse($unserialized->isToDelete());
+    }
+
+    public function testSerializeUnserializeModifiedItem(): void
+    {
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
+        $item->setName('Bob');
+        $unserialized = unserialize(serialize($item));
+        $this->assertTrue($unserialized->isDirty());
+    }
+
+    public function testSerializeUnserializeTempItem(): void
+    {
+        $item = new TestModel\ValidItem();
+        $unserialized = unserialize(serialize($item));
+        $this->assertTrue($unserialized->isTemp());
+    }
+
+    public function testSerializeUnserializeItemMarkedForDeletion(): void
+    {
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
+        $item->setToDelete();
+        $unserialized = unserialize(serialize($item));
+        $this->assertTrue($unserialized->isToDelete());
+    }
+
+    public function testToStringDelegatesToJsonSerialize(): void
+    {
+        $item = new TestModel\ValidItem($this->data, isTemp: false);
+        $this->assertSame(json_encode($item->jsonSerialize()), (string) $item);
+    }
+
+    public function testClearOriginalValuesRemoved(): void
+    {
+        $ref = new ReflectionClass(ItemInterface::class);
+        $this->assertFalse($ref->hasMethod('clearOriginalValues'));
     }
 }

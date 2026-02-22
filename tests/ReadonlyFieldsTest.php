@@ -17,7 +17,7 @@ class ReadonlyFieldsTest extends TestCase
      */
     public function testReadonlyFieldCanBeRead(): void
     {
-        $item = new ReadonlyItem([
+        $item = new ReadonlyItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'email' => 'alice@example.com',
@@ -40,7 +40,7 @@ class ReadonlyFieldsTest extends TestCase
      */
     public function testReadonlyFieldsIncludedInGetSqlValues(): void
     {
-        $item = new ReadonlyItem([
+        $item = new ReadonlyItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'email' => 'alice@example.com',
@@ -68,7 +68,7 @@ class ReadonlyFieldsTest extends TestCase
      */
     public function testSetReadonlyFieldThrowsException(): void
     {
-        $item = new ReadonlyItem([
+        $item = new ReadonlyItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'email' => 'alice@example.com',
@@ -86,7 +86,7 @@ class ReadonlyFieldsTest extends TestCase
      */
     public function testSetReadonlyFieldViaMagicSetterThrowsException(): void
     {
-        $item = new ReadonlyItem([
+        $item = new ReadonlyItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'email' => 'alice@example.com',
@@ -104,7 +104,7 @@ class ReadonlyFieldsTest extends TestCase
      */
     public function testReadonlyFieldExceptionDoesNotMarkItemDirty(): void
     {
-        $item = new ReadonlyItem([
+        $item = new ReadonlyItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'email' => 'alice@example.com',
@@ -130,7 +130,7 @@ class ReadonlyFieldsTest extends TestCase
      */
     public function testRegularFieldsCanBeSetNormally(): void
     {
-        $item = new ReadonlyItem([
+        $item = new ReadonlyItem(isTemp: false, data: [
             'id' => 1,
             'name' => 'Alice',
             'email' => 'alice@example.com',

@@ -200,7 +200,7 @@ abstract class Set implements SetInterface
     protected function getItem(int $offset): ItemInterface
     {
         if (is_array($this->data[$offset])) {
-            $this->data[$offset] = new $this->itemClassName($this->data[$offset]);
+            $this->data[$offset] = new $this->itemClassName($this->data[$offset], isTemp: false);
         }
         if (!$this->data[$offset] instanceof $this->itemClassName) {
             throw new Exception('Invalid item in set: ' . json_encode($this->data[$offset]));
