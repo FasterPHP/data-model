@@ -418,13 +418,13 @@ abstract class Repository implements RepositoryInterface
 
         $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($params);
+        $item->clearOriginalValues();
         if (empty($item->getId())) {
             $newId = $this->getPdo()->lastInsertId();
             if ($newId) {
                 $item->assignId($newId);
             }
         }
-        $item->clearOriginalValues();
     }
 
     protected function updateItem(Item $item): void
