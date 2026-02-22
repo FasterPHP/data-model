@@ -27,6 +27,7 @@ abstract class Item implements ItemInterface
     protected array $data;
     protected array $originalValues = [];
     protected bool $toDelete = false;
+    private bool $persisted = false;
 
     public function __construct(array $data = [])
     {
@@ -109,12 +110,18 @@ abstract class Item implements ItemInterface
     public function clearOriginalValues(): static
     {
         $this->originalValues = [];
+        $this->persisted = true;
         return $this;
     }
 
     /** @internal For Repository use after INSERT — bypasses the __call setId() guard. */
     public function assignId(mixed $id): void
     {
+        if (!$this->persisted || !$this->isTemp()) {
+            throw new Exception(
+                "Cannot set id directly; the id field is managed automatically"
+            );
+        }
         $this->getField(static::ID_INTERNAL)->setValue($id);
     }
 

@@ -37,11 +37,12 @@ class ItemTest extends TestCase
     public function testSetViaSetters(): void
     {
         $item = new TestModel\ValidItem();
-        $item->assignId($this->data['id']);
         $item->setName($this->data['name']);
         $item->setAge($this->data['age']);
         $item->setHeight($this->data['height']);
         $item->setHandsome($this->data['handsome']);
+        $item->clearOriginalValues();
+        $item->assignId($this->data['id']);
 
         $this->assertSame($this->data['id'], $item->getId());
         $this->assertSame($this->data['name'], $item->getName());
@@ -347,6 +348,7 @@ class ItemTest extends TestCase
         $item = new TestModel\ValidItem();
         $this->assertTrue($item->isTemp());
 
+        $item->clearOriginalValues();
         $item->assignId(99);
         $this->assertSame(99, $item->getId());
         $this->assertFalse($item->isTemp());
@@ -357,8 +359,34 @@ class ItemTest extends TestCase
         $item = new TestModel\ValidItem();
         $this->assertFalse($item->isDirty());
 
+        $item->clearOriginalValues();
         $item->assignId(1);
         $this->assertFalse($item->isDirty());
+    }
+
+    public function testAssignIdThrowsWithoutClearOriginalValues(): void
+    {
+        $item = new TestModel\ValidItem();
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('managed automatically');
+        $item->assignId(99);
+    }
+
+    public function testAssignIdThrowsOnLoadedItem(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 1]);
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('managed automatically');
+        $item->assignId(2);
+    }
+
+    public function testAssignIdThrowsOnLoadedItemAfterClearOriginalValues(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 1]);
+        $item->clearOriginalValues();
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('managed automatically');
+        $item->assignId(2);
     }
 
     public function testIdInFieldsThrowsMigrationGuard(): void

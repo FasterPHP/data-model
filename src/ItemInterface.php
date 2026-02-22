@@ -90,13 +90,4 @@ interface ItemInterface extends Stringable, JsonSerializable
      * @return static
      */
     public function clearOriginalValues(): static;
-
-    /**
-     * Assign the id value (for Repository use after INSERT).
-     *
-     * @internal
-     * @param mixed $id
-     * @return void
-     */
-    public function assignId(mixed $id): void;
 }
