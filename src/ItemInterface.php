@@ -83,5 +83,4 @@ interface ItemInterface extends Stringable, JsonSerializable
      * @return bool
      */
     public function hasFieldChanged(string $fieldName): bool;
-
 }

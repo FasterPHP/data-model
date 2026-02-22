@@ -4,23 +4,14 @@
  * Tests for Paginator\Base class.
  */
 
+declare(strict_types=1);
+
 namespace FasterPhp\DataModel\Paginator;
 
 use FasterPhp\DataModel\Exception;
 use FasterPhp\DataModel\Sort;
 use PDO;
 use PHPUnit\Framework\TestCase;
-
-/**
- * Minimal concrete subclass of Base for testing.
- */
-class TestPaginator extends Base
-{
-    public function getItems(): array
-    {
-        return $this->items ?? [];
-    }
-}
 
 /**
  * Tests for Paginator\Base class.

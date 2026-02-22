@@ -864,8 +864,10 @@ abstract class RepositoryBase extends TestCase
         $params = [':name' => 'Marcus Don'];
 
         $mockDbStatement = $this->getMockDbStatement();
-        $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
-        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[1], self::$data[2]]);
+        $mockDbStatement->expects($this->once())->method('execute')
+            ->with($params)->willReturn(true);
+        $mockDbStatement->expects($this->once())->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)->willReturn([self::$data[1], self::$data[2]]);
 
         $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
@@ -884,7 +886,8 @@ abstract class RepositoryBase extends TestCase
 
         $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
-        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
+        $mockDbStatement->expects($this->once())->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
 
         $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
@@ -903,7 +906,8 @@ abstract class RepositoryBase extends TestCase
 
         $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
-        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
+        $mockDbStatement->expects($this->once())->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
 
         $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
@@ -922,7 +926,8 @@ abstract class RepositoryBase extends TestCase
 
         $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
-        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
+        $mockDbStatement->expects($this->once())->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
 
         $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
@@ -941,7 +946,8 @@ abstract class RepositoryBase extends TestCase
 
         $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
-        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[1]]);
+        $mockDbStatement->expects($this->once())->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)->willReturn([self::$data[1]]);
 
         $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
@@ -960,7 +966,8 @@ abstract class RepositoryBase extends TestCase
 
         $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
-        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[2]]);
+        $mockDbStatement->expects($this->once())->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)->willReturn([self::$data[2]]);
 
         $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
@@ -979,7 +986,8 @@ abstract class RepositoryBase extends TestCase
 
         $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
-        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0], self::$data[2]]);
+        $mockDbStatement->expects($this->once())->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0], self::$data[2]]);
 
         $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
@@ -1027,7 +1035,8 @@ abstract class RepositoryBase extends TestCase
 
         $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
-        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0], self::$data[1]]);
+        $mockDbStatement->expects($this->once())->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0], self::$data[1]]);
 
         $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);
@@ -1047,7 +1056,8 @@ abstract class RepositoryBase extends TestCase
 
         $mockDbStatement = $this->getMockDbStatement();
         $mockDbStatement->expects($this->once())->method('execute')->with($params)->willReturn(true);
-        $mockDbStatement->expects($this->once())->method('fetchAll')->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
+        $mockDbStatement->expects($this->once())->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)->willReturn([self::$data[0]]);
 
         $mockDb = $this->getMockDb();
         $mockDb->expects($this->once())->method('prepare')->with($sql)->willReturn($mockDbStatement);

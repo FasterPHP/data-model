@@ -238,7 +238,10 @@ class ItemTest extends TestCase
 
     public function testSetReadonlyFieldThrowsOnSet(): void
     {
-        $item = new TestModel\ReadonlyItem(['id' => 1, 'name' => 'Test', 'email' => 'a@b.com', 'createdAt' => '2025-01-01 00:00:00'], isTemp: false);
+        $item = new TestModel\ReadonlyItem(
+            ['id' => 1, 'name' => 'Test', 'email' => 'a@b.com', 'createdAt' => '2025-01-01 00:00:00'],
+            isTemp: false,
+        );
         // Getting a readonly field value should work
         $this->assertNotNull($item->getCreatedAt());
 
