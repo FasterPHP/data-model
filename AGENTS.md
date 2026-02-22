@@ -15,6 +15,7 @@ This project uses OpenSpec for spec-driven development.
 See [openspec/](openspec/) for workflow instructions.
 
 Configuration: [openspec/config.yaml](openspec/config.yaml)
+Workflow notes: [docs/standards/workflow-notes.md](docs/standards/workflow-notes.md) — **read before applying changes**
 
 ## Documentation upkeep
 When modifying public API in `src/` (adding, removing, or renaming classes, constants, methods, or method signatures), check whether `README.md` or files in `examples/` reference the changed symbol. If so, update the documentation and examples in the same change.
