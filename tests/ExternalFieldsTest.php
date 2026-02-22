@@ -43,13 +43,12 @@ class ExternalFieldsTest extends TestCase
 
         $sqlValues = $item->getSqlValues(true);
 
-        // Should include regular fields but NOT external fields
-        $this->assertArrayHasKey('id', $sqlValues);
+        // Should include regular fields but NOT external fields or id (implicit)
+        $this->assertArrayNotHasKey('id', $sqlValues);
         $this->assertArrayHasKey('name', $sqlValues);
         $this->assertArrayHasKey('departmentId', $sqlValues);
         $this->assertArrayNotHasKey('departmentName', $sqlValues);
 
-        $this->assertSame(1, $sqlValues['id']);
         $this->assertSame('Alice', $sqlValues['name']);
         $this->assertSame(10, $sqlValues['departmentId']);
     }

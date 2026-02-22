@@ -23,7 +23,6 @@ class DepartmentItem extends Item
     public const ID_FIELD = 'deptId';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
     ];
 }
@@ -44,7 +43,6 @@ class EmployeeItem extends Item
     public const ID_FIELD = 'empId';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'departmentId' => Field\Integer::class,
         'salary' => Field\Integer::class,

@@ -23,7 +23,6 @@ class UserItem extends Item
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'email' => Field\Varchar::class,
         'active' => Field\Boolean::class,

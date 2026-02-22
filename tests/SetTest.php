@@ -142,9 +142,10 @@ class SetTest extends TestCase
         $set = new TestModel\ValidSet(self::$data);
         $values = $set->getValues();
         $this->assertCount(2, $values);
-        $this->assertSame(1, $values[0]['id']);
+        // id is no longer in getValues() — it is implicit and auto-managed
+        $this->assertArrayNotHasKey('id', $values[0]);
         $this->assertSame('Jack', $values[0]['name']);
-        $this->assertSame(2, $values[1]['id']);
+        $this->assertArrayNotHasKey('id', $values[1]);
         $this->assertSame('Jill', $values[1]['name']);
     }
 

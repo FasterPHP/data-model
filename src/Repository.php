@@ -243,15 +243,12 @@ abstract class Repository implements RepositoryInterface
             $this->itemClassName::FIELDS_READONLY,
         ));
 
-        $parts = [];
+        // Prepend the id column explicitly — it is no longer in FIELDS
+        $parts = [
+            Sql::ident("$table.$idField") . ' AS ' . Sql::ident($idInternal),
+        ];
         foreach ($fields as $field) {
-            if ($field === $idInternal) {
-                $parts[] = Sql::ident("$table.$idField")
-                    . ' AS '
-                    . Sql::ident($idInternal);
-            } else {
-                $parts[] = Sql::ident("$table.$field");
-            }
+            $parts[] = Sql::ident("$table.$field");
         }
         return implode(', ', $parts);
     }
@@ -424,7 +421,7 @@ abstract class Repository implements RepositoryInterface
         if (empty($item->getId())) {
             $newId = $this->getPdo()->lastInsertId();
             if ($newId) {
-                $item->setId($newId);
+                $item->assignId($newId);
             }
         }
         $item->clearOriginalValues();

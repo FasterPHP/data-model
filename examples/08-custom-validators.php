@@ -69,7 +69,6 @@ class StandardUserItem extends Item
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'email' => Field\Varchar::class,
     ];
@@ -106,7 +105,6 @@ class CustomUserItem extends Item
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'email' => Field\Varchar::class,
         'username' => Field\Varchar::class,

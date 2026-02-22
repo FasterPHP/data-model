@@ -15,7 +15,6 @@ class AggregateItem extends Item
     public const ID_FIELD = 'orderId';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'userId' => Field\Integer::class,
         'status' => Field\Varchar::class,
     ];

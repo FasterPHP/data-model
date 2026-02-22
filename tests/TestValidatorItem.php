@@ -17,20 +17,8 @@ class TestValidatorItem extends Item
     use LaminasValidatorTrait;
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
     ];
-
-    public function getId(): ?int
-    {
-        return $this->getField('id')->getValue();
-    }
-
-    public function setId(?int $value): static
-    {
-        $this->getField('id')->setValue($value);
-        return $this;
-    }
 
     public function getName(): ?string
     {

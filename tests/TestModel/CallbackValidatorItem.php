@@ -21,7 +21,6 @@ class CallbackValidatorItem extends Item
     public const ID_FIELD = 'id';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
     ];
 

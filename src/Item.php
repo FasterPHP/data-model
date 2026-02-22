@@ -17,6 +17,7 @@ abstract class Item implements ItemInterface
 {
     public const ID_FIELD = '';
     public const ID_INTERNAL = 'id';
+    public const ID_TYPE = Field\Integer::class;
     public const FIELDS = [];
     public const FIELDS_READONLY = [];
     public const FIELDS_EXTERNAL = [];
@@ -111,15 +112,21 @@ abstract class Item implements ItemInterface
         return $this;
     }
 
+    /** @internal For Repository use after INSERT — bypasses the __call setId() guard. */
+    public function assignId(mixed $id): void
+    {
+        $this->getField(static::ID_INTERNAL)->setValue($id);
+    }
+
     #[\Override]
     public function jsonSerialize(): mixed
     {
-        return $this->getValues();
+        return [static::ID_INTERNAL => $this->getId()] + $this->getValues();
     }
 
     public function __serialize(): array
     {
-        return $this->getValues();
+        return [static::ID_INTERNAL => $this->getId()] + $this->getValues();
     }
 
     public function __unserialize(array $data): void
@@ -130,13 +137,19 @@ abstract class Item implements ItemInterface
     #[\Override]
     public function __toString(): string
     {
-        return json_encode($this->getValues());
+        return json_encode([static::ID_INTERNAL => $this->getId()] + $this->getValues());
     }
 
     public function __call(string $name, array $args): mixed
     {
         if (count($args) === 1 && array_key_exists(0, $args) && preg_match('/^set(.+)$/', $name, $matches)) {
-            $this->setValue(lcfirst($matches[1]), $args[0]);
+            $fieldName = lcfirst($matches[1]);
+            if ($fieldName === static::ID_INTERNAL) {
+                throw new Exception(
+                    "Cannot set id directly; the id field is managed automatically"
+                );
+            }
+            $this->setValue($fieldName, $args[0]);
             return $this;
         } elseif (count($args) === 0 && preg_match('/^get(.+)$/', $name, $matches)) {
             return $this->getFieldValue(lcfirst($matches[1]));
@@ -173,8 +186,20 @@ abstract class Item implements ItemInterface
 
     protected function getField(string $fieldName): Field\Base
     {
+        $isIdField = ($fieldName === static::ID_INTERNAL);
+
+        // Migration guard: id must not be declared in FIELDS
+        if ($isIdField && isset(static::FIELDS[$fieldName])) {
+            throw new Exception(
+                "Do not declare '" . static::ID_INTERNAL . "' in FIELDS — it is managed automatically. "
+                . "Remove '" . static::ID_INTERNAL . "' from FIELDS and optionally set ID_TYPE "
+                . "to specify the field type."
+            );
+        }
+
         if (
-            !isset(static::FIELDS[$fieldName])
+            !$isIdField
+            && !isset(static::FIELDS[$fieldName])
             && !isset(static::FIELDS_READONLY[$fieldName])
             && !isset(static::FIELDS_EXTERNAL[$fieldName])
             && !isset(static::FIELDS_AGGREGATE[$fieldName])
@@ -182,13 +207,18 @@ abstract class Item implements ItemInterface
             throw new Exception("Field '$fieldName' not defined");
         }
         if (!array_key_exists($fieldName, $this->data) || !$this->data[$fieldName] instanceof Field\Base) {
-            $fieldClassName = static::FIELDS[$fieldName]
-                ?? static::FIELDS_READONLY[$fieldName]
-                ?? static::FIELDS_EXTERNAL[$fieldName]
-                ?? static::FIELDS_AGGREGATE[$fieldName];
-            $isReadonly = isset(static::FIELDS_READONLY[$fieldName])
-                || isset(static::FIELDS_EXTERNAL[$fieldName])
-                || isset(static::FIELDS_AGGREGATE[$fieldName]);
+            if ($isIdField) {
+                $fieldClassName = static::ID_TYPE;
+                $isReadonly = false;
+            } else {
+                $fieldClassName = static::FIELDS[$fieldName]
+                    ?? static::FIELDS_READONLY[$fieldName]
+                    ?? static::FIELDS_EXTERNAL[$fieldName]
+                    ?? static::FIELDS_AGGREGATE[$fieldName];
+                $isReadonly = isset(static::FIELDS_READONLY[$fieldName])
+                    || isset(static::FIELDS_EXTERNAL[$fieldName])
+                    || isset(static::FIELDS_AGGREGATE[$fieldName]);
+            }
 
             // Determine initial value
             $initialValue = null;
@@ -197,12 +227,12 @@ abstract class Item implements ItemInterface
                 $initialValue = $this->data[$fieldName];
                 $hasInitialValue = true;
             } elseif (array_key_exists($fieldName, static::DEFAULTS)) {
-                if ($fieldName === static::ID_INTERNAL) {
+                if ($isIdField) {
                     throw new Exception('Cannot set default id, please omit from DEFAULTS');
                 }
                 $initialValue = static::DEFAULTS[$fieldName];
                 $hasInitialValue = true;
-            } elseif ($fieldName === 'id') {
+            } elseif ($isIdField) {
                 // For id field, we want to set null if no value provided
                 $initialValue = null;
                 $hasInitialValue = true;
