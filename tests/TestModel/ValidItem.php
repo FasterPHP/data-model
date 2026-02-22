@@ -23,7 +23,6 @@ class ValidItem extends BaseItem
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'age' => Field\Integer::class,
         'height' => Field\Double::class,

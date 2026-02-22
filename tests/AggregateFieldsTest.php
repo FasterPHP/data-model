@@ -46,14 +46,13 @@ class AggregateFieldsTest extends TestCase
 
         $sqlValues = $item->getSqlValues(true);
 
-        // Should include regular fields but NOT aggregate fields
-        $this->assertArrayHasKey('id', $sqlValues);
+        // Should include regular fields but NOT aggregate fields or id (implicit)
+        $this->assertArrayNotHasKey('id', $sqlValues);
         $this->assertArrayHasKey('userId', $sqlValues);
         $this->assertArrayHasKey('status', $sqlValues);
         $this->assertArrayNotHasKey('totalAmount', $sqlValues);
         $this->assertArrayNotHasKey('orderCount', $sqlValues);
 
-        $this->assertSame(1, $sqlValues['id']);
         $this->assertSame(100, $sqlValues['userId']);
         $this->assertSame('completed', $sqlValues['status']);
     }

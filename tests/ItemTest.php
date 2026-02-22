@@ -37,7 +37,7 @@ class ItemTest extends TestCase
     public function testSetViaSetters(): void
     {
         $item = new TestModel\ValidItem();
-        $item->setId($this->data['id']);
+        $item->assignId($this->data['id']);
         $item->setName($this->data['name']);
         $item->setAge($this->data['age']);
         $item->setHeight($this->data['height']);
@@ -85,7 +85,7 @@ class ItemTest extends TestCase
     {
         $item = new TestModel\ValidItem($this->data);
 
-        $item->setId(234);
+        $item->setName('NewName');
         $this->assertTrue($item->isDirty());
     }
 
@@ -207,7 +207,8 @@ class ItemTest extends TestCase
     public function testJsonSerialize(): void
     {
         $item = new TestModel\ValidItem($this->data);
-        $this->assertSame($item->getValues(), $item->jsonSerialize());
+        $expected = ['id' => $this->data['id']] + $item->getValues();
+        $this->assertSame($expected, $item->jsonSerialize());
     }
 
     public function testBadMethodCall(): void
@@ -306,5 +307,106 @@ class ItemTest extends TestCase
         $errors = $item->getValidationErrors();
         $this->assertArrayHasKey('name', $errors);
         $this->assertSame('Name is invalid', $errors['name'][0]);
+    }
+
+    // --- Implicit id field tests ---
+
+    public function testImplicitIdFieldCreation(): void
+    {
+        $item = new TestModel\ValidItem();
+        $this->assertNull($item->getId());
+
+        $item = new TestModel\ValidItem(['id' => 42]);
+        $this->assertSame(42, $item->getId());
+    }
+
+    public function testIdTypeOverride(): void
+    {
+        // ValidItem uses default ID_TYPE (Field\Integer)
+        $this->assertSame(Field\Integer::class, TestModel\ValidItem::ID_TYPE);
+    }
+
+    public function testSetIdThrowsException(): void
+    {
+        $item = new TestModel\ValidItem();
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('managed automatically');
+        $item->setId(123);
+    }
+
+    public function testSetIdThrowsOnLoadedItem(): void
+    {
+        $item = new TestModel\ValidItem(['id' => 1]);
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('managed automatically');
+        $item->setId(456);
+    }
+
+    public function testAssignIdSetsValueAndAffectsIsTemp(): void
+    {
+        $item = new TestModel\ValidItem();
+        $this->assertTrue($item->isTemp());
+
+        $item->assignId(99);
+        $this->assertSame(99, $item->getId());
+        $this->assertFalse($item->isTemp());
+    }
+
+    public function testAssignIdDoesNotAffectIsDirty(): void
+    {
+        $item = new TestModel\ValidItem();
+        $this->assertFalse($item->isDirty());
+
+        $item->assignId(1);
+        $this->assertFalse($item->isDirty());
+    }
+
+    public function testIdInFieldsThrowsMigrationGuard(): void
+    {
+        // Create an anonymous class that still declares 'id' in FIELDS
+        $itemClass = new class () extends \FasterPhp\DataModel\Item {
+            public const ID_FIELD = 'userId';
+            public const FIELDS = [
+                'id' => Field\Integer::class,
+                'name' => Field\Varchar::class,
+            ];
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Do not declare');
+        $this->expectExceptionMessage('ID_TYPE');
+        $itemClass->getId();
+    }
+
+    public function testSerialisationMethodsIncludeId(): void
+    {
+        $item = new TestModel\ValidItem($this->data);
+
+        // jsonSerialize includes id
+        $json = $item->jsonSerialize();
+        $this->assertArrayHasKey('id', $json);
+        $this->assertSame(123, $json['id']);
+
+        // __serialize includes id
+        $serialized = $item->__serialize();
+        $this->assertArrayHasKey('id', $serialized);
+        $this->assertSame(123, $serialized['id']);
+
+        // __toString includes id
+        $string = (string) $item;
+        $this->assertStringContainsString('"id":123', $string);
+    }
+
+    public function testGetValuesAndGetSqlValuesExcludeId(): void
+    {
+        $item = new TestModel\ValidItem($this->data);
+
+        $values = $item->getValues();
+        $this->assertArrayNotHasKey('id', $values);
+        $this->assertArrayHasKey('name', $values);
+
+        $sqlValues = $item->getSqlValues();
+        $this->assertArrayNotHasKey('id', $sqlValues);
+        $this->assertArrayHasKey('name', $sqlValues);
     }
 }

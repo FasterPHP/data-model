@@ -38,7 +38,6 @@ class UserItem extends Item
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'email' => Field\Varchar::class,
         'age' => Field\Integer::class,
@@ -47,7 +46,9 @@ class UserItem extends Item
 }
 ```
 
-**Note:** Getters and setters are provided automatically via `__call` magic methods. `$user->getName()` and `$user->setName('value')` work for any field defined in `FIELDS`. You can optionally define explicit methods for IDE autocompletion and static analysis.
+**Note:** The `id` field is managed automatically — do not declare it in `FIELDS`. The base `Item` class creates it implicitly using `ID_FIELD` (database column name) and `ID_TYPE` (default `Field\Integer::class`). Override `ID_TYPE` if your id uses a different field type.
+
+**Note:** Getters and setters are provided automatically via `__call` magic methods. `$user->getName()` and `$user->setName('value')` work for any field defined in `FIELDS`. You can optionally define explicit methods for IDE autocompletion and static analysis. The `setId()` magic setter is blocked — use `getId()` to read, and `assignId()` for internal/Repository use only.
 
 ### 2. Define Your Set Class
 
@@ -143,7 +144,6 @@ class TicketItem extends Item
     public const ID_FIELD = 'ticketId';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'title' => Field\Varchar::class,
         'assignedTo' => Field\Integer::class,
     ];
@@ -220,7 +220,6 @@ class ValidatedUserItem extends Item
     public const ID_FIELD = 'userId';
 
     public const FIELDS = [
-        'id' => Field\Integer::class,
         'name' => Field\Varchar::class,
         'email' => Field\Varchar::class,
     ];

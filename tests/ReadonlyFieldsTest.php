@@ -50,14 +50,13 @@ class ReadonlyFieldsTest extends TestCase
 
         $sqlValues = $item->getSqlValues(true);
 
-        // Should include both regular fields and readonly fields
-        $this->assertArrayHasKey('id', $sqlValues);
+        // Should include regular fields and readonly fields but NOT id (implicit)
+        $this->assertArrayNotHasKey('id', $sqlValues);
         $this->assertArrayHasKey('name', $sqlValues);
         $this->assertArrayHasKey('email', $sqlValues);
         $this->assertArrayHasKey('createdAt', $sqlValues);
         $this->assertArrayHasKey('updatedAt', $sqlValues);
 
-        $this->assertSame(1, $sqlValues['id']);
         $this->assertSame('Alice', $sqlValues['name']);
         $this->assertSame('alice@example.com', $sqlValues['email']);
         $this->assertSame('2025-01-01 12:00:00', $sqlValues['createdAt']);
