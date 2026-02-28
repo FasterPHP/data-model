@@ -235,8 +235,9 @@ class FieldTest extends TestCase
         $f->setReadonly(true);
         $this->assertTrue($f->isReadonly());
 
-        $this->expectException(\FasterPhp\DataModel\Exception::class);
+        // Field no longer self-enforces readonly; access control is Item's job
         $f->setValue(20);
+        $this->assertSame(20, $f->getValue());
     }
 
     public function testSetReadonlyToggleOff(): void
