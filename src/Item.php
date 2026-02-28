@@ -205,37 +205,37 @@ abstract class Item implements ItemInterface
     {
         $isIdField = ($fieldName === static::ID_INTERNAL);
 
-        // Migration guard: id must not be declared in FIELDS
-        if ($isIdField && isset(static::FIELDS[$fieldName])) {
+        $inFields    = isset(static::FIELDS[$fieldName]);
+        $inReadonly  = isset(static::FIELDS_READONLY[$fieldName]);
+        $inExternal  = isset(static::FIELDS_EXTERNAL[$fieldName]);
+        $inAggregate = isset(static::FIELDS_AGGREGATE[$fieldName]);
+        $inCount     = $inFields + $inReadonly + $inExternal + $inAggregate;
+
+        if ($isIdField && $inCount > 0) {
             throw new Exception(
-                "Do not declare '" . static::ID_INTERNAL . "' in FIELDS — it is managed automatically. "
-                . "Remove '" . static::ID_INTERNAL . "' from FIELDS and optionally set ID_TYPE "
+                "Do not declare '" . static::ID_INTERNAL . "' in field arrays — it is managed automatically. "
+                . "Remove '" . static::ID_INTERNAL . "' and optionally set ID_TYPE "
                 . "to specify the field type."
             );
         }
 
-        if (
-            !$isIdField
-            && !isset(static::FIELDS[$fieldName])
-            && !isset(static::FIELDS_READONLY[$fieldName])
-            && !isset(static::FIELDS_EXTERNAL[$fieldName])
-            && !isset(static::FIELDS_AGGREGATE[$fieldName])
-        ) {
+        if (!$isIdField && $inCount === 0) {
             throw new Exception("Field '$fieldName' not defined");
         }
+
+        if ($inCount > 1) {
+            throw new Exception("Field '$fieldName' is defined in multiple field arrays");
+        }
+
         if (!array_key_exists($fieldName, $this->data) || !$this->data[$fieldName] instanceof Field\Base) {
-            if ($isIdField) {
-                $fieldClassName = static::ID_TYPE;
-                $isReadonly = false;
-            } else {
-                $fieldClassName = static::FIELDS[$fieldName]
-                    ?? static::FIELDS_READONLY[$fieldName]
-                    ?? static::FIELDS_EXTERNAL[$fieldName]
-                    ?? static::FIELDS_AGGREGATE[$fieldName];
-                $isReadonly = isset(static::FIELDS_READONLY[$fieldName])
-                    || isset(static::FIELDS_EXTERNAL[$fieldName])
-                    || isset(static::FIELDS_AGGREGATE[$fieldName]);
-            }
+            $fieldClassName = match (true) {
+                $isIdField   => static::ID_TYPE,
+                $inFields    => static::FIELDS[$fieldName],
+                $inReadonly  => static::FIELDS_READONLY[$fieldName],
+                $inExternal  => static::FIELDS_EXTERNAL[$fieldName],
+                $inAggregate => static::FIELDS_AGGREGATE[$fieldName],
+            };
+            $isReadonly = $inReadonly || $inExternal || $inAggregate;
 
             // Determine initial value
             $initialValue = null;

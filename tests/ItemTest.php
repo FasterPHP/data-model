@@ -363,6 +363,85 @@ class ItemTest extends TestCase
         $itemClass->getId();
     }
 
+    public function testFieldInTwoArraysThrows(): void
+    {
+        $item = new class () extends \FasterPhp\DataModel\Item {
+            public const ID_FIELD = 'userId';
+            public const FIELDS = [
+                'name' => Field\Varchar::class,
+            ];
+            public const FIELDS_READONLY = [
+                'name' => Field\Varchar::class,
+            ];
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Field 'name' is defined in multiple field arrays");
+        $item->getName();
+    }
+
+    public function testFieldInThreeArraysThrows(): void
+    {
+        $item = new class () extends \FasterPhp\DataModel\Item {
+            public const ID_FIELD = 'userId';
+            public const FIELDS = [
+                'total' => Field\Integer::class,
+            ];
+            public const FIELDS_EXTERNAL = [
+                'total' => Field\Integer::class,
+            ];
+            public const FIELDS_AGGREGATE = [
+                'total' => Field\Integer::class,
+            ];
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Field 'total' is defined in multiple field arrays");
+        $item->getTotal();
+    }
+
+    public function testIdInFieldsReadonlyThrows(): void
+    {
+        $item = new class () extends \FasterPhp\DataModel\Item {
+            public const ID_FIELD = 'userId';
+            public const FIELDS_READONLY = [
+                'id' => Field\Integer::class,
+            ];
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Do not declare');
+        $item->getId();
+    }
+
+    public function testIdInFieldsExternalThrows(): void
+    {
+        $item = new class () extends \FasterPhp\DataModel\Item {
+            public const ID_FIELD = 'userId';
+            public const FIELDS_EXTERNAL = [
+                'id' => Field\Integer::class,
+            ];
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Do not declare');
+        $item->getId();
+    }
+
+    public function testIdInFieldsAggregateThrows(): void
+    {
+        $item = new class () extends \FasterPhp\DataModel\Item {
+            public const ID_FIELD = 'userId';
+            public const FIELDS_AGGREGATE = [
+                'id' => Field\Integer::class,
+            ];
+        };
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Do not declare');
+        $item->getId();
+    }
+
     public function testSerialisationMethodsIncludeId(): void
     {
         $item = new TestModel\ValidItem($this->data, isTemp: false);
