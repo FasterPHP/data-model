@@ -63,17 +63,10 @@ abstract class Base implements Stringable
     /**
      * Set the field value.
      *
-     * @param mixed $value The value to set
-     * @return self
-     * @throws \FasterPhp\DataModel\Exception if field is readonly
+     * Access control is enforced by Item::setValue(), not here.
      */
     public function setValue(mixed $value): self
     {
-        if ($this->isReadonly) {
-            throw new \FasterPhp\DataModel\Exception(
-                "Cannot update value for read-only field '{$this->name}'"
-            );
-        }
         return $this->setValueInternal($value);
     }
 

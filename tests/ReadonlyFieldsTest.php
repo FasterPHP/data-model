@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use PHPUnit\Framework\TestCase;
+use FasterPhp\DataModel\TestModel\AggregateItem;
+use FasterPhp\DataModel\TestModel\ExternalItem;
 use FasterPhp\DataModel\TestModel\ReadonlyItem;
 
 /**
@@ -150,5 +152,69 @@ class ReadonlyFieldsTest extends TestCase
         // Readonly field should still be accessible (as DateTime object)
         $this->assertInstanceOf(\DateTime::class, $item->getCreatedAt());
         $this->assertSame('2025-01-01 12:00:00', $item->getCreatedAt()->format('Y-m-d H:i:s'));
+    }
+
+    public function testSettingReadonlyFieldOnTempItemSucceeds(): void
+    {
+        $item = new ReadonlyItem();
+
+        $item->setCreatedAt('2025-06-01 10:00:00');
+
+        $this->assertInstanceOf(\DateTime::class, $item->getCreatedAt());
+        $this->assertSame('2025-06-01 10:00:00', $item->getCreatedAt()->format('Y-m-d H:i:s'));
+    }
+
+    public function testSettingReadonlyFieldOnCurrentItemThrows(): void
+    {
+        $item = new ReadonlyItem(isTemp: false, data: [
+            'id' => 1,
+            'name' => 'Alice',
+            'email' => 'alice@example.com',
+            'createdAt' => '2025-01-01 12:00:00',
+        ]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("read-only field");
+
+        $item->setCreatedAt('2025-06-01 10:00:00');
+    }
+
+    public function testSettingReadonlyFieldOnModifiedItemThrows(): void
+    {
+        $item = new ReadonlyItem(isTemp: false, data: [
+            'id' => 1,
+            'name' => 'Alice',
+            'email' => 'alice@example.com',
+            'createdAt' => '2025-01-01 12:00:00',
+        ]);
+
+        // Move to MODIFIED state
+        $item->setName('Bob');
+        $this->assertTrue($item->isDirty());
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("read-only field");
+
+        $item->setCreatedAt('2025-06-01 10:00:00');
+    }
+
+    public function testSettingExternalFieldOnTempItemThrows(): void
+    {
+        $item = new ExternalItem();
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("read-only field");
+
+        $item->setDepartmentName('Marketing');
+    }
+
+    public function testSettingAggregateFieldOnTempItemThrows(): void
+    {
+        $item = new AggregateItem();
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("read-only field");
+
+        $item->setTotalAmount(500);
     }
 }

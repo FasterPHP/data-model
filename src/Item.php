@@ -178,9 +178,9 @@ abstract class Item implements ItemInterface
     {
         $field = $this->getField($fieldName);
         if (
-            isset(static::FIELDS_READONLY[$fieldName])
-            || isset(static::FIELDS_EXTERNAL[$fieldName])
+            isset(static::FIELDS_EXTERNAL[$fieldName])
             || isset(static::FIELDS_AGGREGATE[$fieldName])
+            || (isset(static::FIELDS_READONLY[$fieldName]) && !$this->isTemp())
         ) {
             throw new Exception("Cannot update value for read-only field '$fieldName'");
         }
