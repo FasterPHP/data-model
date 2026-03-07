@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use PDO;
 use FasterPhp\DataModel\TestModel\AggregateItem;
 use FasterPhp\DataModel\TestModel\AggregateRepository;
+use FasterPhp\DataModel\TestModel\ExternalRepository;
 use FasterPhp\DataModel\TestModel\ReadonlyRepository;
 
 /**
@@ -158,8 +159,9 @@ class AggregateFieldsRepositoryTest extends TestCase
         // Test with aggregate field
         [$havingSql, $havingParams] = $method->invoke($repo, ['totalAmount' => 1000]);
 
-        // Should generate HAVING clause for aggregate field
-        $this->assertStringContainsString('`orders`.`totalAmount`', $havingSql);
+        // Should generate HAVING clause for aggregate field (bare, not table-qualified)
+        $this->assertStringContainsString('`totalAmount`', $havingSql);
+        $this->assertStringNotContainsString('`orders`.`totalAmount`', $havingSql);
         $this->assertArrayHasKey(':totalAmount', $havingParams);
         $this->assertEquals(1000, $havingParams[':totalAmount']);
     }
@@ -217,9 +219,11 @@ class AggregateFieldsRepositoryTest extends TestCase
         $this->assertArrayHasKey(':userId', $whereParams);
         $this->assertArrayHasKey(':status', $whereParams);
 
-        // HAVING should have aggregate fields
-        $this->assertStringContainsString('`orders`.`totalAmount`', $havingSql);
-        $this->assertStringContainsString('`orders`.`orderCount`', $havingSql);
+        // HAVING should have aggregate fields (bare, not table-qualified)
+        $this->assertStringContainsString('`totalAmount`', $havingSql);
+        $this->assertStringNotContainsString('`orders`.`totalAmount`', $havingSql);
+        $this->assertStringContainsString('`orderCount`', $havingSql);
+        $this->assertStringNotContainsString('`orders`.`orderCount`', $havingSql);
         $this->assertArrayHasKey(':totalAmount', $havingParams);
         $this->assertArrayHasKey(':orderCount', $havingParams);
     }
@@ -308,5 +312,92 @@ class AggregateFieldsRepositoryTest extends TestCase
 
         $this->assertSame('completed', $row['status']);
         $this->assertSame(100, (int)$row['userId']);
+    }
+
+    /**
+     * Test that aggregate fields are NOT table-qualified in getComparison().
+     */
+    public function testAggregateFieldNotTableQualified(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql] = $method->invoke($repo, 'totalAmount', 'equals', 1000);
+
+        $this->assertStringContainsString('`totalAmount`', $sql);
+        $this->assertStringNotContainsString('`orders`.`totalAmount`', $sql);
+    }
+
+    /**
+     * Test that external fields are NOT table-qualified in getComparison().
+     */
+    public function testExternalFieldNotTableQualified(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new ExternalRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql] = $method->invoke($repo, 'departmentName', 'equals', 'Engineering');
+
+        $this->assertStringContainsString('`departmentName`', $sql);
+        $this->assertStringNotContainsString('`employees`.`departmentName`', $sql);
+    }
+
+    /**
+     * Test that readonly fields ARE table-qualified in getComparison().
+     */
+    public function testReadonlyFieldIsTableQualified(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new ReadonlyRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql] = $method->invoke($repo, 'createdAt', 'equals', '2026-01-01');
+
+        $this->assertStringContainsString('`readonly_users`.`createdAt`', $sql);
+    }
+
+    /**
+     * Test that regular FIELDS are table-qualified in getComparison().
+     */
+    public function testRegularFieldIsTableQualified(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql] = $method->invoke($repo, 'userId', 'equals', 100);
+
+        $this->assertStringContainsString('`orders`.`userId`', $sql);
+    }
+
+    /**
+     * Test that dot-qualified keys are used as-is in getComparison().
+     */
+    public function testDotQualifiedKeyUsedAsIs(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql] = $method->invoke($repo, 'a.createdDate', 'equals', '2026-01-01');
+
+        $this->assertStringContainsString('`a`.`createdDate`', $sql);
     }
 }

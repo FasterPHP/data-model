@@ -339,10 +339,17 @@ abstract class Repository implements RepositoryInterface
         if (!isset(self::OPERATORS[$type])) {
             throw new Exception("Unsupported search type '{$type}'");
         }
-        // Qualify column with table if no explicit alias provided
-        $identifier = str_contains($key, '.')
-            ? $key
-            : $this->getTableName() . '.' . $key;
+        // Qualify column with table only if it belongs to the base table
+        if (str_contains($key, '.')) {
+            $identifier = $key;
+        } elseif (
+            isset($this->itemClassName::FIELDS[$key])
+            || isset($this->itemClassName::FIELDS_READONLY[$key])
+        ) {
+            $identifier = $this->getTableName() . '.' . $key;
+        } else {
+            $identifier = $key;
+        }
         $safeKey     = Sql::ident($identifier);
         $placeholder = Sql::placeholder($key);
         $params      = [];
