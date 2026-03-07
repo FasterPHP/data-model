@@ -20,7 +20,9 @@ abstract class Base
     protected static ?int $defaultMaxPageLinks = null;
     protected ?Sort $sort;
     private ?int $maxItemsPerPage;
+    private bool $maxItemsPerPageSet = false;
     private ?int $maxPageLinks;
+    private bool $maxPageLinksSet = false;
     protected int $pageNum = 1;
     private int $numPages;
     protected int $numItemsOnPage;
@@ -58,6 +60,7 @@ abstract class Base
     public function setMaxItemsPerPage(?int $maxItemsPerPage): static
     {
         $this->maxItemsPerPage = $maxItemsPerPage;
+        $this->maxItemsPerPageSet = true;
         unset($this->items);
         unset($this->numItemsOnPage);
         return $this;
@@ -65,18 +68,19 @@ abstract class Base
 
     public function getMaxItemsPerPage(): ?int
     {
-        return isset($this->maxItemsPerPage) ? $this->maxItemsPerPage : self::$defaultMaxItemsPerPage;
+        return $this->maxItemsPerPageSet ? $this->maxItemsPerPage : self::$defaultMaxItemsPerPage;
     }
 
     public function setMaxPageLink(?int $maxPageLinks): static
     {
         $this->maxPageLinks = $maxPageLinks;
+        $this->maxPageLinksSet = true;
         return $this;
     }
 
     public function getMaxPageLinks(): ?int
     {
-        return isset($this->maxPageLinks) ? $this->maxPageLinks : self::$defaultMaxPageLinks;
+        return $this->maxPageLinksSet ? $this->maxPageLinks : self::$defaultMaxPageLinks;
     }
 
     public function setPageNum(int $pageNum): static

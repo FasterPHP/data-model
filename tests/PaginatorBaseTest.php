@@ -78,6 +78,29 @@ class PaginatorBaseTest extends TestCase
         $this->assertSame(7, $paginator->getMaxPageLinks());
     }
 
+    public function testInstanceNullMaxItemsPerPageOverridesDefault(): void
+    {
+        Base::setDefaultMaxItemsPerPage(25);
+        $paginator = $this->createPaginator();
+        $paginator->setMaxItemsPerPage(null);
+        $this->assertNull($paginator->getMaxItemsPerPage());
+    }
+
+    public function testDefaultMaxItemsPerPageUsedWhenSetterNeverCalled(): void
+    {
+        Base::setDefaultMaxItemsPerPage(15);
+        $paginator = $this->createPaginator();
+        $this->assertSame(15, $paginator->getMaxItemsPerPage());
+    }
+
+    public function testInstanceNullMaxPageLinksOverridesDefault(): void
+    {
+        Base::setDefaultMaxPageLinks(10);
+        $paginator = $this->createPaginator();
+        $paginator->setMaxPageLink(null);
+        $this->assertNull($paginator->getMaxPageLinks());
+    }
+
     public function testSetPageNumClampsToOne(): void
     {
         $paginator = $this->createPaginator();
