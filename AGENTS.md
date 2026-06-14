@@ -17,6 +17,8 @@ See [openspec/](openspec/) for workflow instructions.
 Configuration: [openspec/config.yaml](openspec/config.yaml)
 Workflow notes: [docs/standards/workflow-notes.md](docs/standards/workflow-notes.md) — **read before applying changes**
 
+Do not edit specs or change artifacts in `openspec/` by hand; manage them through the OpenSpec workflow.
+
 ## Documentation upkeep
 When modifying public API in `src/` (adding, removing, or renaming classes, constants, methods, or method signatures), check whether `README.md` or files in `examples/` reference the changed symbol. If so, update the documentation and examples in the same change.
 
