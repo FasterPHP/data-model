@@ -33,3 +33,14 @@ When modifying or adding code in `src/`, update or add corresponding tests in `t
 - Do not add dependencies without discussion — this is a lightweight library by design
 - Maintain the `{Prefix}Item` / `{Prefix}Set` / `{Prefix}Repository` naming convention
 - Validation must remain opt-in via traits — Items without traits must have zero validation overhead
+
+## Workspace inheritance
+
+This repository is nested inside the workspace repo at `/home/marcus/Projects`.
+Claude Code loads the parent instruction files automatically by walking up the
+directory tree; tools that only load AGENTS.md from this repo's git root
+downward (e.g. Codex) do not. If they are not already in context, read these
+files before starting work:
+
+- `/home/marcus/Projects/AGENTS.md` (workspace conventions and domain map)
+- `/home/marcus/Projects/FasterPHP/AGENTS.md` (FasterPHP framework domain)
