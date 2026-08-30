@@ -33,3 +33,4 @@ When modifying or adding code in `src/`, update or add corresponding tests in `t
 - Do not add dependencies without discussion — this is a lightweight library by design
 - Maintain the `{Prefix}Item` / `{Prefix}Set` / `{Prefix}Repository` naming convention
 - Validation must remain opt-in via traits — Items without traits must have zero validation overhead
+
