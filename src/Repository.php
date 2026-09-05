@@ -299,7 +299,7 @@ abstract class Repository implements RepositoryInterface
             $sql .= "\nHAVING $havingSql";
         }
 
-        return $this->fetchData($sql, $whereParams + $havingParams);
+        return $this->fetchData($sql, $this->mergeParams($whereParams, $havingParams));
     }
 
     /* -------------------------------
@@ -329,9 +329,33 @@ abstract class Repository implements RepositoryInterface
             $searchType = $types[$key] ?? self::EQUALS;
             [$sql, $chunk] = $this->getComparison($key, $searchType, $value);
             $fragments[] = $sql;
-            $params += $chunk;
+            $params = $this->mergeParams($params, $chunk);
         }
         return [implode(' AND ', $fragments), $params];
+    }
+
+    /**
+     * Merge bound parameters, refusing to overwrite an existing placeholder.
+     *
+     * Placeholders are injective in the filter key, so an overwrite means a binding would be
+     * silently discarded. This is an assertion rather than expected behaviour.
+     *
+     * @param array<string, mixed> $params The parameters accumulated so far.
+     * @param array<string, mixed> $chunk  The parameters to add.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws Exception If a placeholder would be overwritten.
+     */
+    protected function mergeParams(array $params, array $chunk): array
+    {
+        foreach ($chunk as $placeholder => $value) {
+            if (array_key_exists($placeholder, $params)) {
+                throw new Exception("Duplicate bound parameter '$placeholder'");
+            }
+            $params[$placeholder] = $value;
+        }
+        return $params;
     }
 
     protected function getComparison(string $key, string $type, mixed $value): array
