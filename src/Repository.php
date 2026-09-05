@@ -374,7 +374,11 @@ abstract class Repository implements RepositoryInterface
                 $sql = "($frag" . ($hasNull ? " OR $safeKey IS NULL)" : ')');
                 return [$sql, $inParams];
             }
-            return ["$safeKey IS NULL", []];
+            if ($hasNull) {
+                return ["$safeKey IS NULL", []];
+            }
+            // Empty array matches no rows, using the same fragment as an empty IN (...)
+            return Sql::expandIn($safeKey, []);
         }
 
         // Null scalar: compared using SQL null semantics, never bound as a parameter
