@@ -1,3 +1,11 @@
+## Purpose
+
+Defines how an explicit null passed to a paginator instance setter overrides the corresponding
+static default, and when the static default applies instead, so that unlimited paging can be
+requested per instance.
+
+## Requirements
+
 ### Requirement: Instance setMaxItemsPerPage(null) overrides static default
 When `setMaxItemsPerPage(null)` is called on a paginator instance, `getMaxItemsPerPage()` SHALL return `null` (unlimited), even when a static default has been set via `setDefaultMaxItemsPerPage()`. The static default SHALL only be used when `setMaxItemsPerPage()` has never been called on the instance.
 

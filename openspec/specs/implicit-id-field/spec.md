@@ -1,3 +1,11 @@
+## Purpose
+
+Defines how the Item base class creates and manages the id field from the `ID_FIELD`,
+`ID_INTERNAL` and `ID_TYPE` constants, and how that implicit field behaves in field lists,
+serialisation, mutation and the generated SELECT clause, so subclasses never declare it themselves.
+
+## Requirements
+
 ### Requirement: Implicit id field creation
 The Item base class SHALL automatically create and manage the id field using the `ID_FIELD`, `ID_INTERNAL`, and `ID_TYPE` constants. Item subclasses MUST NOT declare the id field in `FIELDS`, `FIELDS_READONLY`, `FIELDS_EXTERNAL`, or `FIELDS_AGGREGATE`.
 

@@ -1,3 +1,11 @@
+## Purpose
+
+Defines which column identifiers `Repository` table-qualifies when it builds WHERE and HAVING
+clauses, so that base-table fields, aggregate and external fields, and dot-qualified keys are each
+referenced in the form the surrounding SQL accepts.
+
+## Requirements
+
 ### Requirement: Table-qualification based on field ownership
 
 `Repository::getComparison()` SHALL only table-qualify column identifiers that belong to the base table (`FIELDS` or `FIELDS_READONLY`). Fields not in these sets (including `FIELDS_AGGREGATE` and `FIELDS_EXTERNAL`) SHALL be used as bare backtick-quoted identifiers. Dot-qualified keys (e.g. `table.field`) SHALL be used as-is.
