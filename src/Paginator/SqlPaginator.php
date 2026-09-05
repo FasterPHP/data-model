@@ -181,8 +181,7 @@ class SqlPaginator extends Base
 
     protected function clearResults()
     {
-        unset($this->items);
-        unset($this->numItemsOnPage);
         unset($this->numItemsTotal);
+        $this->invalidateDerivedValues();
     }
 }

@@ -47,9 +47,30 @@ abstract class Base
     public function setSort(?Sort $sort): static
     {
         $this->sort = $sort;
+        $this->invalidateDerivedValues();
+        return $this;
+    }
+
+    /**
+     * Discard every cached value derived from the current results, page size or page number.
+     *
+     * @return void
+     */
+    protected function invalidateDerivedValues(): void
+    {
         unset($this->items);
         unset($this->numItemsOnPage);
-        return $this;
+        $this->invalidatePageCount();
+    }
+
+    /**
+     * Discard the cached page count, which is derived from the total and the page size.
+     *
+     * @return void
+     */
+    protected function invalidatePageCount(): void
+    {
+        unset($this->numPages);
     }
 
     public function getSort(): ?Sort
@@ -59,10 +80,12 @@ abstract class Base
 
     public function setMaxItemsPerPage(?int $maxItemsPerPage): static
     {
+        $changed = $this->getMaxItemsPerPage() !== $maxItemsPerPage;
         $this->maxItemsPerPage = $maxItemsPerPage;
         $this->maxItemsPerPageSet = true;
-        unset($this->items);
-        unset($this->numItemsOnPage);
+        if ($changed) {
+            $this->invalidateDerivedValues();
+        }
         return $this;
     }
 
@@ -85,9 +108,11 @@ abstract class Base
 
     public function setPageNum(int $pageNum): static
     {
-        $this->pageNum = $pageNum >= 1 ? $pageNum : 1;
-        unset($this->items);
-        unset($this->numItemsOnPage);
+        $pageNum = $pageNum >= 1 ? $pageNum : 1;
+        if ($pageNum !== $this->pageNum) {
+            $this->pageNum = $pageNum;
+            $this->invalidateDerivedValues();
+        }
         return $this;
     }
 
@@ -125,7 +150,10 @@ abstract class Base
 
     public function setNumItemsTotal(int $numItemsTotal): static
     {
-        $this->numItemsTotal = $numItemsTotal;
+        if (!isset($this->numItemsTotal) || $numItemsTotal !== $this->numItemsTotal) {
+            $this->numItemsTotal = $numItemsTotal;
+            $this->invalidatePageCount();
+        }
         return $this;
     }
 
