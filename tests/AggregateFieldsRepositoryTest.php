@@ -229,6 +229,83 @@ class AggregateFieldsRepositoryTest extends TestCase
     }
 
     /**
+     * Test that every placeholder in the generated SQL has a binding, across WHERE and HAVING.
+     */
+    public function testEveryPlaceholderInGeneratedSqlHasABinding(): void
+    {
+        $capturedSql = null;
+        $capturedParams = null;
+
+        $stmt = $this->getMockBuilder(\PDOStatement::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['execute', 'fetchAll'])
+            ->getMock();
+        $stmt->method('execute')
+            ->willReturnCallback(function (?array $params = null) use (&$capturedParams): bool {
+                $capturedParams = $params;
+                return true;
+            });
+        $stmt->method('fetchAll')->willReturn([]);
+
+        $pdo = $this->getMockBuilder(PDO::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare'])
+            ->getMock();
+        $pdo->method('prepare')
+            ->willReturnCallback(function (string $sql) use (&$capturedSql, $stmt) {
+                $capturedSql = $sql;
+                return $stmt;
+            });
+
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getDataWithParams');
+        $method->setAccessible(true);
+
+        $method->invoke($repo, [
+            'orders.userId' => 100,  // WHERE, via a key that needs sanitising
+            'status' => 'completed', // WHERE
+            'totalAmount' => 1000,   // HAVING
+            'orderCount' => 5,       // HAVING
+        ]);
+
+        $this->assertIsString($capturedSql);
+        $this->assertIsArray($capturedParams);
+
+        preg_match_all('/:[a-zA-Z0-9_]+/', $capturedSql, $matches);
+        $placeholders = $matches[0];
+
+        $this->assertCount(4, $placeholders);
+        foreach ($placeholders as $placeholder) {
+            $this->assertArrayHasKey($placeholder, $capturedParams);
+        }
+        $this->assertCount(count($placeholders), $capturedParams);
+    }
+
+    /**
+     * Test that merging parameters refuses to overwrite an existing placeholder.
+     */
+    public function testMergeParamsRejectsOverwritingPlaceholder(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('mergeParams');
+        $method->setAccessible(true);
+
+        $this->assertSame(
+            [':a' => 1, ':b' => 2],
+            $method->invoke($repo, [':a' => 1], [':b' => 2])
+        );
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Duplicate bound parameter ':a'");
+        $method->invoke($repo, [':a' => 1], [':a' => 2]);
+    }
+
+    /**
      * Test that INSERT SQL does NOT include FIELDS_AGGREGATE.
      */
     public function testInsertSqlExcludesAggregateFields(): void
