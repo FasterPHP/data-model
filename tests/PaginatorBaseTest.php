@@ -141,6 +141,22 @@ class PaginatorBaseTest extends TestCase
         $this->assertSame(1, $paginator->getNumPages());
     }
 
+    /**
+     * Characterisation: the cached page count survives a change of page size.
+     */
+    public function testCharacterisationNumPagesStaleAfterPageSizeChange(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(25);
+        $paginator->setMaxItemsPerPage(10);
+        $this->assertSame(3, $paginator->getNumPages());
+
+        $paginator->setMaxItemsPerPage(5);
+
+        // Current behaviour: still 3, computed from the previous page size of 10 rather than 5.
+        $this->assertSame(3, $paginator->getNumPages());
+    }
+
     public function testNumItemsOnPage(): void
     {
         $paginator = $this->createPaginator();

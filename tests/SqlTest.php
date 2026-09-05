@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace FasterPHP\DataModel;
+namespace FasterPhp\DataModel;
 
 use PHPUnit\Framework\TestCase;
 
@@ -21,6 +21,34 @@ final class SqlTest extends TestCase
     public function testIdentWithMultipleDots(): void
     {
         $this->assertEquals('`db`.`users`.`userId`', Sql::ident('db.users.userId'));
+    }
+
+    /**
+     * Characterisation: current Sql::ident() output, including the unescaped backtick defect.
+     */
+    public function testCharacterisationIdentCurrentOutput(): void
+    {
+        $this->assertSame('`users`', Sql::ident('users'));
+        $this->assertSame('`users`.`userId`', Sql::ident('users.userId'));
+
+        // Current behaviour: an embedded backtick is emitted verbatim and terminates its own quoting.
+        $this->assertSame('`user`id`', Sql::ident('user`id'));
+    }
+
+    /**
+     * Characterisation: Sql::placeholder() currently collapses three distinct keys onto one name.
+     */
+    public function testCharacterisationPlaceholderCollision(): void
+    {
+        $placeholders = [
+            Sql::placeholder('user.id'),
+            Sql::placeholder('user_id'),
+            Sql::placeholder('user-id'),
+        ];
+
+        // Current behaviour: three distinct keys, one placeholder, so bindings are lost on merge.
+        $this->assertSame([':user_id', ':user_id', ':user_id'], $placeholders);
+        $this->assertCount(1, array_unique($placeholders));
     }
 
     public function testPlaceholderSimple(): void
