@@ -50,6 +50,21 @@ class Sort
     }
 
     /**
+     * Get whether a sort field is valid.
+     *
+     * A sort field is interpolated into the generated ORDER BY clause, so it must be a valid
+     * SQL identifier shape.
+     *
+     * @param string $field The name of the sort field.
+     *
+     * @return boolean
+     */
+    public static function isValidSortField(string $field): bool
+    {
+        return Sql::isValidIdent($field);
+    }
+
+    /**
      * Constructor.
      *
      * @param string  $field         The sort field.
@@ -82,6 +97,9 @@ class Sort
      */
     public function setSortField(string $field): static
     {
+        if (false === self::isValidSortField($field)) {
+            throw new Exception("Invalid sort field '$field'");
+        }
         $this->sortField = $field;
         return $this;
     }
@@ -126,6 +144,14 @@ class Sort
      */
     public function setSecondarySort(?Sort $sort): static
     {
+        // Every sort in the chain contributes an identifier to the ORDER BY clause.
+        for ($secondary = $sort; !is_null($secondary); $secondary = $secondary->getSecondarySort()) {
+            $field = $secondary->getSortField();
+            if (false === self::isValidSortField($field)) {
+                throw new Exception("Invalid sort field '$field'");
+            }
+        }
+
         $this->secondarySort = $sort;
         return $this;
     }

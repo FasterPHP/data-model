@@ -327,6 +327,15 @@ class PaginatorBaseTest extends TestCase
         $this->assertSame($paginator, $result);
     }
 
+    public function testSqlPaginatorSortSqlQuotesValidatedIdentifiers(): void
+    {
+        $pdo = $this->createMockPdo();
+        $sort = new Sort('users.name', Sort::DESCENDING, new Sort('age'));
+        $paginator = new SqlPaginator($pdo, $sort);
+
+        $this->assertSame('ORDER BY `users`.`name` DESC, `age` ASC', $paginator->getSortSql());
+    }
+
     public function testSqlPaginatorGetSqlThrows(): void
     {
         $pdo = $this->createMockPdo();

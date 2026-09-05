@@ -63,6 +63,76 @@ class SortTest extends \PHPUnit\Framework\TestCase
     }
 
     /**
+     * Test that a dot-qualified sort field is accepted.
+     *
+     * @return void
+     */
+    public function testCreateSortItemWithQualifiedField(): void
+    {
+        $item = new Sort('users.userId');
+        $this->assertEquals('users.userId', $item->getSortField());
+    }
+
+    /**
+     * Test that a sort field that is not a valid identifier is rejected at construction.
+     *
+     * @return void
+     */
+    public function testCreateSortItemWithInvalidSortField(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Invalid sort field 'name` DESC, (SELECT 1)'");
+        new Sort('name` DESC, (SELECT 1)');
+    }
+
+    /**
+     * Test that an invalid sort field is rejected by the setter.
+     *
+     * @return void
+     */
+    public function testSetInvalidSortField(): void
+    {
+        $item = new Sort('name');
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Invalid sort field 'COUNT(*)'");
+        $item->setSortField('COUNT(*)');
+    }
+
+    /**
+     * Test that an invalid secondary sort field is rejected.
+     *
+     * @return void
+     */
+    public function testSecondarySortFieldIsValidated(): void
+    {
+        $secondary = new Sort('age');
+
+        // Bypass the setter to simulate a chain carrying an unvalidated field.
+        $property = (new \ReflectionClass($secondary))->getProperty('sortField');
+        $property->setAccessible(true);
+        $property->setValue($secondary, 'age; DROP TABLE users');
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Invalid sort field 'age; DROP TABLE users'");
+        new Sort('name', Sort::ASCENDING, $secondary);
+    }
+
+    /**
+     * Test that a valid secondary sort chain is accepted.
+     *
+     * @return void
+     */
+    public function testValidSecondarySortChainAccepted(): void
+    {
+        $third = new Sort('height');
+        $second = new Sort('age', Sort::DESCENDING, $third);
+        $first = new Sort('users.name', Sort::ASCENDING, $second);
+
+        $this->assertSame($second, $first->getSecondarySort());
+        $this->assertSame($third, $second->getSecondarySort());
+    }
+
+    /**
      * Test set sort direction.
      *
      * @return void
