@@ -85,9 +85,9 @@ final class SqlTest extends TestCase
     }
 
     /**
-     * Characterisation: Sql::placeholder() currently collapses three distinct keys onto one name.
+     * Keys differing only in characters invalid in a placeholder name do not collide.
      */
-    public function testCharacterisationPlaceholderCollision(): void
+    public function testPlaceholderIsInjective(): void
     {
         $placeholders = [
             Sql::placeholder('user.id'),
@@ -95,9 +95,10 @@ final class SqlTest extends TestCase
             Sql::placeholder('user-id'),
         ];
 
-        // Current behaviour: three distinct keys, one placeholder, so bindings are lost on merge.
-        $this->assertSame([':user_id', ':user_id', ':user_id'], $placeholders);
-        $this->assertCount(1, array_unique($placeholders));
+        $this->assertCount(3, array_unique($placeholders));
+
+        // A key that is already a valid placeholder name is left unchanged.
+        $this->assertSame(':user_id', $placeholders[1]);
     }
 
     public function testPlaceholderSimple(): void
@@ -107,14 +108,14 @@ final class SqlTest extends TestCase
 
     public function testPlaceholderWithSpecialChars(): void
     {
-        $this->assertEquals(':user_id', Sql::placeholder('user-id'));
-        $this->assertEquals(':user_name', Sql::placeholder('user.name'));
-        $this->assertEquals(':user_email', Sql::placeholder('user@email'));
+        $this->assertEquals(':user_id_f01b6fab', Sql::placeholder('user-id'));
+        $this->assertEquals(':user_name_e010fbb0', Sql::placeholder('user.name'));
+        $this->assertEquals(':user_email_f7d03762', Sql::placeholder('user@email'));
     }
 
     public function testPlaceholderWithMixedChars(): void
     {
-        $this->assertEquals(':abc123_def', Sql::placeholder('abc123-def'));
+        $this->assertEquals(':abc123_def_f1a48cc4', Sql::placeholder('abc123-def'));
     }
 
     public function testLikeWildcardsStarts(): void

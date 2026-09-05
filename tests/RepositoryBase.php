@@ -29,8 +29,8 @@ abstract class RepositoryBase extends TestCase
     {
         $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users`\n"
-            . "WHERE `users`.`userId` = :users_userId";
-        $params = [':users_userId' => 1];
+            . "WHERE `users`.`userId` = :users_userId_214e18c3";
+        $params = [':users_userId_214e18c3' => 1];
         $data = [self::$data[0]];
 
         $mockDbStatement = $this->getMockDbStatement();
@@ -541,8 +541,8 @@ abstract class RepositoryBase extends TestCase
     {
         $sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users`\n"
-            . "WHERE `users`.`userId` = :users_userId";
-        $paramsOne = [':users_userId' => 1];
+            . "WHERE `users`.`userId` = :users_userId_214e18c3";
+        $paramsOne = [':users_userId_214e18c3' => 1];
         $data = [self::$data[0]];
 
         $sqlTwo = "DELETE FROM `users` WHERE `userId` IN (:del_0)";
@@ -589,8 +589,8 @@ abstract class RepositoryBase extends TestCase
     {
         $sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users`\n"
-            . "WHERE `users`.`userId` = :users_userId";
-        $paramsOne = [':users_userId' => 1];
+            . "WHERE `users`.`userId` = :users_userId_214e18c3";
+        $paramsOne = [':users_userId_214e18c3' => 1];
         $data = [self::$data[0]];
 
         $sqlTwo = 'UPDATE `users` SET `name` = :name, `age` = :age WHERE `userId` = :id';
