@@ -6,9 +6,31 @@ namespace FasterPhp\DataModel;
 
 final class Sql
 {
+    /**
+     * Quote an identifier, escaping any embedded backtick by doubling it.
+     *
+     * Each dot-separated segment is quoted independently.
+     *
+     * @param string $name The identifier to quote.
+     *
+     * @return string
+     */
     public static function ident(string $name): string
     {
-        return '`' . str_replace('.', '`.`', $name) . '`';
+        $segments = array_map([self::class, 'quoteSegment'], explode('.', $name));
+        return implode('.', $segments);
+    }
+
+    /**
+     * Quote a single identifier segment.
+     *
+     * @param string $segment The segment to quote.
+     *
+     * @return string
+     */
+    private static function quoteSegment(string $segment): string
+    {
+        return '`' . str_replace('`', '``', $segment) . '`';
     }
 
     public static function placeholder(string $key): string
