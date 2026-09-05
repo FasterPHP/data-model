@@ -1,3 +1,11 @@
+## Purpose
+
+Defines the Item lifecycle state model - temp, current and modified - and the transitions between
+those states, covering construction, value changes, persistence, serialisation and the points at
+which Set and Repository hydrate or persist items.
+
+## Requirements
+
 ### Requirement: Item state constants
 The Item class SHALL define three private constants representing lifecycle states: `ITEM_STATE_TEMP` (value `'temp'`), `ITEM_STATE_CURRENT` (value `'current'`), and `ITEM_STATE_MODIFIED` (value `'modified'`). The Item class SHALL maintain a private `string $itemState` property that holds one of these values at all times.
 

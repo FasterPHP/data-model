@@ -1,3 +1,11 @@
+## Purpose
+
+Defines how validation is discovered and run from per-field validator methods on an Item, and how
+validation results are collected and reset when a field changes, in place of reading a `VALIDATORS`
+class constant.
+
+## Requirements
+
 ### Requirement: Validator method discovery
 `ValidatableTrait::validate()` SHALL discover validator methods by iterating `static::FIELDS` keys and checking for a method named `validate` + ucfirst(fieldName) on the current instance. Fields without a matching method SHALL be skipped (no validation applied). The `VALIDATORS` class constant SHALL NOT be read.
 

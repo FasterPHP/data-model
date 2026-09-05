@@ -1,3 +1,11 @@
+## Purpose
+
+Defines the rule that every field name resolves through exactly one of an Item's field arrays,
+including the implicit id field, so that an ambiguous declaration is reported as an error rather
+than silently resolved to whichever array is consulted first.
+
+## Requirements
+
 ### Requirement: Field overlap detection
 When `getField()` resolves a field, it SHALL verify the field is defined in at most one of FIELDS, FIELDS_READONLY, FIELDS_EXTERNAL, or FIELDS_AGGREGATE. If the field appears in more than one array, it SHALL throw an `Exception` whose message includes the field name.
 
