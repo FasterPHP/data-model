@@ -49,6 +49,96 @@ class RepositoryTest extends TestCase
         $this->assertSame('users', $repo->getTableName());
     }
 
+    /**
+     * Invoke the protected getComparison() method on a repository.
+     *
+     * @return array{0:string,1:array<string,mixed>}
+     */
+    private function invokeGetComparison(Repository $repo, string $key, string $type, mixed $value): array
+    {
+        $method = (new \ReflectionClass($repo))->getMethod('getComparison');
+        $method->setAccessible(true);
+        return $method->invoke($repo, $key, $type, $value);
+    }
+
+    private function createRepository(): TestModel\ValidRepository
+    {
+        return new TestModel\ValidRepository($this->createStub(PDO::class));
+    }
+
+    /**
+     * Characterisation: EQUALS with a null value already uses SQL null semantics.
+     */
+    public function testCharacterisationEqualsNull(): void
+    {
+        [$sql, $params] = $this->invokeGetComparison($this->createRepository(), 'age', Repository::EQUALS, null);
+
+        $this->assertSame('`users`.`age` IS NULL', $sql);
+        $this->assertSame([], $params);
+    }
+
+    /**
+     * Characterisation: NOT_EQUALS with a null value currently casts null to an empty string.
+     */
+    public function testCharacterisationNotEqualsNull(): void
+    {
+        [$sql, $params] = $this->invokeGetComparison($this->createRepository(), 'age', Repository::NOT_EQUALS, null);
+
+        // Current behaviour: emits `!= ''`, which matches neither the null rows nor the empty-string rows.
+        $this->assertSame('`users`.`age` != :age', $sql);
+        $this->assertSame([':age' => ''], $params);
+    }
+
+    /**
+     * Characterisation: an empty array currently produces IS NULL rather than a no-match fragment.
+     */
+    public function testCharacterisationEmptyArray(): void
+    {
+        [$sql, $params] = $this->invokeGetComparison($this->createRepository(), 'age', Repository::EQUALS, []);
+
+        // Current behaviour: the opposite of the conventional reading of an empty IN list.
+        $this->assertSame('`users`.`age` IS NULL', $sql);
+        $this->assertSame([], $params);
+    }
+
+    /**
+     * Characterisation: an array containing null matches the non-null values or null.
+     */
+    public function testCharacterisationArrayContainingNull(): void
+    {
+        [$sql, $params] = $this->invokeGetComparison($this->createRepository(), 'age', Repository::EQUALS, [1, null]);
+
+        $this->assertSame('(`users`.`age` = :age OR `users`.`age` IS NULL)', $sql);
+        $this->assertSame([':age' => '1'], $params);
+    }
+
+    /**
+     * Characterisation: an array whose only member is null produces IS NULL.
+     */
+    public function testCharacterisationArrayOfOnlyNull(): void
+    {
+        [$sql, $params] = $this->invokeGetComparison($this->createRepository(), 'age', Repository::EQUALS, [null]);
+
+        $this->assertSame('`users`.`age` IS NULL', $sql);
+        $this->assertSame([], $params);
+    }
+
+    /**
+     * Characterisation: duplicate array values are bound once each.
+     */
+    public function testCharacterisationArrayWithDuplicateValues(): void
+    {
+        [$sql, $params] = $this->invokeGetComparison(
+            $this->createRepository(),
+            'age',
+            Repository::EQUALS,
+            [1, 2, 2, 3]
+        );
+
+        $this->assertSame('(`users`.`age` IN (:age_0,:age_1,:age_2))', $sql);
+        $this->assertSame([':age_0' => 1, ':age_1' => 2, ':age_2' => 3], $params);
+    }
+
     public function testGetIdField(): void
     {
         $repo = new TestModel\ValidRepository($this->createStub(PDO::class));
