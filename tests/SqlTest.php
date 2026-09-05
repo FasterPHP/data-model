@@ -23,16 +23,14 @@ final class SqlTest extends TestCase
         $this->assertEquals('`db`.`users`.`userId`', Sql::ident('db.users.userId'));
     }
 
-    /**
-     * Characterisation: current Sql::ident() output, including the unescaped backtick defect.
-     */
-    public function testCharacterisationIdentCurrentOutput(): void
+    public function testIdentDoublesEmbeddedBacktick(): void
     {
-        $this->assertSame('`users`', Sql::ident('users'));
-        $this->assertSame('`users`.`userId`', Sql::ident('users.userId'));
+        $this->assertSame('`user``id`', Sql::ident('user`id'));
+    }
 
-        // Current behaviour: an embedded backtick is emitted verbatim and terminates its own quoting.
-        $this->assertSame('`user`id`', Sql::ident('user`id'));
+    public function testIdentDoublesEmbeddedBacktickInEachSegment(): void
+    {
+        $this->assertSame('`us``ers`.`user``id`', Sql::ident('us`ers.user`id'));
     }
 
     /**
