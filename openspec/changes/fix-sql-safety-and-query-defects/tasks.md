@@ -31,8 +31,8 @@
 
 ## 6. Search-type constant relocation
 
-- [ ] 6.1 Define the canonical `STARTS`, `ENDS` and `CONTAINS` values on `Sql`, redefine the `Repository` constants to reference them, and update `Sql::likeWildcards()` to use its own constants so `Sql` no longer references `Repository`; verify `grep -n 'Repository::' src/Sql.php` returns nothing and the full suite passes
-- [ ] 6.2 Confirm `Repository::CONTAINS`, `Repository::STARTS` and `Repository::ENDS` still resolve to the same string values as before, since consumers write `BaseRepository::CONTAINS`; verify with an assertion on each constant's value in `tests/SqlTest.php`
+- [x] 6.1 Define the canonical `STARTS`, `ENDS` and `CONTAINS` values on `Sql`, redefine the `Repository` constants to reference them, and update `Sql::likeWildcards()` to use its own constants so `Sql` no longer references `Repository`; verify `grep -n 'Repository::' src/Sql.php` returns nothing and the full suite passes
+- [x] 6.2 Confirm `Repository::CONTAINS`, `Repository::STARTS` and `Repository::ENDS` still resolve to the same string values as before, since consumers write `BaseRepository::CONTAINS`; verify with an assertion on each constant's value in `tests/SqlTest.php`
 
 ## 7. Documentation and final verification
 
