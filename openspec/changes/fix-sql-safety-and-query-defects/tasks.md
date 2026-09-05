@@ -9,7 +9,7 @@
 - [x] 2.1 Add backtick doubling to `Sql::ident()` so an identifier segment cannot terminate its own quoting; verify the `sql-identifier-safety` escaping scenarios pass in `tests/SqlTest.php`
 - [x] 2.2 Add identifier shape validation to `Sql::ident()`, rejecting anything that is not one or more non-empty `[A-Za-z0-9_]` segments separated by single dots, throwing an `Exception` naming the rejected value; verify the acceptance and rejection scenarios in `tests/SqlTest.php`, including that `a.courseId` and `users.userId` are still accepted
 - [x] 2.3 Validate the sort field in `Sort::setSortField()` against the same shape, including recursion into the secondary sort; verify the sort-field scenarios pass in `tests/SortTest.php` and that an invalid field throws at construction rather than at SQL generation
-- [ ] 2.4 Confirm `Repository::getComparison()` rejects non-identifier keys via the now-validating `Sql::ident()` while still accepting unrecognised but well-shaped keys bare; verify with the two new scenarios in `tests/AggregateFieldsRepositoryTest.php` and that the existing table-qualification tests still pass
+- [x] 2.4 Confirm `Repository::getComparison()` rejects non-identifier keys via the now-validating `Sql::ident()` while still accepting unrecognised but well-shaped keys bare; verify with the two new scenarios in `tests/AggregateFieldsRepositoryTest.php` and that the existing table-qualification tests still pass
 
 ## 3. Filter comparison semantics
 
