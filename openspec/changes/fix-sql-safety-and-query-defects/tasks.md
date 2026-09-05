@@ -26,8 +26,8 @@
 ## 5. Paginator cache invalidation
 
 - [x] 5.1 Add a protected invalidation method to `Paginator\Base` that discards every derived cached value including `numPages`, and call it from `setMaxItemsPerPage()`, `setPageNum()`, `setNumItemsTotal()` and `SqlPaginator::clearResults()`, invalidating only when the input actually changed; verify the `paginator-cache-invalidation` scenarios pass in `tests/PaginatorBaseTest.php`, inverting the characterisation test from 1.3
-- [ ] 5.2 Add a test that reuses one `SqlPaginator` across two queries returning different row counts and asserts the item count, total count and page count all describe the second query; verify with `vendor/bin/phpunit --no-coverage --filter Paginator`
-- [ ] 5.3 Confirm a repeated `setMaxItemsPerPage()` with an unchanged value does not trigger a second `COUNT(*)` query; verify with a test counting prepared statements on the mock PDO used by `tests/RepositoryPdoTest.php`
+- [x] 5.2 Add a test that reuses one `SqlPaginator` across two queries returning different row counts and asserts the item count, total count and page count all describe the second query; verify with `vendor/bin/phpunit --no-coverage --filter Paginator`
+- [x] 5.3 Confirm a repeated `setMaxItemsPerPage()` with an unchanged value does not trigger a second `COUNT(*)` query; verify with a test counting prepared statements on the mock PDO used by `tests/RepositoryPdoTest.php`
 
 ## 6. Search-type constant relocation
 
