@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class SqlTest extends TestCase
@@ -23,14 +24,64 @@ final class SqlTest extends TestCase
         $this->assertEquals('`db`.`users`.`userId`', Sql::ident('db.users.userId'));
     }
 
-    public function testIdentDoublesEmbeddedBacktick(): void
+    public function testIdentAcceptsPlainIdentifier(): void
     {
-        $this->assertSame('`user``id`', Sql::ident('user`id'));
+        $this->assertSame('`courseId`', Sql::ident('courseId'));
     }
 
-    public function testIdentDoublesEmbeddedBacktickInEachSegment(): void
+    public function testIdentAcceptsDotQualifiedIdentifier(): void
     {
-        $this->assertSame('`us``ers`.`user``id`', Sql::ident('us`ers.user`id'));
+        $this->assertSame('`a`.`courseId`', Sql::ident('a.courseId'));
+        $this->assertSame('`users`.`userId`', Sql::ident('users.userId'));
+    }
+
+    #[DataProvider('invalidIdentifierProvider')]
+    public function testIdentRejectsInvalidIdentifier(string $name): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Invalid SQL identifier '$name'");
+        Sql::ident($name);
+    }
+
+    /**
+     * @return array<string, array{0:string}>
+     */
+    public static function invalidIdentifierProvider(): array
+    {
+        return [
+            'empty string' => [''],
+            'leading dot' => ['.userId'],
+            'trailing dot' => ['users.'],
+            'doubled dot' => ['users..userId'],
+            'space' => ['user id'],
+            'expression' => ['COUNT(*)'],
+            'comma' => ['userId, name'],
+            'quotation mark' => ['user"id'],
+            'backtick' => ['user`id'],
+            'injection attempt' => ['id` = 1 OR `1'],
+        ];
+    }
+
+    public function testIsValidIdent(): void
+    {
+        $this->assertTrue(Sql::isValidIdent('userId'));
+        $this->assertTrue(Sql::isValidIdent('a.courseId'));
+        $this->assertTrue(Sql::isValidIdent('db.users.userId'));
+        $this->assertFalse(Sql::isValidIdent(''));
+        $this->assertFalse(Sql::isValidIdent('COUNT(*)'));
+    }
+
+    /**
+     * Backtick doubling is unreachable through ident() now that the shape rule excludes
+     * backticks, so the secondary control is exercised directly.
+     */
+    public function testQuoteSegmentDoublesEmbeddedBacktick(): void
+    {
+        $method = (new \ReflectionClass(Sql::class))->getMethod('quoteSegment');
+        $method->setAccessible(true);
+
+        $this->assertSame('`user``id`', $method->invoke(null, 'user`id'));
+        $this->assertSame('`id`` = 1 OR ``1`', $method->invoke(null, 'id` = 1 OR `1'));
     }
 
     /**
