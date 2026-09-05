@@ -58,9 +58,24 @@ final class Sql
         return '`' . str_replace('`', '``', $segment) . '`';
     }
 
+    /**
+     * Get the bound parameter placeholder for a filter key.
+     *
+     * A key that is already a valid placeholder name is used unchanged. Otherwise sanitisation is
+     * lossy, so a deterministic suffix derived from the original key is appended to keep the
+     * mapping from key to placeholder injective.
+     *
+     * @param string $key The filter key.
+     *
+     * @return string
+     */
     public static function placeholder(string $key): string
     {
-        return ':' . preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
+        $name = preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
+        if ($name !== $key) {
+            $name .= '_' . hash('crc32b', $key);
+        }
+        return ':' . $name;
     }
 
     public static function likeWildcards(string $value, string $searchType): string

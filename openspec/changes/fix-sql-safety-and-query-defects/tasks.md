@@ -19,7 +19,7 @@
 
 ## 4. Placeholder uniqueness
 
-- [ ] 4.1 Make `Sql::placeholder()` injective by appending a short deterministic suffix derived from the original key only when sanitisation altered it, leaving already-valid keys such as `user_id` unchanged; verify the collision characterisation test from 1.1 now shows three distinct placeholders and that `:user_id` is still produced for `user_id`
+- [x] 4.1 Make `Sql::placeholder()` injective by appending a short deterministic suffix derived from the original key only when sanitisation altered it, leaving already-valid keys such as `user_id` unchanged; verify the collision characterisation test from 1.1 now shows three distinct placeholders and that `:user_id` is still produced for `user_id`
 - [ ] 4.2 Replace the `$params += $chunk` accumulation in `getArgsSqlAndParams()` and the `$whereParams + $havingParams` union in `getDataWithParams()` with a merge that throws on an overwriting key; verify with a test asserting every placeholder appearing in the generated SQL has a binding, across mixed WHERE and HAVING filters
 - [ ] 4.3 Run the full suite to confirm no existing test depended on a colliding placeholder name; verify with `vendor/bin/phpunit --no-coverage`
 
