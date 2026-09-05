@@ -385,6 +385,42 @@ class AggregateFieldsRepositoryTest extends TestCase
     }
 
     /**
+     * Test that an unrecognised key of valid identifier shape is used bare.
+     */
+    public function testUnrecognisedKeyOfValidShapeUsedBare(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql] = $method->invoke($repo, 'unknownColumn', 'equals', 'x');
+
+        $this->assertStringContainsString('`unknownColumn`', $sql);
+        $this->assertStringNotContainsString('`orders`.`unknownColumn`', $sql);
+    }
+
+    /**
+     * Test that a key which is not a valid identifier shape is rejected.
+     */
+    public function testKeyOfInvalidShapeIsRejected(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Invalid SQL identifier 'SUM(amount)'");
+
+        $method->invoke($repo, 'SUM(amount)', 'equals', 1000);
+    }
+
+    /**
      * Test that dot-qualified keys are used as-is in getComparison().
      */
     public function testDotQualifiedKeyUsedAsIs(): void
