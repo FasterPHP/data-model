@@ -36,6 +36,6 @@
 
 ## 7. Documentation and final verification
 
-- [ ] 7.1 Check `README.md` and `examples/` for statements contradicted by the new null, empty-array and identifier-validation semantics, and update any that are now wrong; verify by grepping the docs for the affected constants and paginator methods and reading each hit
-- [ ] 7.2 Run `vendor/bin/phpcs` and confirm zero violations across `src`, `tests` and `examples`
-- [ ] 7.3 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with every characterisation test from group 1 now asserting the corrected behaviour
+- [x] 7.1 Check `README.md` and `examples/` for statements contradicted by the new null, empty-array and identifier-validation semantics, and update any that are now wrong; verify by grepping the docs for the affected constants and paginator methods and reading each hit
+- [x] 7.2 Run `vendor/bin/phpcs` and confirm zero violations across `src`, `tests` and `examples`
+- [x] 7.3 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with every characterisation test from group 1 now asserting the corrected behaviour
