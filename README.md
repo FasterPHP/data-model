@@ -302,7 +302,22 @@ $users = $repo->getSetWithParams([
 $users = $repo->getSetWithParams([
     'deletedAt' => null  // WHERE deletedAt IS NULL
 ]);
+
+// NOT NULL checks
+$users = $repo->getSetWithParams(
+    ['deletedAt' => null],
+    ['deletedAt' => Repository::NOT_EQUALS]  // WHERE deletedAt IS NOT NULL
+);
+
+// An empty array matches no rows
+$users = $repo->getSetWithParams([
+    'id' => []  // WHERE 1 = 0
+]);
 ```
+
+Filter keys are used as SQL identifiers, so each must be a plain or dot-qualified name
+(letters, digits and underscores). Anything else, such as an expression, is rejected with an
+exception. The same rule applies to sort fields.
 
 ### Batch Operations
 
@@ -325,11 +340,12 @@ $repo->saveItem($user);
 ```php
 use FasterPhp\DataModel\Sql;
 
-// Quote identifiers
+// Quote identifiers (validated; anything but a plain or dot-qualified name throws)
 $sql = Sql::ident('users.userId'); // `users`.`userId`
 
-// Generate placeholders
-$param = Sql::placeholder('user-id'); // :user_id
+// Generate placeholders (unique per key; a key needing sanitisation gets a suffix)
+$param = Sql::placeholder('userId');  // :userId
+$param = Sql::placeholder('user-id'); // :user_id_f01b6fab
 
 // Add LIKE wildcards
 $value = Sql::likeWildcards('test', Repository::CONTAINS); // %test%
