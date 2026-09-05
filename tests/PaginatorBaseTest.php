@@ -364,6 +364,79 @@ class PaginatorBaseTest extends TestCase
         $this->assertSame('ORDER BY `users`.`name` DESC, `age` ASC', $paginator->getSortSql());
     }
 
+    /**
+     * A paginator reused for a second query reports figures for that second query.
+     */
+    public function testSqlPaginatorReusedAcrossQueries(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->exec('CREATE TABLE first (id INTEGER)');
+        $pdo->exec('CREATE TABLE second (id INTEGER)');
+        for ($i = 1; $i <= 25; $i++) {
+            $pdo->exec("INSERT INTO first (id) VALUES ($i)");
+        }
+        for ($i = 1; $i <= 7; $i++) {
+            $pdo->exec("INSERT INTO second (id) VALUES ($i)");
+        }
+
+        $paginator = new SqlPaginator($pdo);
+        $paginator->setMaxItemsPerPage(10);
+        $paginator->setParams([]);
+
+        $paginator->setSql('SELECT id FROM first');
+        $this->assertCount(10, $paginator->getItems());
+        $this->assertSame(25, $paginator->getNumItemsTotal());
+        $this->assertSame(3, $paginator->getNumPages());
+
+        $paginator->setSql('SELECT id FROM second');
+        $this->assertCount(7, $paginator->getItems());
+        $this->assertSame(7, $paginator->getNumItemsOnPage());
+        $this->assertSame(7, $paginator->getNumItemsTotal());
+        $this->assertSame(1, $paginator->getNumPages());
+    }
+
+    /**
+     * Setting the same page size again does not discard the cached total.
+     */
+    public function testSqlPaginatorUnchangedPageSizeDoesNotRequery(): void
+    {
+        $numPrepared = 0;
+
+        $stmt = $this->getMockBuilder(\PDOStatement::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['execute', 'fetchAll', 'fetchColumn'])
+            ->getMock();
+        $stmt->method('execute')->willReturn(true);
+        $stmt->method('fetchAll')->willReturn([]);
+        $stmt->method('fetchColumn')->willReturn('25');
+
+        $pdo = $this->getMockBuilder(PDO::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare'])
+            ->getMock();
+        $pdo->method('prepare')->willReturnCallback(function () use (&$numPrepared, $stmt) {
+            $numPrepared++;
+            return $stmt;
+        });
+
+        $paginator = new SqlPaginator($pdo);
+        $paginator->setSql('SELECT id FROM first');
+        $paginator->setParams([]);
+        $paginator->setMaxItemsPerPage(10);
+
+        $this->assertSame(3, $paginator->getNumPages());
+        $this->assertSame(1, $numPrepared);
+
+        $paginator->setMaxItemsPerPage(10);
+        $this->assertSame(3, $paginator->getNumPages());
+        $this->assertSame(1, $numPrepared);
+
+        // A genuine change recomputes the page count from the cached total, still without a query.
+        $paginator->setMaxItemsPerPage(5);
+        $this->assertSame(5, $paginator->getNumPages());
+        $this->assertSame(1, $numPrepared);
+    }
+
     public function testSqlPaginatorGetSqlThrows(): void
     {
         $pdo = $this->createMockPdo();
