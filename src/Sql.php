@@ -7,16 +7,41 @@ namespace FasterPhp\DataModel;
 final class Sql
 {
     /**
+     * Permitted identifier shape: one or more non-empty segments of ASCII letters, digits and
+     * underscores, separated by single dots.
+     */
+    private const IDENT_PATTERN = '/^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*$/';
+
+    /**
+     * Get whether a name is a valid identifier shape.
+     *
+     * @param string $name The name to check.
+     *
+     * @return boolean
+     */
+    public static function isValidIdent(string $name): bool
+    {
+        return 1 === preg_match(self::IDENT_PATTERN, $name);
+    }
+
+    /**
      * Quote an identifier, escaping any embedded backtick by doubling it.
      *
-     * Each dot-separated segment is quoted independently.
+     * Each dot-separated segment is quoted independently. The identifier is validated first, so
+     * the escaping is a secondary control rather than the primary one.
      *
      * @param string $name The identifier to quote.
      *
      * @return string
+     *
+     * @throws Exception If the name is not a valid identifier shape.
      */
     public static function ident(string $name): string
     {
+        if (!self::isValidIdent($name)) {
+            throw new Exception("Invalid SQL identifier '$name'");
+        }
+
         $segments = array_map([self::class, 'quoteSegment'], explode('.', $name));
         return implode('.', $segments);
     }
