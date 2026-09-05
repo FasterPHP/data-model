@@ -1,3 +1,5 @@
+# paginator-instance-override Specification
+
 ## Purpose
 
 Defines how an explicit null passed to a paginator instance setter overrides the corresponding

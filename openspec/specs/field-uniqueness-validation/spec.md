@@ -1,3 +1,5 @@
+# field-uniqueness-validation Specification
+
 ## Purpose
 
 Defines the rule that every field name resolves through exactly one of an Item's field arrays,
