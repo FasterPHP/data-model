@@ -377,14 +377,19 @@ abstract class Repository implements RepositoryInterface
             return ["$safeKey IS NULL", []];
         }
 
-        // Null scalar
-        if ($type === self::EQUALS && $value === null) {
-            return ["$safeKey IS NULL", []];
+        // Null scalar: compared using SQL null semantics, never bound as a parameter
+        if ($value === null) {
+            if ($type === self::EQUALS) {
+                return ["$safeKey IS NULL", []];
+            }
+            if ($type === self::NOT_EQUALS) {
+                return ["$safeKey IS NOT NULL", []];
+            }
         }
 
         // Scalar / LIKE
         $op   = self::OPERATORS[$type];
-        $val  = Sql::likeWildcards((string)$value, $type);
+        $val  = is_null($value) ? null : Sql::likeWildcards((string)$value, $type);
         $sql  = "$safeKey $op $placeholder";
         if ($hasNull) {
             $sql = "($sql OR $safeKey IS NULL)";

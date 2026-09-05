@@ -13,7 +13,7 @@
 
 ## 3. Filter comparison semantics
 
-- [ ] 3.1 Change `Repository::getComparison()` so `NOT_EQUALS` with a null value produces `IS NOT NULL` and binds no parameter, inverting the characterisation test from 1.2; verify with `vendor/bin/phpunit --no-coverage --filter RepositoryTest`
+- [x] 3.1 Change `Repository::getComparison()` so `NOT_EQUALS` with a null value produces `IS NOT NULL` and binds no parameter, inverting the characterisation test from 1.2; verify with `vendor/bin/phpunit --no-coverage --filter RepositoryTest`
 - [ ] 3.2 Change the empty-array path in `getComparison()` to return the `1 = 0` fragment from `Sql::expandIn()` instead of `IS NULL`, inverting the characterisation test from 1.2; verify the empty-array scenario passes and that the array-containing-null and only-null scenarios are unchanged
 - [ ] 3.3 Confirm the array paths still bind one parameter per distinct value and that duplicates are bound once; verify with the duplicate-values scenario from 1.2
 

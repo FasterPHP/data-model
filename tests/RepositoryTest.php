@@ -67,9 +67,9 @@ class RepositoryTest extends TestCase
     }
 
     /**
-     * Characterisation: EQUALS with a null value already uses SQL null semantics.
+     * EQUALS with a null value uses SQL null semantics.
      */
-    public function testCharacterisationEqualsNull(): void
+    public function testEqualsNullProducesIsNull(): void
     {
         [$sql, $params] = $this->invokeGetComparison($this->createRepository(), 'age', Repository::EQUALS, null);
 
@@ -77,16 +77,22 @@ class RepositoryTest extends TestCase
         $this->assertSame([], $params);
     }
 
-    /**
-     * Characterisation: NOT_EQUALS with a null value currently casts null to an empty string.
-     */
-    public function testCharacterisationNotEqualsNull(): void
+    public function testNotEqualsNullProducesIsNotNull(): void
     {
         [$sql, $params] = $this->invokeGetComparison($this->createRepository(), 'age', Repository::NOT_EQUALS, null);
 
-        // Current behaviour: emits `!= ''`, which matches neither the null rows nor the empty-string rows.
-        $this->assertSame('`users`.`age` != :age', $sql);
-        $this->assertSame([':age' => ''], $params);
+        $this->assertSame('`users`.`age` IS NOT NULL', $sql);
+        $this->assertSame([], $params);
+    }
+
+    public function testNullIsNeverCastToEmptyString(): void
+    {
+        $repo = $this->createRepository();
+
+        foreach (array_keys(Repository::OPERATORS) as $type) {
+            [, $params] = $this->invokeGetComparison($repo, 'age', $type, null);
+            $this->assertNotContains('', $params, "Search type '$type' bound an empty string for null");
+        }
     }
 
     /**
