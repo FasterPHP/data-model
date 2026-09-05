@@ -96,21 +96,21 @@ class RepositoryTest extends TestCase
     }
 
     /**
-     * Characterisation: an empty array currently produces IS NULL rather than a no-match fragment.
+     * An empty array matches no rows rather than matching nulls.
      */
-    public function testCharacterisationEmptyArray(): void
+    public function testEmptyArrayMatchesNoRows(): void
     {
         [$sql, $params] = $this->invokeGetComparison($this->createRepository(), 'age', Repository::EQUALS, []);
 
-        // Current behaviour: the opposite of the conventional reading of an empty IN list.
-        $this->assertSame('`users`.`age` IS NULL', $sql);
+        $this->assertSame('1 = 0', $sql);
+        $this->assertStringNotContainsString('IS NULL', $sql);
         $this->assertSame([], $params);
     }
 
     /**
-     * Characterisation: an array containing null matches the non-null values or null.
+     * An array containing null matches the non-null values or null.
      */
-    public function testCharacterisationArrayContainingNull(): void
+    public function testArrayContainingNullAlsoMatchesNull(): void
     {
         [$sql, $params] = $this->invokeGetComparison($this->createRepository(), 'age', Repository::EQUALS, [1, null]);
 
@@ -119,9 +119,9 @@ class RepositoryTest extends TestCase
     }
 
     /**
-     * Characterisation: an array whose only member is null produces IS NULL.
+     * An array whose only member is null produces IS NULL.
      */
-    public function testCharacterisationArrayOfOnlyNull(): void
+    public function testArrayOfOnlyNullProducesIsNull(): void
     {
         [$sql, $params] = $this->invokeGetComparison($this->createRepository(), 'age', Repository::EQUALS, [null]);
 
@@ -130,9 +130,9 @@ class RepositoryTest extends TestCase
     }
 
     /**
-     * Characterisation: duplicate array values are bound once each.
+     * Duplicate array values are bound once each.
      */
-    public function testCharacterisationArrayWithDuplicateValues(): void
+    public function testArrayWithDuplicateValuesBindsEachValueOnce(): void
     {
         [$sql, $params] = $this->invokeGetComparison(
             $this->createRepository(),
@@ -143,6 +143,12 @@ class RepositoryTest extends TestCase
 
         $this->assertSame('(`users`.`age` IN (:age_0,:age_1,:age_2))', $sql);
         $this->assertSame([':age_0' => 1, ':age_1' => 2, ':age_2' => 3], $params);
+
+        // One binding per distinct value, and every placeholder in the fragment is bound.
+        $this->assertCount(3, $params);
+        $this->assertSame(array_values($params), array_unique(array_values($params)));
+        preg_match_all('/:[a-zA-Z0-9_]+/', $sql, $matches);
+        $this->assertSame(array_keys($params), $matches[0]);
     }
 
     public function testGetIdField(): void
