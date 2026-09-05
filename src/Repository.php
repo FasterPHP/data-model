@@ -23,9 +23,9 @@ abstract class Repository implements RepositoryInterface
      * ----------------------------- */
     public const EQUALS            = 'equals';
     public const NOT_EQUALS        = 'not equals';
-    public const STARTS            = 'starts';
-    public const ENDS              = 'ends';
-    public const CONTAINS          = 'contains';
+    public const STARTS            = Sql::STARTS;
+    public const ENDS              = Sql::ENDS;
+    public const CONTAINS          = Sql::CONTAINS;
     public const GREATER           = 'greater';
     public const GREATER_OR_EQUALS = 'greater or equals';
     public const LESS              = 'less';

@@ -118,6 +118,21 @@ final class SqlTest extends TestCase
         $this->assertEquals(':abc123_def_f1a48cc4', Sql::placeholder('abc123-def'));
     }
 
+    /**
+     * The Repository constants alias the canonical values on Sql, so consumers writing
+     * BaseRepository::CONTAINS still get the same string.
+     */
+    public function testSearchTypeConstantsAreUnchanged(): void
+    {
+        $this->assertSame('starts', Sql::STARTS);
+        $this->assertSame('ends', Sql::ENDS);
+        $this->assertSame('contains', Sql::CONTAINS);
+
+        $this->assertSame('starts', Repository::STARTS);
+        $this->assertSame('ends', Repository::ENDS);
+        $this->assertSame('contains', Repository::CONTAINS);
+    }
+
     public function testLikeWildcardsStarts(): void
     {
         $this->assertEquals('test%', Sql::likeWildcards('test', Repository::STARTS));

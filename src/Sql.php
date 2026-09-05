@@ -6,6 +6,13 @@ namespace FasterPhp\DataModel;
 
 final class Sql
 {
+    /* -------------------------------
+     * Canonical search types for wildcard matching
+     * ----------------------------- */
+    public const STARTS   = 'starts';
+    public const ENDS     = 'ends';
+    public const CONTAINS = 'contains';
+
     /**
      * Permitted identifier shape: one or more non-empty segments of ASCII letters, digits and
      * underscores, separated by single dots.
@@ -81,9 +88,9 @@ final class Sql
     public static function likeWildcards(string $value, string $searchType): string
     {
         return match ($searchType) {
-            Repository::STARTS   => $value . '%',
-            Repository::ENDS     => '%' . $value,
-            Repository::CONTAINS => '%' . $value . '%',
+            self::STARTS   => $value . '%',
+            self::ENDS     => '%' . $value,
+            self::CONTAINS => '%' . $value . '%',
             default              => $value,
         };
     }
