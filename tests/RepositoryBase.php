@@ -29,7 +29,7 @@ abstract class RepositoryBase extends TestCase
     {
         $sql = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users`\n"
-            . "WHERE `users`.`userId` = :users_userId_214e18c3";
+            . "WHERE `users`.`userId` = :users_userId_214e18c3 LIMIT 1";
         $params = [':users_userId_214e18c3' => 1];
         $data = [self::$data[0]];
 
@@ -541,7 +541,7 @@ abstract class RepositoryBase extends TestCase
     {
         $sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users`\n"
-            . "WHERE `users`.`userId` = :users_userId_214e18c3";
+            . "WHERE `users`.`userId` = :users_userId_214e18c3 LIMIT 1";
         $paramsOne = [':users_userId_214e18c3' => 1];
         $data = [self::$data[0]];
 
@@ -589,7 +589,7 @@ abstract class RepositoryBase extends TestCase
     {
         $sqlOne = "SELECT `users`.`userId` AS `id`, `users`.`name`, `users`.`age`, `users`.`height`, `users`.`handsome`"
             . " FROM `users`\n"
-            . "WHERE `users`.`userId` = :users_userId_214e18c3";
+            . "WHERE `users`.`userId` = :users_userId_214e18c3 LIMIT 1";
         $paramsOne = [':users_userId_214e18c3' => 1];
         $data = [self::$data[0]];
 

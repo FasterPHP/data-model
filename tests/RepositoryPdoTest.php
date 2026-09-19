@@ -173,11 +173,9 @@ class RepositoryPdoTest extends RepositoryBase
     }
 
     /**
-     * A single-item lookup on a bare repository is currently unbounded.
-     *
-     * Superseded by the LIMIT 1 assertion once single-item lookups gain their own paginator.
+     * A single-item lookup fetches one row, whatever the static default says.
      */
-    public function testGetItemWithParamsCurrentlyFetchesEverything(): void
+    public function testGetItemWithParamsFetchesOneRow(): void
     {
         PaginatorBase::setDefaultMaxItemsPerPage(15);
 
@@ -202,7 +200,7 @@ class RepositoryPdoTest extends RepositoryBase
         $repo = new TestModel\ValidRepository($mockDb);
         $repo->getItemWithParams(['name' => 'Marcus Don']);
 
-        $this->assertStringNotContainsString('LIMIT', $capturedSql);
+        $this->assertStringEndsWith(' LIMIT 1', $capturedSql);
     }
 
     protected function getMockDbStatement(): PDOStatement

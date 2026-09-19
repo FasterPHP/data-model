@@ -127,7 +127,17 @@ abstract class Repository implements RepositoryInterface
 
     public function getItemWithParams(array $params, array $types = []): ?ItemInterface
     {
-        $data = $this->getDataWithParams($params, $types);
+        [$sql, $sqlParams] = $this->buildSelectSqlAndParams($params, $types);
+
+        // A paginator of its own keeps the one-row limit off the repository's, which the caller
+        // may be holding for its result figures. It inherits the sort so the row picked is the
+        // first under whatever ordering the repository is using.
+        $data = (new SqlPaginator($this->getPdo(), $this->paginator->getSort()))
+            ->setMaxItemsPerPage(1)
+            ->setSql($sql)
+            ->setParams($sqlParams)
+            ->getItems();
+
         if (empty($data)) {
             return null;
         }
@@ -286,6 +296,21 @@ abstract class Repository implements RepositoryInterface
      * ----------------------------- */
     protected function getDataWithParams(array $params, array $types = []): array
     {
+        [$sql, $sqlParams] = $this->buildSelectSqlAndParams($params, $types);
+
+        return $this->fetchData($sql, $sqlParams);
+    }
+
+    /**
+     * Build the SELECT statement for a set of filters, along with its bound parameters.
+     *
+     * @param array<string, mixed>  $params Filters to apply.
+     * @param array<string, string> $types  Search type per filter key.
+     *
+     * @return array{0:string,1:array<string,mixed>}
+     */
+    protected function buildSelectSqlAndParams(array $params, array $types = []): array
+    {
         $sql  = 'SELECT ' . $this->getSelectClause();
         $sql .= ' FROM ' . $this->getFromClause();
 
@@ -304,7 +329,7 @@ abstract class Repository implements RepositoryInterface
             $sql .= "\nHAVING $havingSql";
         }
 
-        return $this->fetchData($sql, $this->mergeParams($whereParams, $havingParams));
+        return [$sql, $this->mergeParams($whereParams, $havingParams)];
     }
 
     /* -------------------------------
