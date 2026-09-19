@@ -21,9 +21,9 @@
 
 ## 4. Documentation and final verification
 
-- [ ] 4.1 Check `README.md` and `examples/` for any statement implying that repository-internal paginators inherit the static defaults, and correct it; verify by grepping the docs for the paginator default setters and reading each hit
-- [ ] 4.2 Run `vendor/bin/phpcs` and confirm zero violations
-- [ ] 4.3 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with both characterisation tests from group 1 now asserting the corrected behaviour
+- [x] 4.1 Check `README.md` and `examples/` for any statement implying that repository-internal paginators inherit the static defaults, and correct it; verify by grepping the docs for the paginator default setters and reading each hit
+- [x] 4.2 Run `vendor/bin/phpcs` and confirm zero violations
+- [x] 4.3 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with both characterisation tests from group 1 now asserting the corrected behaviour
 
 ## 5. Consumer audit
 

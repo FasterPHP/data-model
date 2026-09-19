@@ -199,6 +199,15 @@ echo "Total users: " . $paginator->getNumItemsTotal();
 echo "Page 1 of " . $paginator->getNumPages();
 ```
 
+Pagination is opt-in. A repository constructed without a paginator, or with only a `Sort`, is
+unlimited: its queries carry no `LIMIT` and a Set holds every matching row. Application-wide
+defaults set with `Paginator\Base::setDefaultMaxItemsPerPage()` apply only to paginators you
+construct yourself, so they never truncate a query you did not ask to be paged. To page a
+repository built without a paginator, call `setMaxItemsPerPage()` on it after construction.
+
+Single-item lookups such as `getItemWithId()` and `getItemWithParams()` always fetch one row,
+whatever the repository's paginator says.
+
 ### Validation (Optional)
 
 Validation is opt-in via traits. Add validation to your Item classes:
