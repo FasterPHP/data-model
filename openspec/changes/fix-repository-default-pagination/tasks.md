@@ -27,5 +27,5 @@
 
 ## 5. Consumer audit
 
-- [ ] 5.1 Review each of the bare-repository `getSet*` call sites in the consuming application and confirm none depended on the 15-row cap; verify by listing each call site with the expected row count and flagging any where an unbounded result would be a problem
-- [ ] 5.2 Confirm the consumer's bulk child-record fetches now return every row rather than the first 15; verify against a parent with more than 15 children, or by asserting the absence of a `LIMIT` in the queries it issues
+- [x] 5.1 Review each of the bare-repository `getSet*` call sites in the consuming application and confirm none depended on the 15-row cap; verify by listing each call site with the expected row count and flagging any where an unbounded result would be a problem
+- [x] 5.2 Confirm the consumer's bulk child-record fetches now return every row rather than the first 15; verify against a parent with more than 15 children, or by asserting the absence of a `LIMIT` in the queries it issues
