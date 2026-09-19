@@ -5,7 +5,7 @@
 
 ## 2. Repository-internal paginators are unlimited
 
-- [ ] 2.1 Set the page size explicitly to `null` on the paginator `Repository::__construct()` builds when the caller supplies none, for both the `Sort` and the no-argument cases; verify the four scenarios of the "Repository-internal paginators are unlimited" requirement pass, inverting the characterisation test from 1.1
+- [x] 2.1 Set the page size explicitly to `null` on the paginator `Repository::__construct()` builds when the caller supplies none, for both the `Sort` and the no-argument cases; verify the four scenarios of the "Repository-internal paginators are unlimited" requirement pass, inverting the characterisation test from 1.1
 - [ ] 2.2 Add a test asserting that generated SQL for a bare repository contains no `LIMIT` clause while a static default is set, and that a `Sort`-constructed repository produces `ORDER BY` without `LIMIT`; verify with `vendor/bin/phpunit --no-coverage --filter RepositoryPdoTest`
 - [ ] 2.3 Add a test asserting a Set fetched from a bare repository returns more rows than the static default page size when the underlying result exceeds it; verify with `vendor/bin/phpunit --no-coverage --filter Repository`
 - [ ] 2.4 Add tests covering the "Explicitly supplied paginators are used unchanged" requirement, including that a supplied paginator still inherits the static default and that its page size, page number and sort are unchanged by construction; verify with `vendor/bin/phpunit --no-coverage --filter Repository`

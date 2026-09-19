@@ -174,26 +174,36 @@ class RepositoryTest extends TestCase
     }
 
     /**
-     * Characterisation: a repository given no paginator currently inherits the static default.
+     * A repository given no paginator builds one the static default does not reach.
      */
-    public function testRepositoryWithoutPaginatorInheritsStaticDefault(): void
+    public function testRepositoryWithoutPaginatorIgnoresStaticDefault(): void
     {
         Paginator\Base::setDefaultMaxItemsPerPage(15);
 
         $repo = new TestModel\ValidRepository($this->createStub(PDO::class));
 
-        $this->assertSame(15, $this->getPaginatorMaxItemsPerPage($repo));
+        $this->assertNull($this->getPaginatorMaxItemsPerPage($repo));
     }
 
     /**
-     * Characterisation: a repository given only a Sort currently inherits the static default too.
+     * A repository given only a Sort builds one the static default does not reach either.
      */
-    public function testRepositoryWithSortInheritsStaticDefault(): void
+    public function testRepositoryWithSortIgnoresStaticDefault(): void
     {
         Paginator\Base::setDefaultMaxItemsPerPage(15);
 
         $repo = new TestModel\ValidRepository($this->createStub(PDO::class), new Sort('users.name'));
 
-        $this->assertSame(15, $this->getPaginatorMaxItemsPerPage($repo));
+        $this->assertNull($this->getPaginatorMaxItemsPerPage($repo));
+    }
+
+    /**
+     * With no static default set, an internally built paginator is unlimited all the same.
+     */
+    public function testRepositoryWithoutPaginatorIsUnlimitedWithNoStaticDefault(): void
+    {
+        $repo = new TestModel\ValidRepository($this->createStub(PDO::class));
+
+        $this->assertNull($this->getPaginatorMaxItemsPerPage($repo));
     }
 }

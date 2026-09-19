@@ -60,9 +60,14 @@ abstract class Repository implements RepositoryInterface
     public function __construct(PDO $pdo, SqlPaginator|Sort|null $paginatorOrSort = null)
     {
         $this->pdo = $pdo;
-        $this->paginator = $paginatorOrSort instanceof SqlPaginator
-            ? $paginatorOrSort
-            : new SqlPaginator($pdo, $paginatorOrSort instanceof Sort ? $paginatorOrSort : null);
+        if ($paginatorOrSort instanceof SqlPaginator) {
+            // A paginator the caller built is used exactly as given, static defaults included.
+            $this->paginator = $paginatorOrSort;
+        } else {
+            // A paginator nobody asked for is unlimited: application-wide defaults must not reach it.
+            $this->paginator = (new SqlPaginator($pdo, $paginatorOrSort))
+                ->setMaxItemsPerPage(null);
+        }
 
         $this->itemClassName = Util::getItemClassName(static::class);
         $this->setClassName  = Util::getSetClassName(static::class);
