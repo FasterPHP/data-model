@@ -6,6 +6,7 @@
 
 namespace FasterPhp\DataModel;
 
+use FasterPhp\DataModel\Paginator\Base as PaginatorBase;
 use PDO;
 use PDOStatement;
 
@@ -14,6 +15,42 @@ use PDOStatement;
  */
 class RepositoryPdoTest extends RepositoryBase
 {
+    protected function tearDown(): void
+    {
+        PaginatorBase::setDefaultMaxItemsPerPage(null);
+    }
+
+    /**
+     * Characterisation: a single-item lookup on a bare repository currently fetches a whole page.
+     */
+    public function testGetItemWithParamsCurrentlyFetchesAPage(): void
+    {
+        PaginatorBase::setDefaultMaxItemsPerPage(15);
+
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willReturn(true);
+        $mockDbStatement->expects($this->once())
+            ->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturn([self::$data[0]]);
+
+        $capturedSql = null;
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())
+            ->method('prepare')
+            ->willReturnCallback(function (string $sql) use (&$capturedSql, $mockDbStatement) {
+                $capturedSql = $sql;
+                return $mockDbStatement;
+            });
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $repo->getItemWithParams(['name' => 'Marcus Don']);
+
+        $this->assertStringEndsWith(' LIMIT 15', $capturedSql);
+    }
+
     protected function getMockDbStatement(): PDOStatement
     {
         return $this->getMockBuilder(PDOStatement::class)

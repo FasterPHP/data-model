@@ -15,6 +15,11 @@ use PDO;
  */
 class RepositoryTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        Paginator\Base::setDefaultMaxItemsPerPage(null);
+    }
+
     public function testGetDbNameNotSet(): void
     {
         $repo = new TestModel\NothingSetRepository($this->createStub(PDO::class));
@@ -156,5 +161,39 @@ class RepositoryTest extends TestCase
         $repo = new TestModel\ValidRepository($this->createStub(PDO::class));
 
         $this->assertSame('userId', $repo->getIdField());
+    }
+
+    /**
+     * Read the maximum items per page reported by a repository's own paginator.
+     */
+    private function getPaginatorMaxItemsPerPage(Repository $repo): ?int
+    {
+        $property = (new \ReflectionClass(Repository::class))->getProperty('paginator');
+        $property->setAccessible(true);
+        return $property->getValue($repo)->getMaxItemsPerPage();
+    }
+
+    /**
+     * Characterisation: a repository given no paginator currently inherits the static default.
+     */
+    public function testRepositoryWithoutPaginatorInheritsStaticDefault(): void
+    {
+        Paginator\Base::setDefaultMaxItemsPerPage(15);
+
+        $repo = new TestModel\ValidRepository($this->createStub(PDO::class));
+
+        $this->assertSame(15, $this->getPaginatorMaxItemsPerPage($repo));
+    }
+
+    /**
+     * Characterisation: a repository given only a Sort currently inherits the static default too.
+     */
+    public function testRepositoryWithSortInheritsStaticDefault(): void
+    {
+        Paginator\Base::setDefaultMaxItemsPerPage(15);
+
+        $repo = new TestModel\ValidRepository($this->createStub(PDO::class), new Sort('users.name'));
+
+        $this->assertSame(15, $this->getPaginatorMaxItemsPerPage($repo));
     }
 }
