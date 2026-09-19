@@ -14,10 +14,10 @@
 ## 3. Single-item retrieval limit
 
 - [x] 3.1 Change `getItemWithParams()` to run its query through a short-lived `SqlPaginator` with a page size of one, inheriting the repository's current sort and leaving the repository's own paginator untouched; verify the "Single-item lookups fetch at most one row" scenarios pass, inverting the characterisation test from 1.2
-- [ ] 3.2 Add a test asserting the executed SQL for a single-item lookup contains `LIMIT 1` on both a bare repository and one with an explicit page size; verify with `vendor/bin/phpunit --no-coverage --filter RepositoryPdoTest`
-- [ ] 3.3 Add a test asserting a single-item lookup on a sorted repository applies that sort and returns the first row under it; verify with `vendor/bin/phpunit --no-coverage --filter Repository`
-- [ ] 3.4 Add tests covering the "Single-item lookups do not disturb repository state" requirement, including that cached paginator figures survive a lookup and that a lookup raising an exception leaves the page size unchanged; verify with `vendor/bin/phpunit --no-coverage --filter Repository`
-- [ ] 3.5 Confirm `getItemWithId()` inherits the one-row limit through its delegation to `getItemWithParams()` rather than gaining its own code path; verify by asserting `LIMIT 1` in the SQL it executes
+- [x] 3.2 Add a test asserting the executed SQL for a single-item lookup contains `LIMIT 1` on both a bare repository and one with an explicit page size; verify with `vendor/bin/phpunit --no-coverage --filter RepositoryPdoTest`
+- [x] 3.3 Add a test asserting a single-item lookup on a sorted repository applies that sort and returns the first row under it; verify with `vendor/bin/phpunit --no-coverage --filter Repository`
+- [x] 3.4 Add tests covering the "Single-item lookups do not disturb repository state" requirement, including that cached paginator figures survive a lookup and that a lookup raising an exception leaves the page size unchanged; verify with `vendor/bin/phpunit --no-coverage --filter Repository`
+- [x] 3.5 Confirm `getItemWithId()` inherits the one-row limit through its delegation to `getItemWithParams()` rather than gaining its own code path; verify by asserting `LIMIT 1` in the SQL it executes
 
 ## 4. Documentation and final verification
 

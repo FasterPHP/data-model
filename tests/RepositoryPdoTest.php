@@ -7,6 +7,7 @@
 namespace FasterPhp\DataModel;
 
 use FasterPhp\DataModel\Paginator\Base as PaginatorBase;
+use FasterPhp\DataModel\Paginator\SqlPaginator;
 use PDO;
 use PDOStatement;
 
@@ -231,5 +232,189 @@ class RepositoryPdoTest extends RepositoryBase
             });
 
         return $mockDb;
+    }
+
+    /**
+     * An explicit page size does not widen a single-item lookup beyond one row.
+     */
+    public function testGetItemWithParamsFetchesOneRowDespiteExplicitPageSize(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willReturn(true);
+        $mockDbStatement->expects($this->once())
+            ->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturn([self::$data[0]]);
+
+        $capturedSql = '';
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())
+            ->method('prepare')
+            ->willReturnCallback(function (string $sql) use (&$capturedSql, $mockDbStatement) {
+                $capturedSql = $sql;
+                return $mockDbStatement;
+            });
+
+        $paginator = (new SqlPaginator($mockDb))->setMaxItemsPerPage(5);
+        (new TestModel\ValidRepository($mockDb, $paginator))->getItemWithParams(['name' => 'Marcus Don']);
+
+        $this->assertStringEndsWith(' LIMIT 1', $capturedSql);
+    }
+
+    /**
+     * A lookup on a sorted repository orders by that sort and returns the first row under it.
+     */
+    public function testGetItemWithParamsHonoursRepositorySort(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willReturn(true);
+        $mockDbStatement->expects($this->once())
+            ->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturn([self::$data[1]]);
+
+        $capturedSql = '';
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())
+            ->method('prepare')
+            ->willReturnCallback(function (string $sql) use (&$capturedSql, $mockDbStatement) {
+                $capturedSql = $sql;
+                return $mockDbStatement;
+            });
+
+        $repo = new TestModel\ValidRepository($mockDb, new Sort('users.age', Sort::DESCENDING));
+        $item = $repo->getItemWithParams(['handsome' => 'y']);
+
+        $this->assertStringContainsString('ORDER BY `users`.`age` DESC', $capturedSql);
+        $this->assertStringEndsWith(' LIMIT 1', $capturedSql);
+        $this->assertInstanceOf(TestModel\ValidItem::class, $item);
+        $this->assertSame(2, $item->getId());
+    }
+
+    /**
+     * A lookup matching nothing returns null rather than an Item.
+     */
+    public function testGetItemWithParamsReturnsNullWhenNothingMatches(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willReturn(true);
+        $mockDbStatement->expects($this->once())
+            ->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturn([]);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())
+            ->method('prepare')
+            ->willReturn($mockDbStatement);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+
+        $this->assertNull($repo->getItemWithParams(['name' => 'Nobody']));
+    }
+
+    /**
+     * A lookup borrows nothing from the repository's paginator: its figures and cache survive.
+     */
+    public function testSingleItemLookupLeavesPaginatorFiguresIntact(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->exactly(3))
+            ->method('execute')
+            ->willReturn(true);
+        $mockDbStatement->expects($this->once())
+            ->method('fetchColumn')
+            ->willReturn(3);
+        $mockDbStatement->expects($this->exactly(2))
+            ->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturnOnConsecutiveCalls(
+                [self::$data[0], self::$data[1]],
+                [self::$data[2]],
+            );
+
+        // Exactly three statements: the Set fetch, its count, and the lookup. A fourth would mean
+        // the lookup had discarded something the paginator had already cached.
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->exactly(3))
+            ->method('prepare')
+            ->willReturn($mockDbStatement);
+
+        $paginator = (new SqlPaginator($mockDb))->setMaxItemsPerPage(2);
+        $repo = new TestModel\ValidRepository($mockDb, $paginator);
+
+        $repo->getSetOfAll();
+        $this->assertSame(3, $paginator->getNumItemsTotal());
+        $this->assertSame(2, $paginator->getNumPages());
+
+        $repo->getItemWithParams(['name' => 'Jane Doe']);
+
+        $this->assertSame(2, $paginator->getMaxItemsPerPage());
+        $this->assertSame(1, $paginator->getPageNum());
+        $this->assertSame(3, $paginator->getNumItemsTotal());
+        $this->assertSame(2, $paginator->getNumPages());
+        $this->assertCount(2, $paginator->getItems());
+    }
+
+    /**
+     * A lookup that throws leaves no limit behind on the repository's paginator.
+     */
+    public function testFailingSingleItemLookupLeavesPageSizeUnchanged(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willThrowException(new \PDOException('Query failed'));
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())
+            ->method('prepare')
+            ->willReturn($mockDbStatement);
+
+        $paginator = (new SqlPaginator($mockDb))->setMaxItemsPerPage(5);
+        $repo = new TestModel\ValidRepository($mockDb, $paginator);
+
+        try {
+            $repo->getItemWithParams(['name' => 'Marcus Don']);
+            $this->fail('Expected the lookup to propagate the PDOException');
+        } catch (\PDOException) {
+            // Expected.
+        }
+
+        $this->assertSame(5, $paginator->getMaxItemsPerPage());
+    }
+
+    /**
+     * getItemWithId() inherits the one-row limit by delegating, with no code path of its own.
+     */
+    public function testGetItemWithIdInheritsTheOneRowLimit(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willReturn(true);
+        $mockDbStatement->expects($this->once())
+            ->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturn([self::$data[0]]);
+
+        $capturedSql = '';
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())
+            ->method('prepare')
+            ->willReturnCallback(function (string $sql) use (&$capturedSql, $mockDbStatement) {
+                $capturedSql = $sql;
+                return $mockDbStatement;
+            });
+
+        (new TestModel\ValidRepository($mockDb))->getItemWithId(1);
+
+        $this->assertStringEndsWith(' LIMIT 1', $capturedSql);
     }
 }
