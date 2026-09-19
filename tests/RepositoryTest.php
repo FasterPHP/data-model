@@ -206,4 +206,81 @@ class RepositoryTest extends TestCase
 
         $this->assertNull($this->getPaginatorMaxItemsPerPage($repo));
     }
+
+    /**
+     * A paginator the caller built still picks up the static default, as it always has.
+     */
+    public function testSuppliedPaginatorInheritsStaticDefault(): void
+    {
+        Paginator\Base::setDefaultMaxItemsPerPage(15);
+
+        $pdo = $this->createStub(PDO::class);
+        $repo = new TestModel\ValidRepository($pdo, new Paginator\SqlPaginator($pdo));
+
+        $this->assertSame(15, $this->getPaginatorMaxItemsPerPage($repo));
+    }
+
+    /**
+     * An explicit page size on a supplied paginator beats the static default.
+     */
+    public function testSuppliedPaginatorKeepsItsExplicitPageSize(): void
+    {
+        Paginator\Base::setDefaultMaxItemsPerPage(15);
+
+        $pdo = $this->createStub(PDO::class);
+        $paginator = (new Paginator\SqlPaginator($pdo))->setMaxItemsPerPage(5);
+        $repo = new TestModel\ValidRepository($pdo, $paginator);
+
+        $this->assertSame(5, $this->getPaginatorMaxItemsPerPage($repo));
+    }
+
+    /**
+     * Construction leaves a supplied paginator's page size, page number and sort alone.
+     */
+    public function testSuppliedPaginatorIsNotReconfiguredByConstruction(): void
+    {
+        Paginator\Base::setDefaultMaxItemsPerPage(15);
+
+        $pdo = $this->createStub(PDO::class);
+        $sort = new Sort('users.name');
+        $paginator = (new Paginator\SqlPaginator($pdo, $sort))
+            ->setMaxItemsPerPage(5)
+            ->setPageNum(3);
+
+        new TestModel\ValidRepository($pdo, $paginator);
+
+        $this->assertSame(5, $paginator->getMaxItemsPerPage());
+        $this->assertSame(3, $paginator->getPageNum());
+        $this->assertSame($sort, $paginator->getSort());
+    }
+
+    /**
+     * Opting into pagination after construction still works on a bare repository.
+     */
+    public function testPageSizeCanBeAppliedAfterConstruction(): void
+    {
+        $repo = new TestModel\ValidRepository($this->createStub(PDO::class));
+
+        $repo->setMaxItemsPerPage(5);
+
+        $this->assertSame(5, $this->getPaginatorMaxItemsPerPage($repo));
+    }
+
+    /**
+     * Applying a sort after construction takes effect and leaves the repository unlimited.
+     */
+    public function testSortCanBeAppliedAfterConstruction(): void
+    {
+        Paginator\Base::setDefaultMaxItemsPerPage(15);
+
+        $repo = new TestModel\ValidRepository($this->createStub(PDO::class));
+        $sort = new Sort('users.name');
+
+        $repo->setSort($sort);
+
+        $property = (new \ReflectionClass(Repository::class))->getProperty('paginator');
+        $property->setAccessible(true);
+        $this->assertSame($sort, $property->getValue($repo)->getSort());
+        $this->assertNull($this->getPaginatorMaxItemsPerPage($repo));
+    }
 }
