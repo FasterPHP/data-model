@@ -293,15 +293,15 @@ class AggregateFieldsRepositoryTest extends TestCase
         $pdo = new PDO('sqlite::memory:');
         $repo = new AggregateRepository($pdo);
 
-        $method = (new \ReflectionClass($repo))->getMethod('buildSelectSqlAndParams');
+        $method = (new \ReflectionClass($repo))->getMethod('buildSelectQuery');
         $method->setAccessible(true);
 
-        [$sql, $params] = $method->invoke($repo, [
+        $rendered = $method->invoke($repo, [
             'orders.userId' => 100,  // WHERE, via a key that needs sanitising
             'status' => 'completed', // WHERE
             'totalAmount' => 1000,   // HAVING
             'orderCount' => 5,       // HAVING
-        ]);
+        ])->render();
 
         $this->assertSame(
             'SELECT `orders`.`orderId` AS `id`, `orders`.`userId`, `orders`.`status`'
@@ -310,7 +310,7 @@ class AggregateFieldsRepositoryTest extends TestCase
             . "\nWHERE `orders`.`userId` = :orders_userId_8f39af82 AND `orders`.`status` = :status"
             . "\nGROUP BY `orders`.`orderId`"
             . "\nHAVING `totalAmount` = :totalAmount AND `orderCount` = :orderCount",
-            $sql
+            $rendered->getSql()
         );
 
         $this->assertSame([
@@ -318,29 +318,31 @@ class AggregateFieldsRepositoryTest extends TestCase
             ':status' => 'completed',
             ':totalAmount' => '1000',
             ':orderCount' => '5',
-        ], $params);
+        ], $rendered->getParams());
     }
 
     /**
-     * Test that merging parameters refuses to overwrite an existing placeholder.
+     * Test that assembling a clause's parameters refuses to overwrite an existing placeholder.
+     *
+     * Two filter keys can sanitise to the same placeholder, in which case one binding would be
+     * silently discarded. That is rejected rather than accepted.
      */
-    public function testMergeParamsRejectsOverwritingPlaceholder(): void
+    public function testClauseParamsRejectOverwritingPlaceholder(): void
     {
         $pdo = new PDO('sqlite::memory:');
         $repo = new AggregateRepository($pdo);
 
-        $reflection = new \ReflectionClass($repo);
-        $method = $reflection->getMethod('mergeParams');
+        $method = (new \ReflectionClass($repo))->getMethod('getArgsSqlAndParams');
         $method->setAccessible(true);
 
-        $this->assertSame(
-            [':a' => 1, ':b' => 2],
-            $method->invoke($repo, [':a' => 1], [':b' => 2])
-        );
+        // Distinct keys keep distinct bindings.
+        [, $params] = $method->invoke($repo, ['userId' => [1, 2]]);
+        $this->assertSame([':userId_0' => 1, ':userId_1' => 2], $params);
 
+        // 'userId_0' collides with the first placeholder expanded from the 'userId' array.
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage("Duplicate bound parameter ':a'");
-        $method->invoke($repo, [':a' => 1], [':a' => 2]);
+        $this->expectExceptionMessage("Duplicate bound parameter ':userId_0'");
+        $method->invoke($repo, ['userId' => [1, 2], 'userId_0' => 9]);
     }
 
     /**

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use FasterPhp\DataModel\Paginator\SqlPaginator;
+use FasterPhp\DataModel\Sql\SqlClause;
+use FasterPhp\DataModel\Sql\SqlQuery;
 use FasterPhp\DataModel\Sql\SqlUtil;
 use PDO;
 
@@ -128,15 +130,12 @@ abstract class Repository implements RepositoryInterface
 
     public function getItemWithParams(array $params, array $types = []): ?ItemInterface
     {
-        [$sql, $sqlParams] = $this->buildSelectSqlAndParams($params, $types);
-
         // A paginator of its own keeps the one-row limit off the repository's, which the caller
         // may be holding for its result figures. It inherits the sort so the row picked is the
         // first under whatever ordering the repository is using.
         $data = (new SqlPaginator($this->getPdo(), $this->paginator->getSort()))
             ->setMaxItemsPerPage(1)
-            ->setSql($sql)
-            ->setParams($sqlParams)
+            ->setQuery($this->buildSelectQuery($params, $types))
             ->getItems();
 
         if (empty($data)) {
@@ -297,40 +296,35 @@ abstract class Repository implements RepositoryInterface
      * ----------------------------- */
     protected function getDataWithParams(array $params, array $types = []): array
     {
-        [$sql, $sqlParams] = $this->buildSelectSqlAndParams($params, $types);
-
-        return $this->fetchData($sql, $sqlParams);
+        return $this->fetchData($this->buildSelectQuery($params, $types));
     }
 
     /**
-     * Build the SELECT statement for a set of filters, along with its bound parameters.
+     * Build the query for a set of filters.
+     *
+     * This is the coarse extension point: a subclass may override it to return a wholly
+     * hand-written query, which is executed as given and still receives the repository's sorting,
+     * pagination and Item construction. The default composes the clause hooks below, so a subclass
+     * that overrides only one of those keeps working unchanged.
      *
      * @param array<string, mixed>  $params Filters to apply.
      * @param array<string, string> $types  Search type per filter key.
      *
-     * @return array{0:string,1:array<string,mixed>}
+     * @return SqlQuery
      */
-    protected function buildSelectSqlAndParams(array $params, array $types = []): array
+    protected function buildSelectQuery(array $params, array $types = []): SqlQuery
     {
-        $sql  = 'SELECT ' . $this->getSelectClause();
-        $sql .= ' FROM ' . $this->getFromClause();
-
         [$whereSql,  $whereParams]  = $this->getWhereSqlAndParams($params, $types);
-        if ($whereSql !== '') {
-            $sql .= "\nWHERE $whereSql";
-        }
-
-        $groupBy = $this->getGroupByClause();
-        if ($groupBy !== '') {
-            $sql .= "\nGROUP BY $groupBy";
-        }
-
         [$havingSql, $havingParams] = $this->getHavingSqlAndParams($params, $types);
-        if ($havingSql !== '') {
-            $sql .= "\nHAVING $havingSql";
-        }
+        $groupBy = $this->getGroupByClause();
 
-        return [$sql, $this->mergeParams($whereParams, $havingParams)];
+        return new SqlQuery(
+            new SqlClause($this->getSelectClause()),
+            new SqlClause($this->getFromClause()),
+            $whereSql !== '' ? new SqlClause($whereSql, $whereParams) : null,
+            $groupBy !== '' ? new SqlClause($groupBy) : null,
+            $havingSql !== '' ? new SqlClause($havingSql, $havingParams) : null,
+        );
     }
 
     /* -------------------------------
@@ -360,33 +354,16 @@ abstract class Repository implements RepositoryInterface
             $searchType = $types[$key] ?? self::EQUALS;
             [$sql, $chunk] = $this->getComparison($key, $searchType, $value);
             $fragments[] = $sql;
-            $params = $this->mergeParams($params, $chunk);
+            foreach ($chunk as $placeholder => $bound) {
+                // Placeholders are injective in the filter key, so a clash within one clause means
+                // a binding would be silently discarded. This is an assertion, not expected.
+                if (array_key_exists($placeholder, $params)) {
+                    throw new Exception("Duplicate bound parameter '$placeholder'");
+                }
+                $params[$placeholder] = $bound;
+            }
         }
         return [implode(' AND ', $fragments), $params];
-    }
-
-    /**
-     * Merge bound parameters, refusing to overwrite an existing placeholder.
-     *
-     * Placeholders are injective in the filter key, so an overwrite means a binding would be
-     * silently discarded. This is an assertion rather than expected behaviour.
-     *
-     * @param array<string, mixed> $params The parameters accumulated so far.
-     * @param array<string, mixed> $chunk  The parameters to add.
-     *
-     * @return array<string, mixed>
-     *
-     * @throws Exception If a placeholder would be overwritten.
-     */
-    protected function mergeParams(array $params, array $chunk): array
-    {
-        foreach ($chunk as $placeholder => $value) {
-            if (array_key_exists($placeholder, $params)) {
-                throw new Exception("Duplicate bound parameter '$placeholder'");
-            }
-            $params[$placeholder] = $value;
-        }
-        return $params;
     }
 
     protected function getComparison(string $key, string $type, mixed $value): array
@@ -461,11 +438,10 @@ abstract class Repository implements RepositoryInterface
     /* -------------------------------
      * Core fetch via paginator
      * ----------------------------- */
-    protected function fetchData(string $sql, array $params): array
+    protected function fetchData(SqlQuery $query): array
     {
         return $this->paginator
-            ->setSql($sql)
-            ->setParams($params)
+            ->setQuery($query)
             ->getItems();
     }
 

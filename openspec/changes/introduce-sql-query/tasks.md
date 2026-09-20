@@ -29,11 +29,11 @@
 
 ## 6. Repository query hook
 
-- [ ] 6.1 Add `buildSelectQuery()` whose default implementation composes `getSelectClause()`, `getFromClause()`, `getGroupByClause()` and the WHERE and HAVING helpers into a `SqlQuery`; verify the generated SQL matches the 2.1 baseline byte-for-byte for both the plain and the joined repository
-- [ ] 6.2 Route `getDataWithParams()` and `fetchData()` through the query, so `fetchData()` takes a `SqlQuery` and hands it to the paginator as one value; verify the full suite passes with `vendor/bin/phpunit --no-coverage`
-- [ ] 6.3 Remove `buildSelectSqlAndParams()` and `mergeParams()`; verify `grep -rn 'buildSelectSqlAndParams\|mergeParams' src tests examples` returns nothing and the suite still passes
-- [ ] 6.4 Add tests for the "Repository SELECTs are built through a single query hook" requirement, covering Set retrieval, Item retrieval, and filters reaching the hook; verify with `vendor/bin/phpunit --no-coverage --filter Repository`
-- [ ] 6.5 Add tests for the "default query composes the existing clause hooks" requirement, including a repository overriding both clause hooks together and confirming filters still split between WHERE and HAVING by field ownership; verify against the 2.2 baseline
+- [x] 6.1 Add `buildSelectQuery()` whose default implementation composes `getSelectClause()`, `getFromClause()`, `getGroupByClause()` and the WHERE and HAVING helpers into a `SqlQuery`; verify the generated SQL matches the 2.1 baseline byte-for-byte for both the plain and the joined repository
+- [x] 6.2 Route `getDataWithParams()` and `fetchData()` through the query, so `fetchData()` takes a `SqlQuery` and hands it to the paginator as one value; verify the full suite passes with `vendor/bin/phpunit --no-coverage`
+- [x] 6.3 Remove `buildSelectSqlAndParams()` and `mergeParams()`; verify `grep -rn 'buildSelectSqlAndParams\|mergeParams' src tests examples` returns nothing and the suite still passes
+- [x] 6.4 Add tests for the "Repository SELECTs are built through a single query hook" requirement, covering Set retrieval, Item retrieval, and filters reaching the hook; verify with `vendor/bin/phpunit --no-coverage --filter Repository`
+- [x] 6.5 Add tests for the "default query composes the existing clause hooks" requirement, including a repository overriding both clause hooks together and confirming filters still split between WHERE and HAVING by field ownership; verify against the 2.2 baseline
 
 ## 7. Hand-written queries
 

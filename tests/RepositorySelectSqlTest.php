@@ -44,9 +44,10 @@ class RepositorySelectSqlTest extends TestCase
      */
     private function buildSelect(Repository $repo, array $params, array $types = []): array
     {
-        $method = (new \ReflectionClass($repo))->getMethod('buildSelectSqlAndParams');
+        $method = (new \ReflectionClass($repo))->getMethod('buildSelectQuery');
         $method->setAccessible(true);
-        return $method->invoke($repo, $params, $types);
+        $rendered = $method->invoke($repo, $params, $types)->render();
+        return [$rendered->getSql(), $rendered->getParams()];
     }
 
     private function createPdo(): PDO
