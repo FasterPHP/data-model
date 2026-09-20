@@ -17,10 +17,10 @@
 
 ## 4. SqlQuery
 
-- [ ] 4.1 Add `src/Sql/SqlQuery.php` holding select, from, where, group by and having clauses, with the optional three distinguishable between absent and empty; verify the "A query exposes every clause it holds" scenarios pass in a new `tests/Sql/SqlQueryTest.php`
-- [ ] 4.2 Implement `with()` returning a new instance, carrying over unreplaced clauses, supporting several replacements at once, and supporting removal of an optional clause; verify the four "A query is immutable and derives rather than mutates" scenarios pass
-- [ ] 4.3 Implement rendering so SQL and parameters are produced together in SELECT, FROM, WHERE, GROUP BY, HAVING order, with absent clauses contributing no keyword; verify the first two "Query SQL and parameters are produced together" scenarios pass
-- [ ] 4.4 Implement the parameter guarantees: every placeholder in the SQL has a binding, every binding derives from a rendered clause, and a name bound to different values by two clauses throws naming the collision and the clauses involved; verify the remaining three scenarios of that requirement pass
+- [x] 4.1 Add `src/Sql/SqlQuery.php` holding select, from, where, group by and having clauses, with the optional three distinguishable between absent and empty; verify the "A query exposes every clause it holds" scenarios pass in a new `tests/Sql/SqlQueryTest.php`
+- [x] 4.2 Implement `with()` returning a new instance, carrying over unreplaced clauses, supporting several replacements at once, and supporting removal of an optional clause; verify the four "A query is immutable and derives rather than mutates" scenarios pass
+- [x] 4.3 Implement rendering so SQL and parameters are produced together in SELECT, FROM, WHERE, GROUP BY, HAVING order, with absent clauses contributing no keyword; verify the first two "Query SQL and parameters are produced together" scenarios pass
+- [x] 4.4 Implement the parameter guarantees: every placeholder in the SQL has a binding, every binding derives from a rendered clause, and a name bound to different values by two clauses throws naming the collision and the clauses involved; verify the remaining three scenarios of that requirement pass
 
 ## 5. Paginator entry point
 
