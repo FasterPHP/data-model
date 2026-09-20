@@ -12,8 +12,8 @@
 
 ## 3. SqlClause
 
-- [ ] 3.1 Add `src/Sql/SqlClause.php` as an immutable value object holding a SQL fragment and the parameters it binds, with an empty parameter map permitted; verify the three "A clause carries its own parameters" scenarios pass in a new `tests/Sql/SqlClauseTest.php`
-- [ ] 3.2 Confirm a clause cannot be altered after construction; verify by asserting that an attempted write fails rather than mutating
+- [x] 3.1 Add `src/Sql/SqlClause.php` as an immutable value object holding a SQL fragment and the parameters it binds, with an empty parameter map permitted; verify the three "A clause carries its own parameters" scenarios pass in a new `tests/Sql/SqlClauseTest.php`
+- [x] 3.2 Confirm a clause cannot be altered after construction; verify by asserting that an attempted write fails rather than mutating
 
 ## 4. SqlQuery
 
