@@ -8,6 +8,7 @@
  * - Adding read-only fields from joined tables
  * - Avoiding N+1 query problems
  * - Overriding getSelectClause() and getFromClause()
+ * - Replacing the whole query with a hand-written SqlQuery
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -15,7 +16,10 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use FasterPhp\DataModel\Item;
 use FasterPhp\DataModel\Set;
 use FasterPhp\DataModel\Repository;
+use FasterPhp\DataModel\Sort;
 use FasterPhp\DataModel\Field;
+use FasterPhp\DataModel\Sql\SqlClause;
+use FasterPhp\DataModel\Sql\SqlQuery;
 
 // Define Department Item
 class DepartmentItem extends Item
@@ -78,6 +82,70 @@ class EmployeeRepository extends Repository
     {
         return parent::getFromClause()
             . " LEFT JOIN `departments` ON `departments`.`deptId` = `employees`.`departmentId`";
+    }
+}
+
+// Define an Item for a query the clause hooks cannot express
+class HighEarnerItem extends Item
+{
+    public const ID_FIELD = 'empId';
+
+    public const FIELDS = [
+        'name' => Field\Varchar::class,
+        'salary' => Field\Integer::class,
+    ];
+
+    public const FIELDS_EXTERNAL = [
+        'departmentName' => Field\Varchar::class,
+        'departmentAverage' => Field\Integer::class,
+    ];
+}
+
+class HighEarnerSet extends Set
+{
+}
+
+/**
+ * Repository returning a hand-written query from the coarse extension point.
+ *
+ * buildSelectQuery() is where every Set and Item retrieval builds its SELECT. Its default
+ * implementation composes the clause hooks, as EmployeeRepository above relies on. Returning a
+ * query built here instead replaces that composition wholesale, which is the supported way to
+ * express a query the clause hooks are too fine-grained for. Unlike escaping to PDO directly, the
+ * query still receives the repository's sorting, pagination and Item construction.
+ */
+class HighEarnerRepository extends Repository
+{
+    protected const DB_NAME = 'example';
+    protected const TABLE_NAME = 'employees';
+
+    private int $minSalary = 0;
+
+    public function getSetEarningAtLeast(int $minSalary): HighEarnerSet
+    {
+        $this->minSalary = $minSalary;
+        return $this->getSetOfAll();
+    }
+
+    protected function buildSelectQuery(array $params, array $types = []): SqlQuery
+    {
+        return new SqlQuery(
+            // The id column is aliased to Item::ID_INTERNAL, exactly as getFieldList() does
+            new SqlClause(
+                'e.empId AS `id`, e.name, e.salary'
+                . ', d.name AS departmentName'
+                . ', avg.departmentAverage AS departmentAverage'
+            ),
+            new SqlClause(
+                'employees e'
+                . ' JOIN departments d ON d.deptId = e.departmentId'
+                . ' JOIN ('
+                . '   SELECT departmentId, CAST(AVG(salary) AS INTEGER) AS departmentAverage'
+                . '   FROM employees GROUP BY departmentId'
+                . ' ) avg ON avg.departmentId = e.departmentId'
+            ),
+            new SqlClause('e.salary >= :minSalary', [':minSalary' => $this->minSalary]),
+        );
     }
 }
 
@@ -149,4 +217,19 @@ echo "   Found " . count($engineers) . " engineers:\n";
 foreach ($engineers as $employee) {
     echo "   - {$employee->getName()} ({$employee->getDepartmentName()}) - \${$employee->getSalary()}\n";
 }
+echo "\n";
+
+// 4. Replace the whole query with one the clause hooks cannot express
+echo "4. Fetching high earners with their department average (hand-written query)...\n";
+$highEarners = (new HighEarnerRepository($pdo))
+    ->setSort(new Sort('salary', Sort::DESCENDING))
+    ->getSetEarningAtLeast(80000);
+
+echo "   Found " . count($highEarners) . " employees earning at least \$80,000:\n";
+foreach ($highEarners as $employee) {
+    echo "   - {$employee->getName()} ({$employee->getDepartmentName()})"
+        . " - \${$employee->getSalary()}"
+        . " vs department average \${$employee->getDepartmentAverage()}\n";
+}
+
 echo "\n=== Example Complete ===\n";

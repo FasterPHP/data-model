@@ -48,6 +48,6 @@
 
 ## 9. Documentation and final verification
 
-- [ ] 9.1 Document `buildSelectQuery()` as the coarse extension point and the hand-written query as the supported escape hatch, in `README.md` and a new or extended example, keeping the clause-override documentation since those hooks remain; verify by reading the updated sections against the new specs
-- [ ] 9.2 Run `vendor/bin/phpcs` and confirm zero violations
-- [ ] 9.3 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes, including both characterisation tests from group 2 now asserting unchanged SQL
+- [x] 9.1 Document `buildSelectQuery()` as the coarse extension point and the hand-written query as the supported escape hatch, in `README.md` and a new or extended example, keeping the clause-override documentation since those hooks remain; verify by reading the updated sections against the new specs
+- [x] 9.2 Run `vendor/bin/phpcs` and confirm zero violations
+- [x] 9.3 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes, including both characterisation tests from group 2 now asserting unchanged SQL

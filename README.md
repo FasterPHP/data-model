@@ -136,7 +136,9 @@ $user->getCreated(); // Returns DateTime object
 
 ### Extending for Complex Queries
 
-Avoid N+1 problems by extending your classes to add joins:
+Avoid N+1 problems by extending your classes to add joins. These clause hooks remain the simplest
+way to adjust one part of a query; see [Replacing the Whole Query](#replacing-the-whole-query) when
+they are too fine-grained:
 
 ```php
 class TicketItem extends Item
@@ -173,6 +175,51 @@ foreach ($tickets as $ticket) {
     echo $ticket->getTitle() . ' - ' . $ticket->getAssigneeName();
 }
 ```
+
+### Replacing the Whole Query
+
+The clause hooks above are the fine-grained extension point. `buildSelectQuery()` is the coarse
+one: every Set and Item retrieval builds its SELECT through it, and its default implementation
+composes `getSelectClause()`, `getFromClause()`, `getGroupByClause()` and the WHERE and HAVING
+helpers. Overriding a clause hook alone continues to work exactly as before.
+
+When the clause hooks are too fine-grained for the query you need, return a `SqlQuery` you built
+yourself. It is executed as given, and still receives the repository's sorting, pagination and Item
+construction, so it is a supported alternative to escaping to `PDO::prepare()` directly:
+
+```php
+use FasterPhp\DataModel\Sql\SqlClause;
+use FasterPhp\DataModel\Sql\SqlQuery;
+
+class TicketRepository extends Repository
+{
+    protected function buildSelectQuery(array $params, array $types = []): SqlQuery
+    {
+        return new SqlQuery(
+            // Alias the id column to Item::ID_INTERNAL, as the default select clause does
+            new SqlClause('t.ticketId AS `id`, t.title, u.name AS assigneeName'),
+            new SqlClause('tickets t LEFT JOIN users u ON u.id = t.assignedTo'),
+            new SqlClause('t.status = :status', [':status' => 'open']),
+        );
+    }
+}
+```
+
+A `SqlQuery` holds the clauses of a SELECT: `select` and `from` are required, `where`, `groupBy`
+and `having` are optional. Each is a `SqlClause`, which carries a SQL fragment together with the
+parameters that fragment binds, so the two can never become separated.
+
+Queries are immutable. `with()` derives a new query rather than modifying the original, carrying
+over every clause not replaced, and `SqlQuery::NONE` removes an optional one:
+
+```php
+$query = $parentQuery
+    ->with(where: new SqlClause('t.status = :status', [':status' => 'closed']))
+    ->with(having: SqlQuery::NONE);
+```
+
+If two clauses bind the same parameter name to different values, rendering the query throws rather
+than silently discarding one of the bindings.
 
 ### Pagination and Sorting
 
