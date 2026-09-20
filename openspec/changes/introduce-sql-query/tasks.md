@@ -37,9 +37,9 @@
 
 ## 7. Hand-written queries
 
-- [ ] 7.1 Add a test repository that returns a hand-written `SqlQuery` from `buildSelectQuery()`, and confirm the clause hooks do not contribute to its SQL; verify the first "hand-written query is a supported substitute" scenario passes
-- [ ] 7.2 Confirm a hand-written query still receives sorting, pagination and Item construction, and that its own bound parameters are applied; verify the remaining scenarios of that requirement pass
-- [ ] 7.3 Confirm a hand-written query whose clauses collide on a parameter name throws rather than discarding a binding; verify with a dedicated test
+- [x] 7.1 Add a test repository that returns a hand-written `SqlQuery` from `buildSelectQuery()`, and confirm the clause hooks do not contribute to its SQL; verify the first "hand-written query is a supported substitute" scenario passes
+- [x] 7.2 Confirm a hand-written query still receives sorting, pagination and Item construction, and that its own bound parameters are applied; verify the remaining scenarios of that requirement pass
+- [x] 7.3 Confirm a hand-written query whose clauses collide on a parameter name throws rather than discarding a binding; verify with a dedicated test
 
 ## 8. Consumer verification
 
