@@ -43,8 +43,8 @@
 
 ## 8. Consumer verification
 
-- [ ] 8.1 Reproduce the join shape used by a known consumer's six overriding repositories as a test fixture and assert the generated SQL is unchanged from the 2.1 baseline; verify with `vendor/bin/phpunit --no-coverage --filter Repository`
-- [ ] 8.2 Confirm nothing in the known consumer overrides `buildSelectSqlAndParams()` or `mergeParams()`, so their removal affects no consumer; verify by grepping the consumer's source for both names and recording the result
+- [x] 8.1 Reproduce the join shape used by a known consumer's six overriding repositories as a test fixture and assert the generated SQL is unchanged from the 2.1 baseline; verify with `vendor/bin/phpunit --no-coverage --filter Repository`
+- [x] 8.2 Confirm nothing in the known consumer overrides `buildSelectSqlAndParams()` or `mergeParams()`, so their removal affects no consumer; verify by grepping the consumer's source for both names and recording the result
 
 ## 9. Documentation and final verification
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use FasterPhp\DataModel\TestModel\JoinedRepository;
+use FasterPhp\DataModel\TestModel\ParticipantRepository;
 use FasterPhp\DataModel\TestModel\ValidRepository;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -33,6 +34,18 @@ class RepositorySelectSqlTest extends TestCase
         . "\n\t\t\tJOIN modules m ON m.moduleId = moduleAttempts.moduleId"
         . "\n\t\t\tJOIN courseAttempts ca ON ca.courseAttemptId = moduleAttempts.courseAttemptId"
         . "\n\t\t\tLEFT JOIN users mu ON mu.userId = moduleAttempts.markedByUserId";
+
+    private const PARTICIPANT_SELECT = 'SELECT `users`.`userId` AS `id`, `users`.`role`'
+        . ', `users`.`status`,'
+        . "\n\t\t\t\tCASE"
+        . "\n\t\t\t\t\tWHEN a.status IS NULL THEN 'not started'"
+        . "\n\t\t\t\t\tELSE a.status"
+        . "\n\t\t\t\tEND AS courseStatus"
+        . " FROM users"
+        . "\n\t\t\tLEFT JOIN courseAttempts a ON a.userId = users.userId"
+        . "\n\t\t\tLEFT JOIN courseAttempts a2 ON a2.userId = users.userId"
+        . "\n\t\t\t\tAND a2.courseId = a.courseId"
+        . "\n\t\t\t\tAND a2.courseAttemptId > a.courseAttemptId";
 
     /**
      * Build the SELECT statement and its parameters for a repository.
@@ -81,6 +94,41 @@ class RepositorySelectSqlTest extends TestCase
 
         $this->assertSame(self::JOINED_SELECT, $sql);
         $this->assertSame([], $params);
+    }
+
+    /**
+     * A repository overriding the clause hooks and getWhereSqlAndParams() together, as
+     * a course participant repository might, still injects its own filters.
+     */
+    public function testJoinedRepositoryInjectingItsOwnFilters(): void
+    {
+        [$sql, $params] = $this->buildSelect(new ParticipantRepository($this->createPdo()), []);
+
+        $this->assertSame(
+            self::PARTICIPANT_SELECT
+            . "\nWHERE `users`.`role` = :role AND `users`.`status` = :status"
+            . ' AND `a2`.`courseAttemptId` IS NULL',
+            $sql
+        );
+        $this->assertSame([':role' => 'staff', ':status' => 'active'], $params);
+    }
+
+    /**
+     * A caller's own filters are applied alongside the injected ones.
+     */
+    public function testJoinedRepositoryCombinesCallerAndInjectedFilters(): void
+    {
+        [$sql, $params] = $this->buildSelect(
+            new ParticipantRepository($this->createPdo()),
+            ['users.userId' => 5]
+        );
+
+        $this->assertStringContainsString('`users`.`userId` = :users_userId_214e18c3', $sql);
+        $this->assertStringContainsString('`users`.`role` = :role', $sql);
+        $this->assertSame(
+            [':users_userId_214e18c3' => '5', ':role' => 'staff', ':status' => 'active'],
+            $params
+        );
     }
 
     public function testJoinedRepositoryWithAFilter(): void
