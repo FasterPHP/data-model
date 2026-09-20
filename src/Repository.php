@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use FasterPhp\DataModel\Paginator\SqlPaginator;
+use FasterPhp\DataModel\Sql\SqlUtil;
 use PDO;
 
 /**
@@ -23,9 +24,9 @@ abstract class Repository implements RepositoryInterface
      * ----------------------------- */
     public const EQUALS            = 'equals';
     public const NOT_EQUALS        = 'not equals';
-    public const STARTS            = Sql::STARTS;
-    public const ENDS              = Sql::ENDS;
-    public const CONTAINS          = Sql::CONTAINS;
+    public const STARTS            = SqlUtil::STARTS;
+    public const ENDS              = SqlUtil::ENDS;
+    public const CONTAINS          = SqlUtil::CONTAINS;
     public const GREATER           = 'greater';
     public const GREATER_OR_EQUALS = 'greater or equals';
     public const LESS              = 'less';
@@ -69,8 +70,8 @@ abstract class Repository implements RepositoryInterface
                 ->setMaxItemsPerPage(null);
         }
 
-        $this->itemClassName = Util::getItemClassName(static::class);
-        $this->setClassName  = Util::getSetClassName(static::class);
+        $this->itemClassName = ClassNameUtil::getItemClassName(static::class);
+        $this->setClassName  = ClassNameUtil::getSetClassName(static::class);
     }
 
     /* -------------------------------
@@ -263,10 +264,10 @@ abstract class Repository implements RepositoryInterface
 
         // Prepend the id column explicitly — it is no longer in FIELDS
         $parts = [
-            Sql::ident("$table.$idField") . ' AS ' . Sql::ident($idInternal),
+            SqlUtil::ident("$table.$idField") . ' AS ' . SqlUtil::ident($idInternal),
         ];
         foreach ($fields as $field) {
-            $parts[] = Sql::ident("$table.$field");
+            $parts[] = SqlUtil::ident("$table.$field");
         }
         return implode(', ', $parts);
     }
@@ -281,13 +282,13 @@ abstract class Repository implements RepositoryInterface
 
     protected function getFromClause(): string
     {
-        return Sql::ident($this->getTableName());
+        return SqlUtil::ident($this->getTableName());
     }
 
     protected function getGroupByClause(): string
     {
         return $this->itemClassName::FIELDS_AGGREGATE !== []
-            ? Sql::ident($this->getTableName() . '.' . $this->getIdField())
+            ? SqlUtil::ident($this->getTableName() . '.' . $this->getIdField())
             : '';
     }
 
@@ -404,8 +405,8 @@ abstract class Repository implements RepositoryInterface
         } else {
             $identifier = $key;
         }
-        $safeKey     = Sql::ident($identifier);
-        $placeholder = Sql::placeholder($key);
+        $safeKey     = SqlUtil::ident($identifier);
+        $placeholder = SqlUtil::placeholder($key);
         $params      = [];
 
         $hasNull = false;
@@ -424,7 +425,7 @@ abstract class Repository implements RepositoryInterface
         // Array → IN (...) with params
         if ($type === self::EQUALS && is_array($value)) {
             if ($nonNull !== []) {
-                [$frag, $inParams] = Sql::expandIn($safeKey, $nonNull, trim($placeholder, ':') . '_');
+                [$frag, $inParams] = SqlUtil::expandIn($safeKey, $nonNull, trim($placeholder, ':') . '_');
                 $sql = "($frag" . ($hasNull ? " OR $safeKey IS NULL)" : ')');
                 return [$sql, $inParams];
             }
@@ -432,7 +433,7 @@ abstract class Repository implements RepositoryInterface
                 return ["$safeKey IS NULL", []];
             }
             // Empty array matches no rows, using the same fragment as an empty IN (...)
-            return Sql::expandIn($safeKey, []);
+            return SqlUtil::expandIn($safeKey, []);
         }
 
         // Null scalar: compared using SQL null semantics, never bound as a parameter
@@ -447,7 +448,7 @@ abstract class Repository implements RepositoryInterface
 
         // Scalar / LIKE
         $op   = self::OPERATORS[$type];
-        $val  = is_null($value) ? null : Sql::likeWildcards((string)$value, $type);
+        $val  = is_null($value) ? null : SqlUtil::likeWildcards((string)$value, $type);
         $sql  = "$safeKey $op $placeholder";
         if ($hasNull) {
             $sql = "($sql OR $safeKey IS NULL)";
@@ -477,10 +478,10 @@ abstract class Repository implements RepositoryInterface
 
         // Build portable INSERT INTO (cols) VALUES (...) syntax
         $columns = array_keys($sqlValues);
-        $idents  = array_map([Sql::class, 'ident'], $columns);
+        $idents  = array_map([SqlUtil::class, 'ident'], $columns);
         $placeholders = array_map(fn($name) => ':' . $name, $columns);
 
-        $sql = 'INSERT INTO ' . Sql::ident($this->getTableName())
+        $sql = 'INSERT INTO ' . SqlUtil::ident($this->getTableName())
              . ' (' . implode(', ', $idents) . ')'
              . ' VALUES (' . implode(', ', $placeholders) . ')';
 
@@ -507,9 +508,9 @@ abstract class Repository implements RepositoryInterface
         $sqlValues = $item->getChangedSqlValues();
         [$pairs, $params] = $this->buildSetList($sqlValues, '');
         $params[':id'] = $item->getId();
-        $sql = 'UPDATE ' . Sql::ident($this->getTableName())
+        $sql = 'UPDATE ' . SqlUtil::ident($this->getTableName())
              . ' SET ' . implode(', ', $pairs)
-             . ' WHERE ' . Sql::ident($this->getIdField()) . ' = :id';
+             . ' WHERE ' . SqlUtil::ident($this->getIdField()) . ' = :id';
         $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($params);
         $item->markItemPersisted();
@@ -517,12 +518,12 @@ abstract class Repository implements RepositoryInterface
 
     protected function deleteItemIds(array $ids): void
     {
-        [$inSql, $inParams] = Sql::expandIn(
-            Sql::ident($this->getIdField()),
+        [$inSql, $inParams] = SqlUtil::expandIn(
+            SqlUtil::ident($this->getIdField()),
             $ids,
             'del_'
         );
-        $sql = 'DELETE FROM ' . Sql::ident($this->getTableName())
+        $sql = 'DELETE FROM ' . SqlUtil::ident($this->getTableName())
              . ' WHERE ' . $inSql;
         $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($inParams);
@@ -534,7 +535,7 @@ abstract class Repository implements RepositoryInterface
         $params = [];
         foreach ($fieldSqlValues as $name => $value) {
             $ph = ':' . $prefix . $name;
-            $pairs[]     = Sql::ident($name) . ' = ' . $ph;
+            $pairs[]     = SqlUtil::ident($name) . ' = ' . $ph;
             $params[$ph] = $value;
         }
         return [$pairs, $params];

@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace FasterPhp\DataModel;
+namespace FasterPhp\DataModel\Sql;
 
-final class Sql
+use FasterPhp\DataModel\Exception;
+
+final class SqlUtil
 {
     /* -------------------------------
      * Canonical search types for wildcard matching

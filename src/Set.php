@@ -22,7 +22,7 @@ abstract class Set implements SetInterface
     public function __construct(array $data = [])
     {
         $this->data = $data;
-        $this->itemClassName = Util::getItemClassName(get_called_class());
+        $this->itemClassName = ClassNameUtil::getItemClassName(get_called_class());
     }
 
     #[\Override]

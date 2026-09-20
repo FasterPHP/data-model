@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Data Model Util class.
+ * Data Model class-name resolution utility.
  */
 
 declare(strict_types=1);
@@ -9,9 +9,9 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 /**
- * Data Model Util class.
+ * Data Model class-name resolution utility.
  */
-class Util
+class ClassNameUtil
 {
     public static function getItemClassName(string $callingClassName): string
     {

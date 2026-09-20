@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
+use FasterPhp\DataModel\Sql\SqlUtil;
+
 /**
  * Sort class.
  */
@@ -61,7 +63,7 @@ class Sort
      */
     public static function isValidSortField(string $field): bool
     {
-        return Sql::isValidIdent($field);
+        return SqlUtil::isValidIdent($field);
     }
 
     /**

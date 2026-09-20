@@ -2,37 +2,39 @@
 
 declare(strict_types=1);
 
-namespace FasterPhp\DataModel;
+namespace FasterPhp\DataModel\Sql;
 
+use FasterPhp\DataModel\Exception;
+use FasterPhp\DataModel\Repository;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-final class SqlTest extends TestCase
+final class SqlUtilTest extends TestCase
 {
     public function testIdentSimple(): void
     {
-        $this->assertEquals('`users`', Sql::ident('users'));
+        $this->assertEquals('`users`', SqlUtil::ident('users'));
     }
 
     public function testIdentWithDot(): void
     {
-        $this->assertEquals('`users`.`userId`', Sql::ident('users.userId'));
+        $this->assertEquals('`users`.`userId`', SqlUtil::ident('users.userId'));
     }
 
     public function testIdentWithMultipleDots(): void
     {
-        $this->assertEquals('`db`.`users`.`userId`', Sql::ident('db.users.userId'));
+        $this->assertEquals('`db`.`users`.`userId`', SqlUtil::ident('db.users.userId'));
     }
 
     public function testIdentAcceptsPlainIdentifier(): void
     {
-        $this->assertSame('`courseId`', Sql::ident('courseId'));
+        $this->assertSame('`courseId`', SqlUtil::ident('courseId'));
     }
 
     public function testIdentAcceptsDotQualifiedIdentifier(): void
     {
-        $this->assertSame('`a`.`courseId`', Sql::ident('a.courseId'));
-        $this->assertSame('`users`.`userId`', Sql::ident('users.userId'));
+        $this->assertSame('`a`.`courseId`', SqlUtil::ident('a.courseId'));
+        $this->assertSame('`users`.`userId`', SqlUtil::ident('users.userId'));
     }
 
     #[DataProvider('invalidIdentifierProvider')]
@@ -40,7 +42,7 @@ final class SqlTest extends TestCase
     {
         $this->expectException(Exception::class);
         $this->expectExceptionMessage("Invalid SQL identifier '$name'");
-        Sql::ident($name);
+        SqlUtil::ident($name);
     }
 
     /**
@@ -64,11 +66,11 @@ final class SqlTest extends TestCase
 
     public function testIsValidIdent(): void
     {
-        $this->assertTrue(Sql::isValidIdent('userId'));
-        $this->assertTrue(Sql::isValidIdent('a.courseId'));
-        $this->assertTrue(Sql::isValidIdent('db.users.userId'));
-        $this->assertFalse(Sql::isValidIdent(''));
-        $this->assertFalse(Sql::isValidIdent('COUNT(*)'));
+        $this->assertTrue(SqlUtil::isValidIdent('userId'));
+        $this->assertTrue(SqlUtil::isValidIdent('a.courseId'));
+        $this->assertTrue(SqlUtil::isValidIdent('db.users.userId'));
+        $this->assertFalse(SqlUtil::isValidIdent(''));
+        $this->assertFalse(SqlUtil::isValidIdent('COUNT(*)'));
     }
 
     /**
@@ -77,7 +79,7 @@ final class SqlTest extends TestCase
      */
     public function testQuoteSegmentDoublesEmbeddedBacktick(): void
     {
-        $method = (new \ReflectionClass(Sql::class))->getMethod('quoteSegment');
+        $method = (new \ReflectionClass(SqlUtil::class))->getMethod('quoteSegment');
         $method->setAccessible(true);
 
         $this->assertSame('`user``id`', $method->invoke(null, 'user`id'));
@@ -90,9 +92,9 @@ final class SqlTest extends TestCase
     public function testPlaceholderIsInjective(): void
     {
         $placeholders = [
-            Sql::placeholder('user.id'),
-            Sql::placeholder('user_id'),
-            Sql::placeholder('user-id'),
+            SqlUtil::placeholder('user.id'),
+            SqlUtil::placeholder('user_id'),
+            SqlUtil::placeholder('user-id'),
         ];
 
         $this->assertCount(3, array_unique($placeholders));
@@ -103,30 +105,30 @@ final class SqlTest extends TestCase
 
     public function testPlaceholderSimple(): void
     {
-        $this->assertEquals(':userId', Sql::placeholder('userId'));
+        $this->assertEquals(':userId', SqlUtil::placeholder('userId'));
     }
 
     public function testPlaceholderWithSpecialChars(): void
     {
-        $this->assertEquals(':user_id_f01b6fab', Sql::placeholder('user-id'));
-        $this->assertEquals(':user_name_e010fbb0', Sql::placeholder('user.name'));
-        $this->assertEquals(':user_email_f7d03762', Sql::placeholder('user@email'));
+        $this->assertEquals(':user_id_f01b6fab', SqlUtil::placeholder('user-id'));
+        $this->assertEquals(':user_name_e010fbb0', SqlUtil::placeholder('user.name'));
+        $this->assertEquals(':user_email_f7d03762', SqlUtil::placeholder('user@email'));
     }
 
     public function testPlaceholderWithMixedChars(): void
     {
-        $this->assertEquals(':abc123_def_f1a48cc4', Sql::placeholder('abc123-def'));
+        $this->assertEquals(':abc123_def_f1a48cc4', SqlUtil::placeholder('abc123-def'));
     }
 
     /**
-     * The Repository constants alias the canonical values on Sql, so consumers writing
+     * The Repository constants alias the canonical values on SqlUtil, so consumers writing
      * BaseRepository::CONTAINS still get the same string.
      */
     public function testSearchTypeConstantsAreUnchanged(): void
     {
-        $this->assertSame('starts', Sql::STARTS);
-        $this->assertSame('ends', Sql::ENDS);
-        $this->assertSame('contains', Sql::CONTAINS);
+        $this->assertSame('starts', SqlUtil::STARTS);
+        $this->assertSame('ends', SqlUtil::ENDS);
+        $this->assertSame('contains', SqlUtil::CONTAINS);
 
         $this->assertSame('starts', Repository::STARTS);
         $this->assertSame('ends', Repository::ENDS);
@@ -135,29 +137,29 @@ final class SqlTest extends TestCase
 
     public function testLikeWildcardsStarts(): void
     {
-        $this->assertEquals('test%', Sql::likeWildcards('test', Repository::STARTS));
+        $this->assertEquals('test%', SqlUtil::likeWildcards('test', Repository::STARTS));
     }
 
     public function testLikeWildcardsEnds(): void
     {
-        $this->assertEquals('%test', Sql::likeWildcards('test', Repository::ENDS));
+        $this->assertEquals('%test', SqlUtil::likeWildcards('test', Repository::ENDS));
     }
 
     public function testLikeWildcardsContains(): void
     {
-        $this->assertEquals('%test%', Sql::likeWildcards('test', Repository::CONTAINS));
+        $this->assertEquals('%test%', SqlUtil::likeWildcards('test', Repository::CONTAINS));
     }
 
     public function testLikeWildcardsDefault(): void
     {
         // Default case (no wildcards added for unknown search types)
-        $this->assertEquals('test', Sql::likeWildcards('test', 'unknown'));
-        $this->assertEquals('test', Sql::likeWildcards('test', 'exact'));
+        $this->assertEquals('test', SqlUtil::likeWildcards('test', 'unknown'));
+        $this->assertEquals('test', SqlUtil::likeWildcards('test', 'exact'));
     }
 
     public function testExpandInWithValues(): void
     {
-        [$sql, $params] = Sql::expandIn('userId', [1, 2, 3]);
+        [$sql, $params] = SqlUtil::expandIn('userId', [1, 2, 3]);
 
         $this->assertEquals('userId IN (:p0,:p1,:p2)', $sql);
         $this->assertEquals([':p0' => 1, ':p1' => 2, ':p2' => 3], $params);
@@ -165,7 +167,7 @@ final class SqlTest extends TestCase
 
     public function testExpandInWithCustomPrefix(): void
     {
-        [$sql, $params] = Sql::expandIn('userId', [10, 20], 'user');
+        [$sql, $params] = SqlUtil::expandIn('userId', [10, 20], 'user');
 
         $this->assertEquals('userId IN (:user0,:user1)', $sql);
         $this->assertEquals([':user0' => 10, ':user1' => 20], $params);
@@ -173,7 +175,7 @@ final class SqlTest extends TestCase
 
     public function testExpandInWithSingleValue(): void
     {
-        [$sql, $params] = Sql::expandIn('userId', [42]);
+        [$sql, $params] = SqlUtil::expandIn('userId', [42]);
 
         $this->assertEquals('userId IN (:p0)', $sql);
         $this->assertEquals([':p0' => 42], $params);
@@ -181,7 +183,7 @@ final class SqlTest extends TestCase
 
     public function testExpandInWithEmptyArray(): void
     {
-        [$sql, $params] = Sql::expandIn('userId', []);
+        [$sql, $params] = SqlUtil::expandIn('userId', []);
 
         $this->assertEquals('1 = 0', $sql);
         $this->assertEquals([], $params);
@@ -189,7 +191,7 @@ final class SqlTest extends TestCase
 
     public function testExpandInWithStringValues(): void
     {
-        [$sql, $params] = Sql::expandIn('name', ['Alice', 'Bob']);
+        [$sql, $params] = SqlUtil::expandIn('name', ['Alice', 'Bob']);
 
         $this->assertEquals('name IN (:p0,:p1)', $sql);
         $this->assertEquals([':p0' => 'Alice', ':p1' => 'Bob'], $params);
@@ -197,7 +199,7 @@ final class SqlTest extends TestCase
 
     public function testExpandInWithMixedTypes(): void
     {
-        [$sql, $params] = Sql::expandIn('value', [1, 'test', null]);
+        [$sql, $params] = SqlUtil::expandIn('value', [1, 'test', null]);
 
         $this->assertEquals('value IN (:p0,:p1,:p2)', $sql);
         $this->assertEquals([':p0' => 1, ':p1' => 'test', ':p2' => null], $params);
@@ -205,7 +207,7 @@ final class SqlTest extends TestCase
 
     public function testExpandInWithColumnExpression(): void
     {
-        [$sql, $params] = Sql::expandIn('`users`.`userId`', [1, 2]);
+        [$sql, $params] = SqlUtil::expandIn('`users`.`userId`', [1, 2]);
 
         $this->assertEquals('`users`.`userId` IN (:p0,:p1)', $sql);
         $this->assertEquals([':p0' => 1, ':p1' => 2], $params);

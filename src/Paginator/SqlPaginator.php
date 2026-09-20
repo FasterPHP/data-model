@@ -10,7 +10,7 @@ namespace FasterPhp\DataModel\Paginator;
 
 use FasterPhp\DataModel\Exception;
 use FasterPhp\DataModel\Sort;
-use FasterPhp\DataModel\Sql;
+use FasterPhp\DataModel\Sql\SqlUtil;
 use PDO;
 
 /**
@@ -133,7 +133,7 @@ class SqlPaginator extends Base
         $sort = '';
         if (!empty($this->sortFields)) {
             foreach ($this->sortFields as $field => $direction) {
-                $sort .= ', ' . Sql::ident($field) . ' ' . $direction;
+                $sort .= ', ' . SqlUtil::ident($field) . ' ' . $direction;
             }
             $sort = 'ORDER BY ' . substr($sort, 2);
         }

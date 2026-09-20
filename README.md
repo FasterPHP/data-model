@@ -347,20 +347,20 @@ $repo->saveItem($user);
 ### SQL Helper Methods
 
 ```php
-use FasterPhp\DataModel\Sql;
+use FasterPhp\DataModel\Sql\SqlUtil;
 
 // Quote identifiers (validated; anything but a plain or dot-qualified name throws)
-$sql = Sql::ident('users.userId'); // `users`.`userId`
+$sql = SqlUtil::ident('users.userId'); // `users`.`userId`
 
 // Generate placeholders (unique per key; a key needing sanitisation gets a suffix)
-$param = Sql::placeholder('userId');  // :userId
-$param = Sql::placeholder('user-id'); // :user_id_f01b6fab
+$param = SqlUtil::placeholder('userId');  // :userId
+$param = SqlUtil::placeholder('user-id'); // :user_id_f01b6fab
 
 // Add LIKE wildcards
-$value = Sql::likeWildcards('test', Repository::CONTAINS); // %test%
+$value = SqlUtil::likeWildcards('test', Repository::CONTAINS); // %test%
 
 // Expand IN clause
-[$sql, $params] = Sql::expandIn('userId', [1, 2, 3]);
+[$sql, $params] = SqlUtil::expandIn('userId', [1, 2, 3]);
 // Returns: ['userId IN (:p0,:p1,:p2)', [':p0' => 1, ':p1' => 2, ':p2' => 3]]
 ```
 

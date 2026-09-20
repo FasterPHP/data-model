@@ -255,7 +255,7 @@ class ItemTest extends TestCase
     {
         $this->assertSame(
             'FasterPhp\DataModel\TestModel\ValidRepository',
-            Util::getRepositoryClassName('FasterPhp\DataModel\TestModel\ValidItem')
+            ClassNameUtil::getRepositoryClassName('FasterPhp\DataModel\TestModel\ValidItem')
         );
     }
 
