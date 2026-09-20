@@ -24,8 +24,8 @@
 
 ## 5. Paginator entry point
 
-- [ ] 5.1 Add a way to give `SqlPaginator` a whole `SqlQuery`, leaving `setSql()` and `setParams()` in place; verify a query supplied this way executes with its parameters bound, via `vendor/bin/phpunit --no-coverage --filter Paginator`
-- [ ] 5.2 Confirm supplying a different query replaces both SQL and parameters and discards cached results from the previous query; verify the two "Queries are handed to execution intact" scenarios pass
+- [x] 5.1 Add a way to give `SqlPaginator` a whole `SqlQuery`, leaving `setSql()` and `setParams()` in place; verify a query supplied this way executes with its parameters bound, via `vendor/bin/phpunit --no-coverage --filter Paginator`
+- [x] 5.2 Confirm supplying a different query replaces both SQL and parameters and discards cached results from the previous query; verify the two "Queries are handed to execution intact" scenarios pass
 
 ## 6. Repository query hook
 

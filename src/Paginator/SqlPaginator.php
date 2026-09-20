@@ -10,6 +10,7 @@ namespace FasterPhp\DataModel\Paginator;
 
 use FasterPhp\DataModel\Exception;
 use FasterPhp\DataModel\Sort;
+use FasterPhp\DataModel\Sql\SqlQuery;
 use FasterPhp\DataModel\Sql\SqlUtil;
 use PDO;
 
@@ -53,6 +54,37 @@ class SqlPaginator extends Base
             $this->clearResults();
         }
         $this->params = $params;
+        return $this;
+    }
+
+    /**
+     * Supply the whole query to execute, SQL and parameters together.
+     *
+     * Taking one value rather than a setSql() then setParams() sequence leaves no intermediate
+     * state in which the two disagree, and lets the cache-invalidation decision be made once
+     * against a coherent input.
+     *
+     * @param SqlQuery $query The query to execute.
+     *
+     * @return static
+     */
+    public function setQuery(SqlQuery $query): static
+    {
+        $rendered = $query->render();
+        $sql      = $rendered->getSql();
+        $params   = $rendered->getParams();
+
+        // One invalidation decision, made against the whole query before either half is stored.
+        $changed = (isset($this->sql) && $sql !== $this->sql)
+            || (isset($this->params) && $params != $this->params);
+
+        $this->sql    = $sql;
+        $this->params = $params;
+
+        if ($changed) {
+            $this->clearResults();
+        }
+
         return $this;
     }
 
