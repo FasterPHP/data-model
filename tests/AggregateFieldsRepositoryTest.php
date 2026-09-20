@@ -284,6 +284,44 @@ class AggregateFieldsRepositoryTest extends TestCase
     }
 
     /**
+     * Characterisation test pinning the exact SQL and parameters generated for a query mixing
+     * WHERE and HAVING filters, so per-clause parameter assembly can be shown to preserve the
+     * existing result byte-for-byte.
+     */
+    public function testMixedWhereAndHavingSqlIsUnchanged(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $method = (new \ReflectionClass($repo))->getMethod('buildSelectSqlAndParams');
+        $method->setAccessible(true);
+
+        [$sql, $params] = $method->invoke($repo, [
+            'orders.userId' => 100,  // WHERE, via a key that needs sanitising
+            'status' => 'completed', // WHERE
+            'totalAmount' => 1000,   // HAVING
+            'orderCount' => 5,       // HAVING
+        ]);
+
+        $this->assertSame(
+            'SELECT `orders`.`orderId` AS `id`, `orders`.`userId`, `orders`.`status`'
+            . ', SUM(`orders`.`amount`) AS totalAmount, COUNT(*) AS orderCount'
+            . ' FROM `orders`'
+            . "\nWHERE `orders`.`userId` = :orders_userId_8f39af82 AND `orders`.`status` = :status"
+            . "\nGROUP BY `orders`.`orderId`"
+            . "\nHAVING `totalAmount` = :totalAmount AND `orderCount` = :orderCount",
+            $sql
+        );
+
+        $this->assertSame([
+            ':orders_userId_8f39af82' => '100',
+            ':status' => 'completed',
+            ':totalAmount' => '1000',
+            ':orderCount' => '5',
+        ], $params);
+    }
+
+    /**
      * Test that merging parameters refuses to overwrite an existing placeholder.
      */
     public function testMergeParamsRejectsOverwritingPlaceholder(): void
