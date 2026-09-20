@@ -31,7 +31,9 @@
         "faster-php/db": "dev-main",
         "laminas/laminas-validator": "^2.38",
         "phpunit/phpunit": "^11.5",
-        "roave/security-advisories": "dev-latest"
+        "roave/security-advisories": "dev-latest",
+        "symfony/validator": "^7.4",
+        "illuminate/validation": "^12.69"
     },
 	"autoload": {
 		"psr-4": {"FasterPhp\\DataModel\\": "src/"}

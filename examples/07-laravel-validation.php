@@ -35,7 +35,9 @@ use Illuminate\Validation\Factory as ValidatorFactory;
 function createValidatorFactory(): ValidatorFactory
 {
     $filesystem = new Filesystem();
-    $loader = new FileLoader($filesystem, __DIR__ . '/../lang');
+    // In a Laravel app this is the project's own lang/ directory; standalone, the default
+    // validation messages ship with illuminate/translation.
+    $loader = new FileLoader($filesystem, __DIR__ . '/../vendor/illuminate/translation/lang');
     $translator = new Translator($loader, 'en');
     return new ValidatorFactory($translator);
 }
