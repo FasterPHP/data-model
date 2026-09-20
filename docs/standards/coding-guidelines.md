@@ -29,7 +29,7 @@ PHP 8.2+ with `declare(strict_types=1)` in every file.
 | Set | `{Prefix}Set` | `UserSet`, `TicketSet` |
 | Repository | `{Prefix}Repository` | `UserRepository`, `TicketRepository` |
 
-The `Util` class infers related class names from this convention. Only override `$itemClassName` / `$setClassName` if you break it.
+The `ClassNameUtil` class infers related class names from this convention. Only override `$itemClassName` / `$setClassName` if you break it.
 
 ### Fields & Methods
 

@@ -73,7 +73,7 @@ class UserRepository extends Repository
 }
 ```
 
-**Note:** By default, `Set` and `Repository` automatically infer related class names using the `Util` class if you follow the `{Prefix}Item/{Prefix}Set/{Prefix}Repository` naming convention. You only need to override `$itemClassName` or `$setClassName` if your naming doesn't follow this convention.
+**Note:** By default, `Set` and `Repository` automatically infer related class names using the `ClassNameUtil` class if you follow the `{Prefix}Item/{Prefix}Set/{Prefix}Repository` naming convention. You only need to override `$itemClassName` or `$setClassName` if your naming doesn't follow this convention.
 
 ### 4. Use Your Repository
 
@@ -452,7 +452,7 @@ See the `examples/` directory for complete working examples:
 - `examples/01-basic-usage.php` - Basic CRUD operations
 - `examples/02-pagination.php` - Pagination and sorting
 - `examples/03-validation.php` - Validation with Laminas validators
-- `examples/04-joins.php` - Complex queries with joins
+- `examples/04-joins.php` - Complex queries with joins and hand-written queries
 - `examples/05-batch-operations.php` - Batch updates and deletes
 - `examples/06-symfony-validation.php` - Symfony Validator integration
 - `examples/07-laravel-validation.php` - Laravel Validator integration

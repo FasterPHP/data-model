@@ -4,6 +4,7 @@ context: |
   Package: faster-php/data-model
   Tech stack: PHP 8.2+, PDO, PHPUnit 11, PSR-12 (phpcs)
   Optional dependency: laminas/laminas-validator (for validation trait)
+  Dev-only: symfony/validator and illuminate/validation (for the framework examples)
 
   Architecture: lightweight data model library (not a full ORM)
   - Repository: query builder + persistence, receives PDO via constructor injection
@@ -13,8 +14,11 @@ context: |
   - Validation is opt-in via traits (ValidatableTrait + LaminasValidatorTrait)
 
   Naming convention: {Prefix}Item / {Prefix}Set / {Prefix}Repository
-  Class names are inferred by Util — only override if naming diverges.
+  Class names are inferred by ClassNameUtil — only override if naming diverges.
 
-  No hidden global state. No SQL abstraction — raw SQL for flexibility.
+  No hidden global state. No SQL abstraction — raw SQL for flexibility: Sql\SqlQuery and
+  Sql\SqlClause are immutable containers for raw SQL fragments and their bound parameters,
+  not a language for generating SQL. Repository::buildSelectQuery() is the coarse extension
+  point; the getSelectClause()/getFromClause()/getGroupByClause() hooks remain.
 
   See docs/standards/ for coding and testing guidelines.
