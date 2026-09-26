@@ -17,7 +17,7 @@ context: |
   Class names are inferred by ClassNameUtil — only override if naming diverges.
 
   No hidden global state. No SQL abstraction — raw SQL for flexibility: Sql\SqlQuery and
-  Sql\SqlClause are immutable containers for raw SQL fragments and their bound parameters,
+  Sql\SqlFragment are immutable containers for raw SQL fragments and their bound parameters,
   not a language for generating SQL. Repository::buildSelectQuery() is the coarse extension
   point; the getSelectClause()/getFromClause()/getGroupByClause() hooks remain.
 

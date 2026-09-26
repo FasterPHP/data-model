@@ -14,6 +14,6 @@
 
 ## 4. Final verification
 
-- [ ] 4.1 Confirm the only remaining occurrences of `SqlClause` in the repository are in `openspec/changes/archive/`, which is left untouched as an accurate record; verify with `grep -rln 'SqlClause' . --exclude-dir=vendor --exclude-dir=tools`
+- [x] 4.1 Confirm the only remaining occurrences of `SqlClause` in the repository are in `openspec/changes/archive/`, which is left untouched as an accurate record; verify with `grep -rln 'SqlClause' . --exclude-dir=vendor --exclude-dir=tools`
 - [x] 4.2 Run `vendor/bin/phpcs` and confirm zero violations
 - [x] 4.3 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes
