@@ -257,6 +257,137 @@ class RepositoryTransactionTest extends TestCase
     }
 
     /**
+     * After an owned commit, new Items carry their generated ids and modified Items are clean.
+     */
+    public function testCommittedSaveSetMarksNewAndModifiedItems(): void
+    {
+        $this->pdo->exec("INSERT INTO users (name, age) VALUES ('Alice', 30)");
+        $repo = new ValidRepository($this->pdo);
+        $existing = $repo->getItemWithId(1);
+        $existing->setAge(31);
+        $new = $this->newUser('Bob');
+
+        $repo->saveSet($this->newSet([$existing, $new]), true);
+
+        $this->assertFalse($existing->isDirty());
+        $this->assertFalse($new->isTemp());
+        $this->assertSame($this->idForName('Bob'), $new->getId());
+        $this->assertSame(31, (int) $this->pdo->query('SELECT age FROM users WHERE userId = 1')->fetchColumn());
+    }
+
+    /**
+     * A rolled-back Set leaves a modified Item dirty, as it was before the save.
+     */
+    public function testRolledBackSaveSetLeavesModifiedItemDirty(): void
+    {
+        $this->pdo->exec("INSERT INTO users (name, age) VALUES ('Alice', 30)");
+        $repo = new ValidRepository($this->pdo);
+        $existing = $repo->getItemWithId(1);
+        $existing->setAge(31);
+
+        $this->saveSetExpectingFailure($repo, $this->newSet([$existing, $this->newUser('Alice')]));
+
+        $this->assertTrue($existing->isDirty());
+        $this->assertSame(30, (int) $this->pdo->query('SELECT age FROM users WHERE userId = 1')->fetchColumn());
+    }
+
+    /**
+     * Retrying a rolled-back Set writes every Item again, including those written before the failure.
+     */
+    public function testRetriedSaveSetWritesEveryItem(): void
+    {
+        $repo = new ValidRepository($this->pdo);
+        $items = [$this->newUser('Alice'), $this->newUser('Bob'), $this->newUser('Alice')];
+        $set = $this->newSet($items);
+        $this->saveSetExpectingFailure($repo, $set);
+
+        $items[2]->setName('Carol');
+        $repo->saveSet($set, true);
+
+        $this->assertSame(3, $this->countRows('users'));
+        foreach ($items as $item) {
+            $this->assertFalse($item->isTemp());
+            $this->assertSame($this->idForName($item->getName()), $item->getId());
+        }
+    }
+
+    /**
+     * Each Item inserted in one owned transaction receives the id generated for its own insert.
+     */
+    public function testEachInsertInOwnedTransactionKeepsItsOwnId(): void
+    {
+        $repo = new ValidRepository($this->pdo);
+        $items = [$this->newUser('Alice'), $this->newUser('Bob'), $this->newUser('Carol')];
+
+        $repo->saveSet($this->newSet($items), true);
+
+        $ids = array_map(fn(ValidItem $item) => $item->getId(), $items);
+        $this->assertSame([1, 2, 3], $ids);
+        foreach ($items as $item) {
+            $this->assertSame($this->idForName($item->getName()), $item->getId());
+        }
+    }
+
+    /**
+     * Inside the caller's transaction a new parent's id is available before commit, flag or not.
+     */
+    #[DataProvider('useTransactionProvider')]
+    public function testParentIdAvailableInsideCallerTransaction(bool $useTransaction): void
+    {
+        $repo = new ValidRepository($this->pdo);
+        $parent = $this->newUser('Alice');
+        $this->pdo->beginTransaction();
+
+        $repo->saveItem($parent, $useTransaction);
+
+        $this->assertTrue($this->pdo->inTransaction());
+        $this->assertFalse($parent->isTemp());
+        $this->assertSame($this->idForName('Alice'), $parent->getId());
+        $this->pdo->commit();
+    }
+
+    /**
+     * Without the flag, a new Item is marked with its generated id as soon as the save returns.
+     */
+    public function testUnflaggedSaveMarksItemImmediately(): void
+    {
+        $item = $this->newUser('Alice');
+
+        (new ValidRepository($this->pdo))->saveItem($item);
+
+        $this->assertFalse($item->isTemp());
+        $this->assertSame($this->idForName('Alice'), $item->getId());
+    }
+
+    /**
+     * @return array<string, array{bool}>
+     */
+    public static function useTransactionProvider(): array
+    {
+        return [
+            'flag set'     => [true],
+            'flag not set' => [false],
+        ];
+    }
+
+    private function saveSetExpectingFailure(ValidRepository $repo, ValidSet $set): void
+    {
+        try {
+            $repo->saveSet($set, true);
+            $this->fail('Expected the duplicate name to violate the UNIQUE constraint');
+        } catch (PDOException $e) {
+            $this->assertStringContainsString('UNIQUE', $e->getMessage());
+        }
+    }
+
+    private function idForName(string $name): int
+    {
+        $stmt = $this->pdo->prepare('SELECT userId FROM users WHERE name = ?');
+        $stmt->execute([$name]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
      * Begin a transaction and save one new Item through each of two repositories with the flag set.
      */
     private function saveThroughTwoRepositoriesInCallerTransaction(): void
