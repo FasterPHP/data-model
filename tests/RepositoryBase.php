@@ -739,12 +739,15 @@ abstract class RepositoryBase extends TestCase
 
         $pdo = $this->getMockBuilder(PDO::class)
             ->disableOriginalConstructor()
-            ->onlyMethods(['prepare', 'beginTransaction', 'commit', 'rollBack', 'quote', 'lastInsertId'])
+            ->onlyMethods([
+                'prepare', 'beginTransaction', 'commit', 'rollBack', 'inTransaction', 'quote', 'lastInsertId',
+            ])
             ->getMock();
 
         $pdo->method('quote')->willReturnCallback(fn($v) => "'$v'");
         $pdo->method('lastInsertId')->willReturn('99');
         $pdo->method('prepare')->willReturn($mockDbStatement);
+        $pdo->method('inTransaction')->willReturn(false);
         $pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $pdo->expects($this->once())->method('commit')->willReturn(true);
 
@@ -771,12 +774,15 @@ abstract class RepositoryBase extends TestCase
 
         $pdo = $this->getMockBuilder(PDO::class)
             ->disableOriginalConstructor()
-            ->onlyMethods(['prepare', 'beginTransaction', 'commit', 'rollBack', 'quote', 'lastInsertId'])
+            ->onlyMethods([
+                'prepare', 'beginTransaction', 'commit', 'rollBack', 'inTransaction', 'quote', 'lastInsertId',
+            ])
             ->getMock();
 
         $pdo->method('quote')->willReturnCallback(fn($v) => "'$v'");
         $pdo->method('lastInsertId')->willReturn('99');
         $pdo->method('prepare')->willReturn($mockDbStatement);
+        $pdo->method('inTransaction')->willReturn(false);
         $pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $pdo->expects($this->never())->method('commit');
         $pdo->expects($this->once())->method('rollBack')->willReturn(true);
@@ -805,12 +811,15 @@ abstract class RepositoryBase extends TestCase
 
         $pdo = $this->getMockBuilder(PDO::class)
             ->disableOriginalConstructor()
-            ->onlyMethods(['prepare', 'beginTransaction', 'commit', 'rollBack', 'quote', 'lastInsertId'])
+            ->onlyMethods([
+                'prepare', 'beginTransaction', 'commit', 'rollBack', 'inTransaction', 'quote', 'lastInsertId',
+            ])
             ->getMock();
 
         $pdo->method('quote')->willReturnCallback(fn($v) => "'$v'");
         $pdo->method('lastInsertId')->willReturn('99');
         $pdo->method('prepare')->willReturn($mockDbStatement);
+        $pdo->method('inTransaction')->willReturn(false);
         $pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $pdo->expects($this->once())->method('commit')->willReturn(true);
 
@@ -834,12 +843,15 @@ abstract class RepositoryBase extends TestCase
 
         $pdo = $this->getMockBuilder(PDO::class)
             ->disableOriginalConstructor()
-            ->onlyMethods(['prepare', 'beginTransaction', 'commit', 'rollBack', 'quote', 'lastInsertId'])
+            ->onlyMethods([
+                'prepare', 'beginTransaction', 'commit', 'rollBack', 'inTransaction', 'quote', 'lastInsertId',
+            ])
             ->getMock();
 
         $pdo->method('quote')->willReturnCallback(fn($v) => "'$v'");
         $pdo->method('lastInsertId')->willReturn('99');
         $pdo->method('prepare')->willReturn($mockDbStatement);
+        $pdo->method('inTransaction')->willReturn(false);
         $pdo->expects($this->once())->method('beginTransaction')->willReturn(true);
         $pdo->expects($this->never())->method('commit');
         $pdo->expects($this->once())->method('rollBack')->willReturn(true);
