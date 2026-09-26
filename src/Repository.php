@@ -177,8 +177,16 @@ abstract class Repository implements RepositoryInterface
     /**
      * Persist a Set: insert new, update dirty, delete removed.
      *
+     * With $useTransaction true, the repository begins a transaction only if none is active on the
+     * connection, and commits or rolls back only a transaction it began. Items are then marked persisted
+     * after the commit; on rollback they keep their pre-save state, so saving them again repeats every
+     * write. If a transaction is already active, the save joins it: nothing is begun, committed or rolled
+     * back, a failure propagates to the transaction's owner, and Items are marked persisted as each
+     * statement succeeds, so a new Item's id is available before the owner commits. A caller rolling back
+     * a transaction of its own must discard or reload the Items saved within it.
+     *
      * @param SetInterface $set
-     * @param bool $useTransaction Wrap operations in a transaction
+     * @param bool $useTransaction Wrap operations in a transaction, or join the one already active
      */
     public function saveSet(SetInterface $set, bool $useTransaction = false): void
     {
@@ -229,8 +237,16 @@ abstract class Repository implements RepositoryInterface
     /**
      * Persist a single Item: insert, update, or delete.
      *
+     * With $useTransaction true, the repository begins a transaction only if none is active on the
+     * connection, and commits or rolls back only a transaction it began. The Item is then marked
+     * persisted after the commit; on rollback it keeps its pre-save state, so saving it again repeats the
+     * write. If a transaction is already active, the save joins it: nothing is begun, committed or rolled
+     * back, a failure propagates to the transaction's owner, and the Item is marked persisted as soon as
+     * its statement succeeds, so a new Item's id is available before the owner commits. A caller rolling
+     * back a transaction of its own must discard or reload the Items saved within it.
+     *
      * @param ItemInterface $item
-     * @param bool $useTransaction Wrap operation in a transaction
+     * @param bool $useTransaction Wrap operation in a transaction, or join the one already active
      */
     public function saveItem(ItemInterface $item, bool $useTransaction = false): void
     {

@@ -24,7 +24,7 @@
 
 ## 5. Documentation
 
-- [ ] 5.1 Update the `$useTransaction` docblocks on `saveItem()` and `saveSet()` to state that the repository begins a transaction only when none is active, joins an active one otherwise, and that a caller rolling back a transaction of its own must discard or reload the Items saved within it; verify by reading both docblocks against the `repository-transactions` spec
+- [x] 5.1 Update the `$useTransaction` docblocks on `saveItem()` and `saveSet()` to state that the repository begins a transaction only when none is active, joins an active one otherwise, and that a caller rolling back a transaction of its own must discard or reload the Items saved within it; verify by reading both docblocks against the `repository-transactions` spec
 - [ ] 5.2 Update the persistence section of `README.md` with the same rule and a short example of a caller-owned transaction spanning two repositories, including reading a parent's generated id before saving its children; verify by reading the section against the spec and running any example it references
 
 ## 6. Final verification
