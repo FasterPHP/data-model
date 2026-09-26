@@ -57,6 +57,13 @@ abstract class Repository implements RepositoryInterface
     /** @var class-string<Set<TItem>> */
     protected string $setClassName;
 
+    /**
+     * Items awaiting markItemPersisted() until an owned transaction commits; null when none is owned.
+     *
+     * @var list<array{Item, mixed}>|null
+     */
+    private ?array $pendingPersisted = null;
+
     /* -------------------------------
      * Construction
      * ----------------------------- */
@@ -183,6 +190,7 @@ abstract class Repository implements RepositoryInterface
         $ownsTransaction = $useTransaction && !$this->pdo->inTransaction();
         if ($ownsTransaction) {
             $this->pdo->beginTransaction();
+            $this->pendingPersisted = [];
         }
 
         try {
@@ -207,9 +215,14 @@ abstract class Repository implements RepositoryInterface
             }
         } catch (\Throwable $e) {
             if ($ownsTransaction) {
+                $this->pendingPersisted = null;
                 $this->pdo->rollBack();
             }
             throw $e;
+        }
+
+        if ($ownsTransaction) {
+            $this->flushPendingPersisted();
         }
     }
 
@@ -229,6 +242,7 @@ abstract class Repository implements RepositoryInterface
         $ownsTransaction = $useTransaction && !$this->pdo->inTransaction();
         if ($ownsTransaction) {
             $this->pdo->beginTransaction();
+            $this->pendingPersisted = [];
         }
 
         try {
@@ -245,9 +259,14 @@ abstract class Repository implements RepositoryInterface
             }
         } catch (\Throwable $e) {
             if ($ownsTransaction) {
+                $this->pendingPersisted = null;
                 $this->pdo->rollBack();
             }
             throw $e;
+        }
+
+        if ($ownsTransaction) {
+            $this->flushPendingPersisted();
         }
     }
 
@@ -477,9 +496,9 @@ abstract class Repository implements RepositoryInterface
             if (empty($newId)) {
                 throw new Exception('Insert succeeded but lastInsertId() returned no value');
             }
-            $item->markItemPersisted($newId);
+            $this->markPersisted($item, $newId);
         } else {
-            $item->markItemPersisted();
+            $this->markPersisted($item);
         }
     }
 
@@ -493,7 +512,7 @@ abstract class Repository implements RepositoryInterface
              . ' WHERE ' . SqlUtil::ident($this->getIdField()) . ' = :id';
         $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($params);
-        $item->markItemPersisted();
+        $this->markPersisted($item);
     }
 
     protected function deleteItemIds(array $ids): void
@@ -519,6 +538,29 @@ abstract class Repository implements RepositoryInterface
             $params[$ph] = $value;
         }
         return [$pairs, $params];
+    }
+
+    /**
+     * Mark an Item persisted now, or once the owned transaction commits if one is in progress.
+     *
+     * @param mixed $id Generated id, captured straight after the INSERT since later inserts overwrite it
+     */
+    private function markPersisted(Item $item, mixed $id = null): void
+    {
+        if ($this->pendingPersisted === null) {
+            $item->markItemPersisted($id);
+        } else {
+            $this->pendingPersisted[] = [$item, $id];
+        }
+    }
+
+    private function flushPendingPersisted(): void
+    {
+        $pending = $this->pendingPersisted ?? [];
+        $this->pendingPersisted = null;
+        foreach ($pending as [$item, $id]) {
+            $item->markItemPersisted($id);
+        }
     }
 
     protected function getPdo(): PDO

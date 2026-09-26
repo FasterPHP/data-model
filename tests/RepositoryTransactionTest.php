@@ -234,9 +234,9 @@ class RepositoryTransactionTest extends TestCase
     }
 
     /**
-     * Characterisation: a rolled-back Set currently leaves its earlier Items claiming to be saved.
+     * A rolled-back Set leaves the Items written before the failure temporary, with no id.
      */
-    public function testRolledBackSaveSetCurrentlyLeavesEarlierItemsMarkedPersisted(): void
+    public function testRolledBackSaveSetLeavesEarlierItemsTemporary(): void
     {
         $repo = new ValidRepository($this->pdo);
         $items = [$this->newUser('Alice'), $this->newUser('Bob'), $this->newUser('Alice')];
@@ -250,10 +250,10 @@ class RepositoryTransactionTest extends TestCase
         }
 
         $this->assertSame(0, $this->countRows('users'));
-        $this->assertFalse($items[0]->isTemp());
-        $this->assertNotNull($items[0]->getId());
-        $this->assertFalse($items[1]->isTemp());
-        $this->assertNotNull($items[1]->getId());
+        $this->assertTrue($items[0]->isTemp());
+        $this->assertNull($items[0]->getId());
+        $this->assertTrue($items[1]->isTemp());
+        $this->assertNull($items[1]->getId());
     }
 
     /**
