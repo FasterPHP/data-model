@@ -5,8 +5,8 @@
 
 ## 2. Tests
 
-- [ ] 2.1 Move `tests/Sql/SqlClauseTest.php` to `tests/Sql/SqlFragmentTest.php` with `git mv` and rename the test class; verify with `vendor/bin/phpunit --no-coverage --filter SqlFragmentTest`
-- [ ] 2.2 Update the references in `tests/Sql/SqlQueryTest.php`, `tests/Paginator/SqlPaginatorQueryTest.php` and `tests/RepositoryHandWrittenQueryTest.php`; verify `grep -rn 'SqlClause' tests` returns nothing and `vendor/bin/phpunit --no-coverage` passes with the same test count as before the change (419 tests, 1278 assertions when this change was planned)
+- [x] 2.1 Move `tests/Sql/SqlClauseTest.php` to `tests/Sql/SqlFragmentTest.php` with `git mv` and rename the test class; verify with `vendor/bin/phpunit --no-coverage --filter SqlFragmentTest`
+- [x] 2.2 Update the references in `tests/Sql/SqlQueryTest.php`, `tests/Paginator/SqlPaginatorQueryTest.php` and `tests/RepositoryHandWrittenQueryTest.php`; verify `grep -rn 'SqlClause' tests` returns nothing and `vendor/bin/phpunit --no-coverage` passes with the same test count as before the change (419 tests, 1278 assertions when this change was planned)
 
 ## 3. Documentation
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
-use FasterPhp\DataModel\Sql\SqlClause;
+use FasterPhp\DataModel\Sql\SqlFragment;
 use FasterPhp\DataModel\Sql\SqlQuery;
 use FasterPhp\DataModel\TestModel\HandWrittenItem;
 use FasterPhp\DataModel\TestModel\HandWrittenRepository;
@@ -56,9 +56,9 @@ class RepositoryHandWrittenQueryTest extends TestCase
     private function createQuery(): SqlQuery
     {
         return new SqlQuery(
-            new SqlClause('`users`.`userId` AS `id`, `users`.`name`, `accounts`.`name` AS accountName'),
-            new SqlClause('`users` JOIN `accounts` ON `accounts`.`userId` = `users`.`userId`'),
-            new SqlClause('`accounts`.`status` = :status', [':status' => 'active']),
+            new SqlFragment('`users`.`userId` AS `id`, `users`.`name`, `accounts`.`name` AS accountName'),
+            new SqlFragment('`users` JOIN `accounts` ON `accounts`.`userId` = `users`.`userId`'),
+            new SqlFragment('`accounts`.`status` = :status', [':status' => 'active']),
         );
     }
 
@@ -145,7 +145,7 @@ class RepositoryHandWrittenQueryTest extends TestCase
         $repo = (new HandWrittenRepository($this->createRecordingPdo()))
             ->setMaxItemsPerPage(null)
             ->setHandWrittenQuery(
-                $this->createQuery()->with(having: new SqlClause('COUNT(*) > :minimum', [':minimum' => 2]))
+                $this->createQuery()->with(having: new SqlFragment('COUNT(*) > :minimum', [':minimum' => 2]))
             );
 
         $repo->getSetOfAll();
@@ -162,11 +162,11 @@ class RepositoryHandWrittenQueryTest extends TestCase
         $repo = (new HandWrittenRepository($this->createRecordingPdo()))
             ->setMaxItemsPerPage(null)
             ->setHandWrittenQuery(new SqlQuery(
-                new SqlClause('`users`.`userId` AS `id`, `users`.`name`'),
-                new SqlClause('`users`'),
-                new SqlClause('`users`.`name` = :value', [':value' => 'Alice']),
+                new SqlFragment('`users`.`userId` AS `id`, `users`.`name`'),
+                new SqlFragment('`users`'),
+                new SqlFragment('`users`.`name` = :value', [':value' => 'Alice']),
                 null,
-                new SqlClause('COUNT(*) = :value', [':value' => 3]),
+                new SqlFragment('COUNT(*) = :value', [':value' => 3]),
             ));
 
         $this->expectException(Exception::class);

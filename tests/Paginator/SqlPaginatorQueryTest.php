@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel\Paginator;
 
 use FasterPhp\DataModel\Sort;
-use FasterPhp\DataModel\Sql\SqlClause;
+use FasterPhp\DataModel\Sql\SqlFragment;
 use FasterPhp\DataModel\Sql\SqlQuery;
 use PDO;
 use PDOStatement;
@@ -54,9 +54,9 @@ class SqlPaginatorQueryTest extends TestCase
     private function createQuery(int $age = 21): SqlQuery
     {
         return new SqlQuery(
-            new SqlClause('`users`.`userId`, `users`.`name`'),
-            new SqlClause('`users`'),
-            new SqlClause('`users`.`age` >= :age', [':age' => $age]),
+            new SqlFragment('`users`.`userId`, `users`.`name`'),
+            new SqlFragment('`users`'),
+            new SqlFragment('`users`.`age` >= :age', [':age' => $age]),
         );
     }
 
@@ -108,9 +108,9 @@ class SqlPaginatorQueryTest extends TestCase
         $paginator->getItems();
 
         $replacement = new SqlQuery(
-            new SqlClause('`users`.`userId`'),
-            new SqlClause('`users`'),
-            new SqlClause('`users`.`name` = :name', [':name' => 'Alice']),
+            new SqlFragment('`users`.`userId`'),
+            new SqlFragment('`users`'),
+            new SqlFragment('`users`.`name` = :name', [':name' => 'Alice']),
         );
         $paginator->setQuery($replacement);
         $paginator->getItems();
@@ -156,9 +156,9 @@ class SqlPaginatorQueryTest extends TestCase
             ->setMaxItemsPerPage(null);
 
         $sameSql = fn(string $name): SqlQuery => new SqlQuery(
-            new SqlClause('`users`.`userId`'),
-            new SqlClause('`users`'),
-            new SqlClause('`users`.`name` = :name', [':name' => $name]),
+            new SqlFragment('`users`.`userId`'),
+            new SqlFragment('`users`'),
+            new SqlFragment('`users`.`name` = :name', [':name' => $name]),
         );
 
         $paginator->setQuery($sameSql('Alice'));

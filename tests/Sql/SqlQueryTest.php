@@ -15,11 +15,11 @@ final class SqlQueryTest extends TestCase
     private function createQuery(): SqlQuery
     {
         return new SqlQuery(
-            new SqlClause('`users`.`userId`, COUNT(*) AS total'),
-            new SqlClause('`users`'),
-            new SqlClause('`users`.`age` >= :age', [':age' => 21]),
-            new SqlClause('`users`.`userId`'),
-            new SqlClause('`total` > :total', [':total' => 2]),
+            new SqlFragment('`users`.`userId`, COUNT(*) AS total'),
+            new SqlFragment('`users`'),
+            new SqlFragment('`users`.`age` >= :age', [':age' => 21]),
+            new SqlFragment('`users`.`userId`'),
+            new SqlFragment('`total` > :total', [':total' => 2]),
         );
     }
 
@@ -29,7 +29,7 @@ final class SqlQueryTest extends TestCase
 
     public function testRequiredClausesAreReadable(): void
     {
-        $query = new SqlQuery(new SqlClause('`users`.`name`'), new SqlClause('`users`'));
+        $query = new SqlQuery(new SqlFragment('`users`.`name`'), new SqlFragment('`users`'));
 
         $this->assertSame('`users`.`name`', $query->getSelect()->getSql());
         $this->assertSame('`users`', $query->getFrom()->getSql());
@@ -47,7 +47,7 @@ final class SqlQueryTest extends TestCase
 
     public function testAbsentOptionalClausesAreReportedAsAbsent(): void
     {
-        $query = new SqlQuery(new SqlClause('`users`.`name`'), new SqlClause('`users`'));
+        $query = new SqlQuery(new SqlFragment('`users`.`name`'), new SqlFragment('`users`'));
 
         $this->assertNull($query->getWhere());
         $this->assertNull($query->getGroupBy());
@@ -59,7 +59,7 @@ final class SqlQueryTest extends TestCase
      */
     public function testEmptyClauseIsDistinctFromAbsentClause(): void
     {
-        $query = new SqlQuery(new SqlClause('`users`.`name`'), new SqlClause('`users`'), new SqlClause(''));
+        $query = new SqlQuery(new SqlFragment('`users`.`name`'), new SqlFragment('`users`'), new SqlFragment(''));
 
         $this->assertNotNull($query->getWhere());
         $this->assertSame('', $query->getWhere()->getSql());
@@ -73,7 +73,7 @@ final class SqlQueryTest extends TestCase
     {
         $query = $this->createQuery();
 
-        $derived = $query->with(where: new SqlClause('`users`.`age` < :age', [':age' => 65]));
+        $derived = $query->with(where: new SqlFragment('`users`.`age` < :age', [':age' => 65]));
 
         $this->assertNotSame($query, $derived);
         $this->assertSame('`users`.`age` < :age', $derived->getWhere()->getSql());
@@ -84,7 +84,7 @@ final class SqlQueryTest extends TestCase
     {
         $query = $this->createQuery();
 
-        $derived = $query->with(where: new SqlClause('1 = 1'));
+        $derived = $query->with(where: new SqlFragment('1 = 1'));
 
         $this->assertSame('1 = 1', $derived->getWhere()->getSql());
         $this->assertSame($query->getSelect(), $derived->getSelect());
@@ -98,9 +98,9 @@ final class SqlQueryTest extends TestCase
         $query = $this->createQuery();
 
         $derived = $query->with(
-            select: new SqlClause('`users`.`name`'),
-            from: new SqlClause('`people`'),
-            having: new SqlClause('`total` < :total', [':total' => 9]),
+            select: new SqlFragment('`users`.`name`'),
+            from: new SqlFragment('`people`'),
+            having: new SqlFragment('`total` < :total', [':total' => 9]),
         );
 
         $this->assertSame('`users`.`name`', $derived->getSelect()->getSql());
@@ -141,7 +141,7 @@ final class SqlQueryTest extends TestCase
 
     public function testAbsentClausesContributeNoKeyword(): void
     {
-        $query = new SqlQuery(new SqlClause('`users`.`name`'), new SqlClause('`users`'));
+        $query = new SqlQuery(new SqlFragment('`users`.`name`'), new SqlFragment('`users`'));
 
         $sql = $query->render()->getSql();
 
@@ -180,11 +180,11 @@ final class SqlQueryTest extends TestCase
     public function testCollidingParameterNamesAcrossClausesAreRejected(): void
     {
         $query = new SqlQuery(
-            new SqlClause('`users`.`name`'),
-            new SqlClause('`users`'),
-            new SqlClause('`users`.`age` = :value', [':value' => 21]),
+            new SqlFragment('`users`.`name`'),
+            new SqlFragment('`users`'),
+            new SqlFragment('`users`.`age` = :value', [':value' => 21]),
             null,
-            new SqlClause('`total` = :value', [':value' => 99]),
+            new SqlFragment('`total` = :value', [':value' => 99]),
         );
 
         $this->expectException(Exception::class);
@@ -201,11 +201,11 @@ final class SqlQueryTest extends TestCase
     public function testSameParameterBoundToSameValueIsAccepted(): void
     {
         $query = new SqlQuery(
-            new SqlClause('`users`.`name`'),
-            new SqlClause('`users`'),
-            new SqlClause('`users`.`age` = :value', [':value' => 21]),
+            new SqlFragment('`users`.`name`'),
+            new SqlFragment('`users`'),
+            new SqlFragment('`users`.`age` = :value', [':value' => 21]),
             null,
-            new SqlClause('`total` = :value', [':value' => 21]),
+            new SqlFragment('`total` = :value', [':value' => 21]),
         );
 
         $this->assertSame([':value' => 21], $query->render()->getParams());
