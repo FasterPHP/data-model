@@ -4,8 +4,8 @@
 
 ## 2. Baseline characterisation
 
-- [ ] 2.1 Add a test using an in-memory SQLite PDO, as `tests/AggregateFieldsRepositoryTest.php` does, in which the caller begins a transaction and then calls `saveItem()` with `$useTransaction` true, recording that it currently throws because a transaction is already active; verify with `vendor/bin/phpunit --no-coverage --filter Transaction`
-- [ ] 2.2 Add a test using in-memory SQLite in which `saveSet()` with `$useTransaction` true fails on the third of several new Items (for example through a constraint violation), recording that the first two Items currently report themselves non-temporary with ids although the rollback removed their rows; verify with `vendor/bin/phpunit --no-coverage --filter Transaction`
+- [x] 2.1 Add a test using an in-memory SQLite PDO, as `tests/AggregateFieldsRepositoryTest.php` does, in which the caller begins a transaction and then calls `saveItem()` with `$useTransaction` true, recording that it currently throws because a transaction is already active; verify with `vendor/bin/phpunit --no-coverage --filter Transaction`
+- [x] 2.2 Add a test using in-memory SQLite in which `saveSet()` with `$useTransaction` true fails on the third of several new Items (for example through a constraint violation), recording that the first two Items currently report themselves non-temporary with ids although the rollback removed their rows; verify with `vendor/bin/phpunit --no-coverage --filter Transaction`
 
 ## 3. Transaction ownership
 
