@@ -7,7 +7,7 @@
  * - Fetching a Set and updating multiple items
  * - Using saveSet() for efficient batch operations
  * - Marking items for deletion with setToDelete()
- * - Batch deleting multiple items in a single transaction
+ * - Batch deleting multiple items with a single DELETE statement
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -98,7 +98,7 @@ foreach ($inactiveUsers as $user) {
 }
 
 $repo->saveSet($inactiveUsers);
-echo "   ✓ Batch update complete (single transaction)\n\n";
+echo "   ✓ Batch update complete\n\n";
 
 // 4. Verify the update
 echo "4. Verifying update...\n";
