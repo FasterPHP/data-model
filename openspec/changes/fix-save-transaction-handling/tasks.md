@@ -29,5 +29,5 @@
 
 ## 6. Final verification
 
-- [ ] 6.1 Run `vendor/bin/phpcs` and confirm zero violations
-- [ ] 6.2 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with more than the 419 tests and 1278 assertions recorded when this change was planned, every characterisation test from group 2 now asserting the corrected behaviour
+- [x] 6.1 Run `vendor/bin/phpcs` and confirm zero violations
+- [x] 6.2 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with more than the 419 tests and 1278 assertions recorded when this change was planned, every characterisation test from group 2 now asserting the corrected behaviour
