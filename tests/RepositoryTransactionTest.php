@@ -10,6 +10,8 @@ use PHPUnit\Framework\TestCase;
 use PDO;
 use PDOException;
 use PDOStatement;
+use FasterPhp\DataModel\TestModel\ReadonlyItem;
+use FasterPhp\DataModel\TestModel\ReadonlyRepository;
 use FasterPhp\DataModel\TestModel\ValidItem;
 use FasterPhp\DataModel\TestModel\ValidRepository;
 use FasterPhp\DataModel\TestModel\ValidSet;
@@ -78,6 +80,74 @@ class RepositoryTransactionTest extends TestCase
         $pdo->expects($this->never())->method('rollBack');
 
         $this->save(new ValidRepository($pdo), $method, $this->newUser('Alice'), true);
+    }
+
+    /**
+     * A failure inside a caller's transaction is rethrown as-is, with no rollback attempted.
+     */
+    #[DataProvider('saveMethodProvider')]
+    public function testJoinedFailureRethrowsWithoutRollBack(string $method): void
+    {
+        $original = new PDOException('DB error');
+        $stmt = $this->createMock(PDOStatement::class);
+        $stmt->method('execute')->willThrowException($original);
+
+        $pdo = $this->createTransactionMock(inTransaction: true, stmt: $stmt);
+        $pdo->expects($this->never())->method('rollBack');
+
+        try {
+            $this->save(new ValidRepository($pdo), $method, $this->newUser('Alice'), true);
+            $this->fail('Expected the statement failure to propagate');
+        } catch (PDOException $e) {
+            $this->assertSame($original, $e);
+        }
+    }
+
+    /**
+     * A failure inside a caller's transaction leaves that transaction active for its owner.
+     */
+    #[DataProvider('saveMethodProvider')]
+    public function testJoinedFailureLeavesCallerTransactionActive(string $method): void
+    {
+        $this->pdo->exec("INSERT INTO users (name) VALUES ('Alice')");
+        $repo = new ValidRepository($this->pdo);
+        $this->pdo->beginTransaction();
+        $repo->saveItem($this->newUser('Bob'), true);
+
+        try {
+            $this->save($repo, $method, $this->newUser('Alice'), true);
+            $this->fail('Expected the duplicate name to violate the UNIQUE constraint');
+        } catch (PDOException $e) {
+            $this->assertStringContainsString('UNIQUE', $e->getMessage());
+        }
+
+        $this->assertTrue($this->pdo->inTransaction());
+        $this->pdo->commit();
+        $this->assertSame(2, $this->countRows('users'));
+    }
+
+    /**
+     * Saves through two repositories in one caller transaction are durable together.
+     */
+    public function testRepositoriesSharingCallerTransactionCommitTogether(): void
+    {
+        $this->saveThroughTwoRepositoriesInCallerTransaction();
+        $this->pdo->commit();
+
+        $this->assertSame(1, $this->countRows('users'));
+        $this->assertSame(1, $this->countRows('readonly_users'));
+    }
+
+    /**
+     * Saves through two repositories in one caller transaction are undone together.
+     */
+    public function testRepositoriesSharingCallerTransactionRollBackTogether(): void
+    {
+        $this->saveThroughTwoRepositoriesInCallerTransaction();
+        $this->pdo->rollBack();
+
+        $this->assertSame(0, $this->countRows('users'));
+        $this->assertSame(0, $this->countRows('readonly_users'));
     }
 
     /**
@@ -187,6 +257,32 @@ class RepositoryTransactionTest extends TestCase
     }
 
     /**
+     * Begin a transaction and save one new Item through each of two repositories with the flag set.
+     */
+    private function saveThroughTwoRepositoriesInCallerTransaction(): void
+    {
+        $this->pdo->exec(
+            'CREATE TABLE readonly_users (
+                userId INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                email TEXT,
+                createdAt TEXT,
+                updatedAt TEXT
+            )'
+        );
+
+        $account = new ReadonlyItem();
+        $account->setName('Alice');
+        $account->setEmail('alice@example.com');
+
+        $this->pdo->beginTransaction();
+        (new ValidRepository($this->pdo))->saveItem($this->newUser('Alice'), true);
+        (new ReadonlyRepository($this->pdo))->saveItem($account, true);
+
+        $this->assertTrue($this->pdo->inTransaction());
+    }
+
+    /**
      * Save one Item through either save method.
      */
     private function save(ValidRepository $repo, string $method, ValidItem $item, bool $useTransaction): void
@@ -199,12 +295,14 @@ class RepositoryTransactionTest extends TestCase
     }
 
     /**
-     * A partial PDO mock whose statements succeed, reporting the given transaction state.
+     * A partial PDO mock reporting the given transaction state, whose statements succeed unless one is given.
      */
-    private function createTransactionMock(bool $inTransaction): PDO&MockObject
+    private function createTransactionMock(bool $inTransaction, ?PDOStatement $stmt = null): PDO&MockObject
     {
-        $stmt = $this->createMock(PDOStatement::class);
-        $stmt->method('execute')->willReturn(true);
+        if ($stmt === null) {
+            $stmt = $this->createMock(PDOStatement::class);
+            $stmt->method('execute')->willReturn(true);
+        }
 
         $pdo = $this->getMockBuilder(PDO::class)
             ->disableOriginalConstructor()
