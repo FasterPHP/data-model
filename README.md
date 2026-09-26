@@ -383,13 +383,55 @@ $set = $repo->getSetOfAll();
 foreach ($set as $user) {
     $user->setActive(true);
 }
-$repo->saveSet($set); // Single transaction
+$repo->saveSet($set, true); // In one transaction: every write or none
 
 // Delete items
 $user = $repo->getItemWithId(123);
 $user->setToDelete();
 $repo->saveItem($user);
 ```
+
+### Transactions
+
+Passing `true` as the second argument to `saveItem()` or `saveSet()` wraps the save in a transaction,
+but the repository only begins one if none is already active on the connection, and only commits or
+rolls back a transaction it began:
+
+- **No transaction active**: the repository begins one, commits it when every statement succeeds and
+  rolls it back on failure, rethrowing the exception. Items are marked persisted only after the
+  commit. After a rollback every Item keeps its pre-save state (still new or still modified, with no
+  generated id), so saving the same Item or Set again repeats every write.
+- **Transaction already active**: the save joins it. Nothing is begun, committed or rolled back, and a
+  failure propagates for the transaction's owner to handle. Items are marked persisted as soon as each
+  statement succeeds, so a new Item's generated id is available straight away.
+
+To make writes through several repositories atomic, own the transaction yourself on the shared
+connection:
+
+```php
+$orderRepo = new OrderRepository($pdo);
+$lineRepo  = new OrderLineRepository($pdo);
+
+$pdo->beginTransaction();
+try {
+    $orderRepo->saveItem($order, true);
+
+    // The order's generated id is available before commit
+    foreach ($lines as $line) {
+        $line->setOrderId($order->getId());
+    }
+    $lineRepo->saveSet($lines, true);
+
+    $pdo->commit();
+} catch (\Throwable $e) {
+    $pdo->rollBack();
+    throw $e;
+}
+```
+
+Because the repositories cannot see a transaction they did not begin, rolling back your own
+transaction leaves the Items saved within it claiming to be persisted. After such a rollback, discard
+or reload those Items rather than saving them again.
 
 ### SQL Helper Methods
 
