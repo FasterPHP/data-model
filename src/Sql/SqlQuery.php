@@ -26,42 +26,42 @@ final readonly class SqlQuery
     public const NONE = false;
 
     /**
-     * @param SqlClause      $select  The select list, without the SELECT keyword.
-     * @param SqlClause      $from    The from source, without the FROM keyword.
-     * @param SqlClause|null $where   The where condition, or null if the query has none.
-     * @param SqlClause|null $groupBy The grouping, or null if the query has none.
-     * @param SqlClause|null $having  The having condition, or null if the query has none.
+     * @param SqlFragment      $select  The select list, without the SELECT keyword.
+     * @param SqlFragment      $from    The from source, without the FROM keyword.
+     * @param SqlFragment|null $where   The where condition, or null if the query has none.
+     * @param SqlFragment|null $groupBy The grouping, or null if the query has none.
+     * @param SqlFragment|null $having  The having condition, or null if the query has none.
      */
     public function __construct(
-        private SqlClause $select,
-        private SqlClause $from,
-        private ?SqlClause $where = null,
-        private ?SqlClause $groupBy = null,
-        private ?SqlClause $having = null,
+        private SqlFragment $select,
+        private SqlFragment $from,
+        private ?SqlFragment $where = null,
+        private ?SqlFragment $groupBy = null,
+        private ?SqlFragment $having = null,
     ) {
     }
 
-    public function getSelect(): SqlClause
+    public function getSelect(): SqlFragment
     {
         return $this->select;
     }
 
-    public function getFrom(): SqlClause
+    public function getFrom(): SqlFragment
     {
         return $this->from;
     }
 
-    public function getWhere(): ?SqlClause
+    public function getWhere(): ?SqlFragment
     {
         return $this->where;
     }
 
-    public function getGroupBy(): ?SqlClause
+    public function getGroupBy(): ?SqlFragment
     {
         return $this->groupBy;
     }
 
-    public function getHaving(): ?SqlClause
+    public function getHaving(): ?SqlFragment
     {
         return $this->having;
     }
@@ -72,20 +72,20 @@ final readonly class SqlQuery
      * A clause left as null is carried over unchanged. An optional clause given as self::NONE is
      * removed from the derived query. The original query is never modified.
      *
-     * @param SqlClause|null       $select  Replacement select list, or null to carry over.
-     * @param SqlClause|null       $from    Replacement from source, or null to carry over.
-     * @param SqlClause|false|null $where   Replacement, self::NONE to remove, or null to carry over.
-     * @param SqlClause|false|null $groupBy Replacement, self::NONE to remove, or null to carry over.
-     * @param SqlClause|false|null $having  Replacement, self::NONE to remove, or null to carry over.
+     * @param SqlFragment|null       $select  Replacement select list, or null to carry over.
+     * @param SqlFragment|null       $from    Replacement from source, or null to carry over.
+     * @param SqlFragment|false|null $where   Replacement, self::NONE to remove, or null to carry over.
+     * @param SqlFragment|false|null $groupBy Replacement, self::NONE to remove, or null to carry over.
+     * @param SqlFragment|false|null $having  Replacement, self::NONE to remove, or null to carry over.
      *
      * @return self
      */
     public function with(
-        ?SqlClause $select = null,
-        ?SqlClause $from = null,
-        SqlClause|false|null $where = null,
-        SqlClause|false|null $groupBy = null,
-        SqlClause|false|null $having = null,
+        ?SqlFragment $select = null,
+        ?SqlFragment $from = null,
+        SqlFragment|false|null $where = null,
+        SqlFragment|false|null $groupBy = null,
+        SqlFragment|false|null $having = null,
     ): self {
         return new self(
             $select ?? $this->select,
@@ -103,11 +103,11 @@ final readonly class SqlQuery
      * belonging to it. Clauses are rendered in SELECT, FROM, WHERE, GROUP BY, HAVING order, and an
      * absent clause contributes neither its keyword nor its parameters.
      *
-     * @return SqlClause
+     * @return SqlFragment
      *
      * @throws Exception If two clauses bind the same parameter name to different values.
      */
-    public function render(): SqlClause
+    public function render(): SqlFragment
     {
         $sql    = 'SELECT ' . $this->select->getSql() . ' FROM ' . $this->from->getSql();
         $params = [];
@@ -124,18 +124,18 @@ final readonly class SqlQuery
             $this->collectParams($params, $source, $kw, $clause);
         }
 
-        return new SqlClause($sql, $params);
+        return new SqlFragment($sql, $params);
     }
 
     /**
      * Resolve a with() argument against the clause currently held.
      *
-     * @param SqlClause|false|null $replacement The replacement, self::NONE, or null.
-     * @param SqlClause|null       $current     The clause currently held.
+     * @param SqlFragment|false|null $replacement The replacement, self::NONE, or null.
+     * @param SqlFragment|null       $current     The clause currently held.
      *
-     * @return SqlClause|null
+     * @return SqlFragment|null
      */
-    private static function derive(SqlClause|false|null $replacement, ?SqlClause $current): ?SqlClause
+    private static function derive(SqlFragment|false|null $replacement, ?SqlFragment $current): ?SqlFragment
     {
         if (is_null($replacement)) {
             return $current;
@@ -152,13 +152,13 @@ final readonly class SqlQuery
      * @param array<string, mixed>  $params The parameters accumulated so far.
      * @param array<string, string> $source The clause each accumulated parameter came from.
      * @param string                $keyword The keyword naming the clause being collected.
-     * @param SqlClause             $clause  The clause being collected.
+     * @param SqlFragment           $clause  The clause being collected.
      *
      * @return void
      *
      * @throws Exception If the clause rebinds an accumulated name to a different value.
      */
-    private function collectParams(array &$params, array &$source, string $keyword, SqlClause $clause): void
+    private function collectParams(array &$params, array &$source, string $keyword, SqlFragment $clause): void
     {
         foreach ($clause->getParams() as $name => $value) {
             if (array_key_exists($name, $params) && $params[$name] !== $value) {

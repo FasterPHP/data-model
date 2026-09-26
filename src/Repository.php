@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace FasterPhp\DataModel;
 
 use FasterPhp\DataModel\Paginator\SqlPaginator;
-use FasterPhp\DataModel\Sql\SqlClause;
+use FasterPhp\DataModel\Sql\SqlFragment;
 use FasterPhp\DataModel\Sql\SqlQuery;
 use FasterPhp\DataModel\Sql\SqlUtil;
 use PDO;
@@ -319,11 +319,11 @@ abstract class Repository implements RepositoryInterface
         $groupBy = $this->getGroupByClause();
 
         return new SqlQuery(
-            new SqlClause($this->getSelectClause()),
-            new SqlClause($this->getFromClause()),
-            $whereSql !== '' ? new SqlClause($whereSql, $whereParams) : null,
-            $groupBy !== '' ? new SqlClause($groupBy) : null,
-            $havingSql !== '' ? new SqlClause($havingSql, $havingParams) : null,
+            new SqlFragment($this->getSelectClause()),
+            new SqlFragment($this->getFromClause()),
+            $whereSql !== '' ? new SqlFragment($whereSql, $whereParams) : null,
+            $groupBy !== '' ? new SqlFragment($groupBy) : null,
+            $havingSql !== '' ? new SqlFragment($havingSql, $havingParams) : null,
         );
     }
 
