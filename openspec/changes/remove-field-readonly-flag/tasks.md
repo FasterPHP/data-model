@@ -10,7 +10,7 @@
 
 ## 3. Final verification
 
-- [ ] 3.1 Confirm Item-level protection is unchanged: readonly fields settable on a temp Item and rejected once persisted, and external and aggregate fields always rejected; verify the existing tests covering these pass unmodified, adding one per case if any is not already covered
-- [ ] 3.2 Confirm no remaining references anywhere outside the archive, including `README.md`, `examples/` and `docs/`; verify with `grep -rn 'isReadonly\|setReadonly' . --exclude-dir=vendor --exclude-dir=tools --exclude-dir=archive`
-- [ ] 3.3 Run `vendor/bin/phpcs` and confirm zero violations
-- [ ] 3.4 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with 445 tests: the 447 recorded when this change was planned, less the two deleted in 1.2
+- [x] 3.1 Confirm Item-level protection is unchanged: readonly fields settable on a temp Item and rejected once persisted, and external and aggregate fields always rejected; verify the existing tests covering these pass unmodified, adding one per case if any is not already covered
+- [x] 3.2 Confirm no remaining references anywhere outside the archive, including `README.md`, `examples/` and `docs/`; verify with `grep -rn 'isReadonly\|setReadonly' . --exclude-dir=vendor --exclude-dir=tools --exclude-dir=archive`
+- [x] 3.3 Run `vendor/bin/phpcs` and confirm zero violations
+- [x] 3.4 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with 445 tests: the 447 recorded when this change was planned, less the two deleted in 1.2
