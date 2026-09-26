@@ -224,32 +224,8 @@ class FieldTest extends TestCase
     }
 
     /*
-     * Base — readonly, getSqlValue default, __toString null
+     * Base — getSqlValue default, __toString null
      */
-    public function testSetReadonly(): void
-    {
-        $f = new Field\Integer('age');
-        $f->setValue(10);
-        $this->assertSame(10, $f->getValue());
-
-        $f->setReadonly(true);
-        $this->assertTrue($f->isReadonly());
-
-        // Field no longer self-enforces readonly; access control is Item's job
-        $f->setValue(20);
-        $this->assertSame(20, $f->getValue());
-    }
-
-    public function testSetReadonlyToggleOff(): void
-    {
-        $f = new Field\Integer('age');
-        $f->setReadonly(true);
-        $f->setReadonly(false);
-        $this->assertFalse($f->isReadonly());
-        $f->setValue(42);
-        $this->assertSame(42, $f->getValue());
-    }
-
     public function testGetSqlValueDefault(): void
     {
         $f = (new Field\Integer('age'))->setValue(99);

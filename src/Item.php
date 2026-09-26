@@ -235,7 +235,6 @@ abstract class Item implements ItemInterface
                 $inExternal  => static::FIELDS_EXTERNAL[$fieldName],
                 $inAggregate => static::FIELDS_AGGREGATE[$fieldName],
             };
-            $isReadonly = $inReadonly || $inExternal || $inAggregate;
 
             // Determine initial value
             $initialValue = null;
@@ -255,11 +254,10 @@ abstract class Item implements ItemInterface
                 $hasInitialValue = true;
             }
 
-            // Create field with initial value (bypasses readonly check)
             if ($hasInitialValue) {
-                $field = new $fieldClassName($fieldName, $isReadonly, $initialValue);
+                $field = new $fieldClassName($fieldName, $initialValue);
             } else {
-                $field = new $fieldClassName($fieldName, $isReadonly);
+                $field = new $fieldClassName($fieldName);
             }
 
             $this->data[$fieldName] = $field;

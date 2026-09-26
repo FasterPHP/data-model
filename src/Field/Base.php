@@ -17,22 +17,19 @@ abstract class Base implements Stringable
 {
     protected string $name;
     protected mixed $value = null;
-    protected bool $isReadonly = false;
 
     /**
      * Constructor.
      *
      * @param string $name Field name
-     * @param bool $isReadonly Whether the field is readonly
-     * @param mixed $initialValue Optional initial value to set (bypasses readonly check)
+     * @param mixed $initialValue Optional initial value; an explicitly supplied null is set, an omitted one is not
      */
-    public function __construct(string $name, bool $isReadonly = false, mixed $initialValue = null)
+    public function __construct(string $name, mixed $initialValue = null)
     {
         $this->name = $name;
-        $this->isReadonly = $isReadonly;
 
-        // Set initial value if provided (bypasses readonly check)
-        if (func_num_args() >= 3) {
+        // Set initial value only if explicitly provided, so an explicit null is distinguishable from none
+        if (func_num_args() >= 2) {
             $this->setValueInternal($initialValue);
         }
     }
@@ -40,17 +37,6 @@ abstract class Base implements Stringable
     public function getName(): string
     {
         return $this->name;
-    }
-
-    public function setReadonly(bool $isReadonly): self
-    {
-        $this->isReadonly = $isReadonly;
-        return $this;
-    }
-
-    public function isReadonly(): bool
-    {
-        return $this->isReadonly;
     }
 
     public function isset(): bool
