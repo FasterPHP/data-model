@@ -9,7 +9,7 @@
 
 ## 3. Transaction ownership
 
-- [ ] 3.1 In `saveItem()` and `saveSet()`, compute whether the repository owns the transaction once, before any work, as `$useTransaction && !$this->pdo->inTransaction()`, and begin, commit and roll back only when it does; verify the test from 2.1 now passes with the inverted expectation, and the three "A repository owns only the transactions it begins" scenarios pass
+- [x] 3.1 In `saveItem()` and `saveSet()`, compute whether the repository owns the transaction once, before any work, as `$useTransaction && !$this->pdo->inTransaction()`, and begin, commit and roll back only when it does; verify the test from 2.1 now passes with the inverted expectation, and the three "A repository owns only the transactions it begins" scenarios pass
 - [ ] 3.2 Add tests for failure inside a caller's transaction, asserting no `rollBack()` is called, the original exception is rethrown, and `inTransaction()` is still true afterwards; verify the "Failure inside a caller's transaction" scenario passes
 - [ ] 3.3 Add an in-memory SQLite test in which the caller begins a transaction, saves Items through two different repositories with `$useTransaction` true, and either commits or rolls back, asserting by querying the tables that the writes are durable together or not at all; verify the "Several repositories share one caller transaction" scenario passes
 

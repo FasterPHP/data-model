@@ -179,7 +179,9 @@ abstract class Repository implements RepositoryInterface
             throw new Exception("Cannot save Set of class '" . get_class($set) . "'");
         }
 
-        if ($useTransaction) {
+        // Decided once: at commit or rollback time inTransaction() would report our own transaction.
+        $ownsTransaction = $useTransaction && !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
             $this->pdo->beginTransaction();
         }
 
@@ -200,11 +202,11 @@ abstract class Repository implements RepositoryInterface
                 $this->deleteItemIds($idsToDelete);
             }
 
-            if ($useTransaction) {
+            if ($ownsTransaction) {
                 $this->pdo->commit();
             }
         } catch (\Throwable $e) {
-            if ($useTransaction) {
+            if ($ownsTransaction) {
                 $this->pdo->rollBack();
             }
             throw $e;
@@ -223,7 +225,9 @@ abstract class Repository implements RepositoryInterface
             throw new Exception("Cannot save Item of class '" . get_class($item) . "'");
         }
 
-        if ($useTransaction) {
+        // Decided once: at commit or rollback time inTransaction() would report our own transaction.
+        $ownsTransaction = $useTransaction && !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
             $this->pdo->beginTransaction();
         }
 
@@ -236,11 +240,11 @@ abstract class Repository implements RepositoryInterface
                 $this->updateItem($item);
             }
 
-            if ($useTransaction) {
+            if ($ownsTransaction) {
                 $this->pdo->commit();
             }
         } catch (\Throwable $e) {
-            if ($useTransaction) {
+            if ($ownsTransaction) {
                 $this->pdo->rollBack();
             }
             throw $e;
