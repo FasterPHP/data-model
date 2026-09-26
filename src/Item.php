@@ -19,6 +19,11 @@ abstract class Item implements ItemInterface
     public const ID_INTERNAL = 'id';
     public const ID_TYPE = Field\Integer::class;
     public const FIELDS = [];
+    /**
+     * Write-once fields: settable on a new (temp) Item, immutable once the Item has been persisted.
+     *
+     * Enforced by Item::setValue(), not by the Field.
+     */
     public const FIELDS_READONLY = [];
     public const FIELDS_EXTERNAL = [];
     public const FIELDS_AGGREGATE = [];
