@@ -10,7 +10,7 @@
 
 ## 3. Documentation
 
-- [ ] 3.1 Update `README.md` and `examples/04-joins.php` to use `SqlFragment`, adjusting any surrounding prose that describes the value as a clause; verify `grep -rn 'SqlClause' README.md examples docs` returns nothing and `php examples/04-joins.php` runs without error if the example is runnable standalone
+- [x] 3.1 Update `README.md` and `examples/04-joins.php` to use `SqlFragment`, adjusting any surrounding prose that describes the value as a clause; verify `grep -rn 'SqlClause' README.md examples docs` returns nothing and `php examples/04-joins.php` runs without error if the example is runnable standalone
 
 ## 4. Final verification
 

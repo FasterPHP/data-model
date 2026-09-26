@@ -188,7 +188,7 @@ yourself. It is executed as given, and still receives the repository's sorting, 
 construction, so it is a supported alternative to escaping to `PDO::prepare()` directly:
 
 ```php
-use FasterPhp\DataModel\Sql\SqlClause;
+use FasterPhp\DataModel\Sql\SqlFragment;
 use FasterPhp\DataModel\Sql\SqlQuery;
 
 class TicketRepository extends Repository
@@ -197,24 +197,24 @@ class TicketRepository extends Repository
     {
         return new SqlQuery(
             // Alias the id column to Item::ID_INTERNAL, as the default select clause does
-            new SqlClause('t.ticketId AS `id`, t.title, u.name AS assigneeName'),
-            new SqlClause('tickets t LEFT JOIN users u ON u.id = t.assignedTo'),
-            new SqlClause('t.status = :status', [':status' => 'open']),
+            new SqlFragment('t.ticketId AS `id`, t.title, u.name AS assigneeName'),
+            new SqlFragment('tickets t LEFT JOIN users u ON u.id = t.assignedTo'),
+            new SqlFragment('t.status = :status', [':status' => 'open']),
         );
     }
 }
 ```
 
 A `SqlQuery` holds the clauses of a SELECT: `select` and `from` are required, `where`, `groupBy`
-and `having` are optional. Each is a `SqlClause`, which carries a SQL fragment together with the
-parameters that fragment binds, so the two can never become separated.
+and `having` are optional. Each is a `SqlFragment`, which carries a piece of SQL together with the
+parameters that SQL binds, so the two can never become separated.
 
 Queries are immutable. `with()` derives a new query rather than modifying the original, carrying
 over every clause not replaced, and `SqlQuery::NONE` removes an optional one:
 
 ```php
 $query = $parentQuery
-    ->with(where: new SqlClause('t.status = :status', [':status' => 'closed']))
+    ->with(where: new SqlFragment('t.status = :status', [':status' => 'closed']))
     ->with(having: SqlQuery::NONE);
 ```
 

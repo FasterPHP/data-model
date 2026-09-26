@@ -18,7 +18,7 @@ use FasterPhp\DataModel\Set;
 use FasterPhp\DataModel\Repository;
 use FasterPhp\DataModel\Sort;
 use FasterPhp\DataModel\Field;
-use FasterPhp\DataModel\Sql\SqlClause;
+use FasterPhp\DataModel\Sql\SqlFragment;
 use FasterPhp\DataModel\Sql\SqlQuery;
 
 // Define Department Item
@@ -131,12 +131,12 @@ class HighEarnerRepository extends Repository
     {
         return new SqlQuery(
             // The id column is aliased to Item::ID_INTERNAL, exactly as getFieldList() does
-            new SqlClause(
+            new SqlFragment(
                 'e.empId AS `id`, e.name, e.salary'
                 . ', d.name AS departmentName'
                 . ', avg.departmentAverage AS departmentAverage'
             ),
-            new SqlClause(
+            new SqlFragment(
                 'employees e'
                 . ' JOIN departments d ON d.deptId = e.departmentId'
                 . ' JOIN ('
@@ -144,7 +144,7 @@ class HighEarnerRepository extends Repository
                 . '   FROM employees GROUP BY departmentId'
                 . ' ) avg ON avg.departmentId = e.departmentId'
             ),
-            new SqlClause('e.salary >= :minSalary', [':minSalary' => $this->minSalary]),
+            new SqlFragment('e.salary >= :minSalary', [':minSalary' => $this->minSalary]),
         );
     }
 }
