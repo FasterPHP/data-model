@@ -360,6 +360,70 @@ class RepositoryTransactionTest extends TestCase
     }
 
     /**
+     * A failed owned save leaves nothing queued for a later successful save to mark.
+     */
+    public function testFailedSaveLeavesNothingForLaterFlush(): void
+    {
+        $this->pdo->exec("INSERT INTO users (name) VALUES ('Alice')");
+        $repo = new ValidRepository($this->pdo);
+        $failed = $this->newUser('Bob');
+        $this->saveSetExpectingFailure($repo, $this->newSet([$failed, $this->newUser('Alice')]));
+
+        $repo->saveItem($this->newUser('Carol'), true);
+
+        $this->assertTrue($failed->isTemp());
+        $this->assertNull($failed->getId());
+        $this->assertSame(2, $this->countRows('users'));
+    }
+
+    /**
+     * An owned transaction calls markItemPersisted() only after commit, with each insert's own id.
+     */
+    public function testOwnedTransactionDefersMarkUntilAfterCommit(): void
+    {
+        $log = [];
+        $pdo = $this->createTransactionMock(inTransaction: false, insertIds: ['7', '8']);
+        $pdo->method('commit')->willReturnCallback(function () use (&$log) {
+            $log[] = 'commit';
+            return true;
+        });
+
+        $items = [$this->createLoggingUser('Alice', $log), $this->createLoggingUser('Bob', $log)];
+        (new ValidRepository($pdo))->saveSet($this->newSet($items), true);
+
+        $this->assertSame(['commit', 'mark:7', 'mark:8'], $log);
+    }
+
+    /**
+     * An owned transaction that rolls back calls markItemPersisted() on no Item in the Set.
+     */
+    public function testOwnedTransactionRollbackMakesNoMark(): void
+    {
+        $stmt = $this->createMock(PDOStatement::class);
+        $calls = 0;
+        $stmt->method('execute')->willReturnCallback(function () use (&$calls) {
+            if (++$calls === 2) {
+                throw new PDOException('DB error');
+            }
+            return true;
+        });
+        $pdo = $this->createTransactionMock(inTransaction: false, stmt: $stmt);
+        $pdo->expects($this->once())->method('rollBack')->willReturn(true);
+
+        $log = [];
+        $items = [$this->createLoggingUser('Alice', $log), $this->createLoggingUser('Bob', $log)];
+
+        try {
+            (new ValidRepository($pdo))->saveSet($this->newSet($items), true);
+            $this->fail('Expected the statement failure to propagate');
+        } catch (PDOException) {
+            // Expected.
+        }
+
+        $this->assertSame([], $log);
+    }
+
+    /**
      * @return array<string, array{bool}>
      */
     public static function useTransactionProvider(): array
@@ -427,9 +491,14 @@ class RepositoryTransactionTest extends TestCase
 
     /**
      * A partial PDO mock reporting the given transaction state, whose statements succeed unless one is given.
+     *
+     * @param list<string> $insertIds Values lastInsertId() returns on successive calls
      */
-    private function createTransactionMock(bool $inTransaction, ?PDOStatement $stmt = null): PDO&MockObject
-    {
+    private function createTransactionMock(
+        bool $inTransaction,
+        ?PDOStatement $stmt = null,
+        array $insertIds = ['42'],
+    ): PDO&MockObject {
         if ($stmt === null) {
             $stmt = $this->createMock(PDOStatement::class);
             $stmt->method('execute')->willReturn(true);
@@ -441,9 +510,26 @@ class RepositoryTransactionTest extends TestCase
             ->getMock();
         $pdo->method('prepare')->willReturn($stmt);
         $pdo->method('inTransaction')->willReturn($inTransaction);
-        $pdo->method('lastInsertId')->willReturn('42');
+        $pdo->method('lastInsertId')->willReturnOnConsecutiveCalls(...$insertIds);
 
         return $pdo;
+    }
+
+    /**
+     * A new user Item whose markItemPersisted() calls are recorded in $log rather than applied.
+     *
+     * @param list<string> $log
+     */
+    private function createLoggingUser(string $name, array &$log): ValidItem&MockObject
+    {
+        $item = $this->getMockBuilder(ValidItem::class)
+            ->onlyMethods(['markItemPersisted'])
+            ->getMock();
+        $item->method('markItemPersisted')->willReturnCallback(function (mixed $id = null) use (&$log) {
+            $log[] = 'mark:' . $id;
+        });
+        $item->setName($name);
+        return $item;
     }
 
     private function newUser(string $name): ValidItem
