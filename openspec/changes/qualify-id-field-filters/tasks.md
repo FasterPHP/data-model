@@ -11,7 +11,7 @@
 
 ## 3. Final verification
 
-- [ ] 3.1 Run `vendor/bin/phpcs` and confirm zero violations
-- [ ] 3.2 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with more than 467 tests and 1414 assertions, and that `tests/RepositorySelectSqlTest.php` baselines are unchanged from `main`
-- [ ] 3.3 Run every script in `examples/` and confirm each runs to completion
-- [ ] 3.4 Confirm nothing added by this change names a private consumer, application or client, or a local machine path, by searching the change's diff and OpenSpec artifacts; verify the search finds nothing
+- [x] 3.1 Run `vendor/bin/phpcs` and confirm zero violations
+- [x] 3.2 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with more than 467 tests and 1414 assertions, and that `tests/RepositorySelectSqlTest.php` baselines are unchanged from `main`
+- [x] 3.3 Run every script in `examples/` and confirm each runs to completion
+- [x] 3.4 Confirm nothing added by this change names a private consumer, application or client, or a local machine path, by searching the change's diff and OpenSpec artifacts; verify the search finds nothing
