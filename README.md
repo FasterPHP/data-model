@@ -22,7 +22,7 @@ A lightweight, high-performance data model library for PHP 8.2+ that provides st
 ## Installation
 
 ```bash
-composer require fasterphp/data-model
+composer require faster-php/data-model
 ```
 
 ## Quick Start
