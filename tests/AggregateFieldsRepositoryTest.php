@@ -502,6 +502,42 @@ class AggregateFieldsRepositoryTest extends TestCase
     }
 
     /**
+     * Test that the ID_FIELD key is used bare in getComparison().
+     */
+    public function testIdFieldKeyIsUsedBare(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql, $params] = $method->invoke($repo, 'orderId', 'equals', 5);
+
+        $this->assertSame('`orderId` = :orderId', $sql);
+        $this->assertSame([':orderId' => '5'], $params);
+    }
+
+    /**
+     * Test that the reserved id key is used bare in getComparison().
+     */
+    public function testReservedIdKeyIsUsedBare(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql, $params] = $method->invoke($repo, 'id', 'equals', 5);
+
+        $this->assertSame('`id` = :id', $sql);
+        $this->assertSame([':id' => '5'], $params);
+    }
+
+    /**
      * Test that an unrecognised key of valid identifier shape is used bare.
      */
     public function testUnrecognisedKeyOfValidShapeUsedBare(): void
