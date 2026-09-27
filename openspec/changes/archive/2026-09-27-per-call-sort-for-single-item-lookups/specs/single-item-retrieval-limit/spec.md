@@ -1,11 +1,4 @@
-# single-item-retrieval-limit Specification
-
-## Purpose
-
-Defines how many rows a single-item lookup fetches from the database, so that retrieving one item
-never costs a full result set regardless of how the repository is paginated.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Single-item lookups fetch at most one row
 

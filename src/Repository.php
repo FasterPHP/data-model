@@ -135,12 +135,19 @@ abstract class Repository implements RepositoryInterface
         ]);
     }
 
-    public function getItemWithParams(array $params, array $types = []): ?ItemInterface
+    /**
+     * Get the first Item matching the given parameters, or null when none match.
+     *
+     * A sort given here orders this lookup alone and replaces the repository's sort for it; the
+     * repository's sort is never changed. Without one, the lookup uses the repository's sort.
+     */
+    public function getItemWithParams(array $params, array $types = [], ?Sort $sort = null): ?ItemInterface
     {
         // A paginator of its own keeps the one-row limit off the repository's, which the caller
-        // may be holding for its result figures. It inherits the sort so the row picked is the
-        // first under whatever ordering the repository is using.
-        $data = (new SqlPaginator($this->getPdo(), $this->paginator->getSort()))
+        // may be holding for its result figures. It takes the per-call sort when one is given,
+        // otherwise the repository's, so the row picked is the first under that ordering; the
+        // repository's sort is only read, never written.
+        $data = (new SqlPaginator($this->getPdo(), $sort ?? $this->paginator->getSort()))
             ->setMaxItemsPerPage(1)
             ->setQuery($this->buildRetrievalQuery($params, $types))
             ->getItems();

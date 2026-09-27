@@ -296,6 +296,152 @@ class RepositoryPdoTest extends RepositoryBase
     }
 
     /**
+     * Ordering a lookup per call leaves an unsorted repository unsorted for the Sets that follow.
+     */
+    public function testPerCallSortOnUnsortedRepositoryDoesNotReorderFollowingSet(): void
+    {
+        $capturedSql = [];
+        $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[2]], self::$data]);
+
+        $paginator = (new SqlPaginator($mockDb))->setMaxItemsPerPage(null);
+        $repo = new TestModel\ValidRepository($mockDb, $paginator);
+        $repo->getItemWithParams(['handsome' => 'y'], sort: new Sort('id', Sort::DESCENDING));
+        $repo->getSetWithParams(['handsome' => 'y']);
+
+        $this->assertNull($paginator->getSort());
+        $this->assertCount(2, $capturedSql);
+        $this->assertStringEndsWith(' ORDER BY `id` DESC LIMIT 1', $capturedSql[0]);
+        $this->assertStringNotContainsString('ORDER BY', $capturedSql[1]);
+    }
+
+    /**
+     * Ordering a lookup per call leaves a sorted repository's sort in place for the Sets that follow.
+     */
+    public function testPerCallSortOnSortedRepositoryLeavesItsSortInPlace(): void
+    {
+        $capturedSql = [];
+        $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[2]], self::$data]);
+
+        $repositorySort = new Sort('users.age', Sort::DESCENDING);
+        $paginator = (new SqlPaginator($mockDb, $repositorySort))->setMaxItemsPerPage(null);
+        $repo = new TestModel\ValidRepository($mockDb, $paginator);
+        $repo->getItemWithParams(['handsome' => 'y'], sort: new Sort('id', Sort::DESCENDING));
+        $repo->getSetWithParams(['handsome' => 'y']);
+
+        $this->assertSame($repositorySort, $paginator->getSort());
+        $this->assertStringEndsWith(' ORDER BY `users`.`age` DESC', $capturedSql[1]);
+        $this->assertStringNotContainsString('`id` DESC', $capturedSql[1]);
+    }
+
+    /**
+     * A lookup given a sort of its own that throws leaves the repository's sort in place.
+     */
+    public function testFailingLookupWithPerCallSortLeavesRepositorySortUnchanged(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willThrowException(new \PDOException('Query failed'));
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())
+            ->method('prepare')
+            ->willReturn($mockDbStatement);
+
+        $repositorySort = new Sort('users.age', Sort::DESCENDING);
+        $paginator = new SqlPaginator($mockDb, $repositorySort);
+        $repo = new TestModel\ValidRepository($mockDb, $paginator);
+
+        try {
+            $repo->getItemWithParams(['name' => 'Jane Doe'], sort: new Sort('id', Sort::DESCENDING));
+            $this->fail('Expected the lookup to propagate the PDOException');
+        } catch (\PDOException) {
+            // Expected.
+        }
+
+        $this->assertSame($repositorySort, $paginator->getSort());
+        $this->assertSame('ORDER BY `users`.`age` DESC', $paginator->getSortSql());
+    }
+
+    /**
+     * A per-call sort orders the lookup, which still fetches one row.
+     */
+    public function testGetItemWithParamsAppliesPerCallSort(): void
+    {
+        $capturedSql = [];
+        $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[2]]]);
+
+        $item = (new TestModel\ValidRepository($mockDb))
+            ->getItemWithParams(['handsome' => 'y'], sort: new Sort('id', Sort::DESCENDING));
+
+        $this->assertStringEndsWith(' ORDER BY `id` DESC LIMIT 1', $capturedSql[0]);
+        $this->assertInstanceOf(TestModel\ValidItem::class, $item);
+        $this->assertSame(3, $item->getId());
+    }
+
+    /**
+     * A per-call sort, with the secondary sort it chains, replaces the repository's sort.
+     */
+    public function testGetItemWithParamsPerCallSortReplacesRepositorySort(): void
+    {
+        $capturedSql = [];
+        $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[2]]]);
+
+        $repo = new TestModel\ValidRepository($mockDb, new Sort('users.age', Sort::DESCENDING));
+        $repo->getItemWithParams(
+            ['handsome' => 'y'],
+            sort: new Sort('id', Sort::DESCENDING, new Sort('users.name')),
+        );
+
+        $this->assertStringEndsWith(' ORDER BY `id` DESC, `users`.`name` ASC LIMIT 1', $capturedSql[0]);
+        $this->assertStringNotContainsString('`users`.`age` DESC', $capturedSql[0]);
+    }
+
+    /**
+     * Omitting the sort, or passing null, leaves the lookup ordered by the repository's sort.
+     */
+    public function testGetItemWithParamsWithoutPerCallSortUsesRepositorySort(): void
+    {
+        $capturedSql = [];
+        $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[1]], [self::$data[1]]]);
+
+        $repo = new TestModel\ValidRepository($mockDb, new Sort('users.age', Sort::DESCENDING));
+        $repo->getItemWithParams(['handsome' => 'y']);
+        $repo->getItemWithParams(['handsome' => 'y'], sort: null);
+
+        $this->assertStringEndsWith(' ORDER BY `users`.`age` DESC LIMIT 1', $capturedSql[0]);
+        $this->assertStringEndsWith(' ORDER BY `users`.`age` DESC LIMIT 1', $capturedSql[1]);
+    }
+
+    /**
+     * Return a mocked PDO that records every SQL statement it prepares, in order.
+     *
+     * @param list<string>                            $capturedSql Receives the SQL of each statement.
+     * @param list<array<int, array<string, string>>> $results     Rows fetched by each statement, in order.
+     */
+    private function getMockDbCapturingSql(array &$capturedSql, array $results): PDO
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->exactly(count($results)))
+            ->method('execute')
+            ->willReturn(true);
+        $mockDbStatement->expects($this->exactly(count($results)))
+            ->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturnOnConsecutiveCalls(...$results);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->exactly(count($results)))
+            ->method('prepare')
+            ->willReturnCallback(function (string $sql) use (&$capturedSql, $mockDbStatement) {
+                $capturedSql[] = $sql;
+                return $mockDbStatement;
+            });
+
+        return $mockDb;
+    }
+
+    /**
      * A lookup matching nothing returns null rather than an Item.
      */
     public function testGetItemWithParamsReturnsNullWhenNothingMatches(): void

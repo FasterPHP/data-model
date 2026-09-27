@@ -66,11 +66,15 @@ interface RepositoryInterface
     /**
      * Get a single item matching the given parameters.
      *
+     * A sort given here orders this lookup alone and replaces the repository's sort for it; the
+     * repository's sort is never changed. Without one, the lookup uses the repository's sort.
+     *
      * @param array $params Field => value pairs
      * @param array $types Field => comparison type pairs
+     * @param Sort|null $sort Order for this lookup only, in place of the repository's sort
      * @return ItemInterface|null
      */
-    public function getItemWithParams(array $params, array $types = []): ?ItemInterface;
+    public function getItemWithParams(array $params, array $types = [], ?Sort $sort = null): ?ItemInterface;
 
     /**
      * Get all items.

@@ -334,6 +334,23 @@ repository built without a paginator, call `setMaxItemsPerPage()` on it after co
 Single-item lookups such as `getItemWithId()` and `getItemWithParams()` always fetch one row,
 whatever the repository's paginator says.
 
+To pick one row out of several matches, such as the latest, pass a sort to `getItemWithParams()`:
+
+```php
+// The most recent user with this email address
+$user = $repo->getItemWithParams(
+    ['email' => 'john@example.com'],
+    sort: new Sort('id', Sort::DESCENDING),
+);
+```
+
+That sort orders this lookup only, in place of the repository's sort, and leaves the repository's
+sort as it was. Do not call `setSort()` for a one-off lookup like this: it changes the repository's
+own sort, so every later retrieval through the same repository, including `getSetWithParams()` and
+`getSetOfAll()`, would be ordered by it too. Sorting by `id` works on joined repositories as well,
+because ORDER BY may use the `id` select alias, which also reads the same whatever the ID column is
+called.
+
 ### Validation (Optional)
 
 Validation is opt-in via traits. Add validation to your Item classes:
