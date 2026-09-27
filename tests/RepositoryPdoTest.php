@@ -353,7 +353,7 @@ class RepositoryPdoTest extends RepositoryBase
         $repo = new TestModel\ValidRepository($mockDb, $paginator);
 
         try {
-            $repo->getItemWithParams(['name' => 'Marcus Don'], sort: new Sort('id', Sort::DESCENDING));
+            $repo->getItemWithParams(['name' => 'Jane Doe'], sort: new Sort('id', Sort::DESCENDING));
             $this->fail('Expected the lookup to propagate the PDOException');
         } catch (\PDOException) {
             // Expected.
