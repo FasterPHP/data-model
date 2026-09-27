@@ -1,0 +1,18 @@
+## 1. Baseline characterisation
+
+- [x] 1.1 Add a test to `tests/RepositoryPdoTest.php`, beside `testGetItemWithParamsHonoursRepositorySort`, recording the current workaround's side effect: after `setSort(new Sort('id', Sort::DESCENDING))->getItemWithParams([...])`, a following `getSetWithParams()` on the same repository is also ordered by `id` descending; verify on the unchanged code with `vendor/bin/phpunit --no-coverage --filter RepositoryPdo`, and that the full suite still passes with the counts recorded when this change is applied (478 tests and 1437 assertions when it was planned, plus the new test)
+
+## 2. Per-call sort
+
+- [ ] 2.1 Add `?Sort $sort = null` as the third parameter of `Repository::getItemWithParams()` and `RepositoryInterface::getItemWithParams()`, building the one-row paginator with `$sort ?? $this->paginator->getSort()`; update the inline comment and both docblocks to state that a given sort orders that lookup alone, replaces the repository's sort for it, and never changes the repository's sort; verify the existing single-item tests in `tests/RepositoryPdoTest.php` pass unchanged with `vendor/bin/phpunit --no-coverage --filter RepositoryPdo`
+- [ ] 2.2 Add tests for the new scenarios of "Single-item lookups fetch at most one row": a per-call `id` descending sort produces `ORDER BY` on it with `LIMIT 1`; on a repository with its own sort, only the per-call sort (with any secondary sort it chains) appears in the executed SQL; omitting the argument still applies the repository's sort; verify with `vendor/bin/phpunit --no-coverage --filter RepositoryPdo`
+- [ ] 2.3 Add tests for the new scenarios of "Single-item lookups do not disturb repository state": after a lookup with a per-call sort, the repository's sort is unchanged (for a repository with a different sort and for one with none) and a following Set retrieval is ordered by the repository's sort; a lookup with a per-call sort that throws during execution leaves the repository's sort unchanged; rewrite the characterisation test from 1.1 to use the per-call sort and assert the following Set is not reordered; verify with `vendor/bin/phpunit --no-coverage --filter RepositoryPdo`
+- [ ] 2.4 Add an in-memory SQLite test, in the style of `tests/RepositoryHandWrittenQueryDbTest.php`, in which several rows match and `getItemWithParams([...], sort: new Sort('id', Sort::DESCENDING))` returns the one with the highest id, and a subsequent `getSetWithParams()` on the same repository returns rows in the repository's original order; verify with `vendor/bin/phpunit --no-coverage --filter` on the new test class
+- [ ] 2.5 Document the "latest row" pattern in `README.md` next to the paragraph stating that single-item lookups always fetch one row: show `getItemWithParams([...], sort: new Sort('id', Sort::DESCENDING))`, explain that the sort applies to that lookup only and why `setSort()` is the wrong tool for it, and that `id` works even on joined repositories because ORDER BY may use the select alias; verify by running the documented snippet in a throwaway script against in-memory SQLite (not committed) and confirming it returns the latest matching row
+
+## 3. Final verification
+
+- [ ] 3.1 Run `vendor/bin/phpcs` and confirm zero violations
+- [ ] 3.2 Run `vendor/bin/phpunit --no-coverage` and confirm the full suite passes with more tests and assertions than when this change was started
+- [ ] 3.3 Run every script in `examples/` and confirm each runs to completion
+- [ ] 3.4 Confirm nothing added by this change names a private consumer, application or client, or a local machine path, by searching the change's diff and OpenSpec artifacts; verify the search finds nothing

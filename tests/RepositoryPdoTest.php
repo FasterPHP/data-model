@@ -296,6 +296,51 @@ class RepositoryPdoTest extends RepositoryBase
     }
 
     /**
+     * Ordering a lookup with setSort() reorders every later retrieval on the same repository.
+     */
+    public function testSetSortBeforeLookupAlsoReordersFollowingSet(): void
+    {
+        $capturedSql = [];
+        $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[2]], self::$data]);
+
+        $repo = new TestModel\ValidRepository($mockDb);
+        $repo->setSort(new Sort('id', Sort::DESCENDING))->getItemWithParams(['handsome' => 'y']);
+        $repo->getSetWithParams(['handsome' => 'y']);
+
+        $this->assertCount(2, $capturedSql);
+        $this->assertStringContainsString('ORDER BY `id` DESC LIMIT 1', $capturedSql[0]);
+        $this->assertStringEndsWith(' ORDER BY `id` DESC', $capturedSql[1]);
+    }
+
+    /**
+     * Return a mocked PDO that records every SQL statement it prepares, in order.
+     *
+     * @param list<string>                            $capturedSql Receives the SQL of each statement.
+     * @param list<array<int, array<string, string>>> $results     Rows fetched by each statement, in order.
+     */
+    private function getMockDbCapturingSql(array &$capturedSql, array $results): PDO
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->exactly(count($results)))
+            ->method('execute')
+            ->willReturn(true);
+        $mockDbStatement->expects($this->exactly(count($results)))
+            ->method('fetchAll')
+            ->with(PDO::FETCH_ASSOC)
+            ->willReturnOnConsecutiveCalls(...$results);
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->exactly(count($results)))
+            ->method('prepare')
+            ->willReturnCallback(function (string $sql) use (&$capturedSql, $mockDbStatement) {
+                $capturedSql[] = $sql;
+                return $mockDbStatement;
+            });
+
+        return $mockDb;
+    }
+
+    /**
      * A lookup matching nothing returns null rather than an Item.
      */
     public function testGetItemWithParamsReturnsNullWhenNothingMatches(): void
