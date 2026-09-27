@@ -1,6 +1,8 @@
 composer.lock
 vendor
 .phpunit.result.cache
-/nbproject/private/
-/build/
+nbproject
+build
 .idea
+.claude
+tools

@@ -1,9 +1,13 @@
 <?php
+
 /**
  * Tests for Data Model Set class.
  */
+
 namespace FasterPhp\DataModel;
 
+use InvalidArgumentException;
+use OutOfBoundsException;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 use FasterPhp\DataModel\TestModel;
@@ -13,101 +17,220 @@ use FasterPhp\DataModel\TestModel;
  */
 class SetTest extends TestCase
 {
-	protected static array $_data = [
-		['id' => 1, 'name' => 'Jack'],
-		['id' => 2, 'name' => 'Jill'],
-	];
-	protected static array $_items;
+    protected static array $data = [
+        ['id' => 1, 'name' => 'Jack'],
+        ['id' => 2, 'name' => 'Jill'],
+    ];
+    protected static array $items;
+    public static function setUpBeforeClass(): void
+    {
+        self::$items = [
+            new TestModel\ValidItem(self::$data[0], isTemp: false),
+            new TestModel\ValidItem(self::$data[1], isTemp: false),
+        ];
+    }
 
-	public static function setUpBeforeClass(): void
-	{
-		self::$_items = [
-			new TestModel\ValidItem(self::$_data[0]),
-			new TestModel\ValidItem(self::$_data[1]),
-		];
-	}
+    public function testConstructWithData(): void
+    {
+        $set = new TestModel\ValidSet(self::$data);
+        $this->assertInstanceOf(TestModel\ValidSet::class, $set);
+    }
 
-	public function testConstructWithData(): void
-	{
-		$set = new TestModel\ValidSet(self::$_data);
+    public function testConstructWithItems(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $this->assertInstanceOf(TestModel\ValidSet::class, $set);
+    }
 
-		$this->assertInstanceOf(TestModel\ValidSet::class, $set);
-	}
+    public function testLazyLoadItems(): void
+    {
+        $set = new TestModel\ValidSet(self::$data);
+        $dataProperty = new ReflectionProperty($set, 'data');
+        $this->assertSame(self::$data, $dataProperty->getValue($set));
+        $item = $set->current();
+        $this->assertInstanceOf(Item::class, $item);
+        $this->assertEquals(self::$items[0], $item);
+        $this->assertEquals(self::$items[0], $dataProperty->getValue($set)[0]);
+        $this->assertSame(self::$data[1], $dataProperty->getValue($set)[1]);
+    }
 
-	public function testConstructWithItems(): void
-	{
-		$set = new TestModel\ValidSet(self::$_items);
+    public function testCount(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $this->assertSame(count(self::$items), count($set));
+        $this->assertSame(count(self::$items), $set->count());
+    }
 
-		$this->assertInstanceOf(TestModel\ValidSet::class, $set);
-	}
+    public function testIsEmptyTrue(): void
+    {
+        $set = new TestModel\ValidSet([]);
+        $this->assertTrue($set->isEmpty());
+    }
 
-	public function testLazyLoadItems(): void
-	{
-		$set = new TestModel\ValidSet(self::$_data);
+    public function testIsEmptyFalse(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $this->assertFalse($set->isEmpty());
+    }
 
-		$dataProperty = new ReflectionProperty($set, '_data');
+    public function testOffsetExists(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $this->assertTrue(isset($set[0]));
+        $this->assertTrue(isset($set[1]));
+        $this->assertFalse(isset($set[2]));
+    }
 
-		$this->assertSame(self::$_data, $dataProperty->getValue($set));
+    public function testOffsetGet(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $this->assertSame(self::$items[0], $set->current());
+        $set->next();
+        $this->assertSame(self::$items[1], $set->current());
+    }
 
-		$item = $set->current();
-		$this->assertInstanceOf(Item::class, $item);
-		$this->assertEquals(self::$_items[0], $item);
-		$this->assertEquals(self::$_items[0], $dataProperty->getValue($set)[0]);
-		$this->assertSame(self::$_data[1], $dataProperty->getValue($set)[1]);
-	}
+    public function testOffsetGetNull(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $this->assertNull($set->offsetGet(null));
+    }
 
-	public function testCount(): void
-	{
-		$set = new TestModel\ValidSet(self::$_items);
+    public function testOffsetGetOutOfBounds(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $this->expectException(OutOfBoundsException::class);
+        $set->offsetGet(99);
+    }
 
-		$this->assertSame(count(self::$_items), count($set));
-		$this->assertSame(count(self::$_items), $set->count());
-	}
+    public function testOffsetSetNullPosition(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $newItem = new TestModel\ValidItem(['id' => 3, 'name' => 'Wendy'], isTemp: false);
+        $set[] = $newItem;
+        $this->assertSame($newItem, $set[2]);
+    }
 
-	public function testOffsetExists(): void
-	{
-		$set = new TestModel\ValidSet(self::$_items);
+    public function testOffsetSetSpecificPosition(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $newItem = new TestModel\ValidItem(['id' => 3, 'name' => 'Wendy'], isTemp: false);
+        $set[1] = $newItem;
+        $this->assertSame($newItem, $set[1]);
+    }
 
-		$this->assertTrue(isset($set[0]));
-		$this->assertTrue(isset($set[1]));
-		$this->assertFalse(isset($set[2]));
-	}
+    public function testOffsetUnset(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        unset($set[1]);
+        $this->assertCount(1, $set);
+    }
 
-	public function testOffsetGet(): void
-	{
-		$set = new TestModel\ValidSet(self::$_items);
+    public function testJsonSerialize(): void
+    {
+        $set = new TestModel\ValidSet(self::$data);
+        $this->assertSame($set->getValues(), $set->jsonSerialize());
+    }
 
-		$this->assertSame(self::$_items[0], $set->current());
-		$set->next();
-		$this->assertSame(self::$_items[1], $set->current());
-	}
+    public function testToString(): void
+    {
+        $set = new TestModel\ValidSet(self::$data);
+        $this->assertSame(json_encode($set->getValues()), (string) $set);
+    }
 
-	public function testOffsetSetNullPosition(): void
-	{
-		$set = new TestModel\ValidSet(self::$_items);
+    public function testGetValues(): void
+    {
+        $set = new TestModel\ValidSet(self::$data);
+        $values = $set->getValues();
+        $this->assertCount(2, $values);
+        // id is no longer in getValues() — it is implicit and auto-managed
+        $this->assertArrayNotHasKey('id', $values[0]);
+        $this->assertSame('Jack', $values[0]['name']);
+        $this->assertArrayNotHasKey('id', $values[1]);
+        $this->assertSame('Jill', $values[1]['name']);
+    }
 
-		$newItem = new TestModel\ValidItem(['id' => 3, 'name' => 'Wendy']);
-		$set[] = $newItem;
+    public function testSeek(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $set->seek(1);
+        $this->assertSame(self::$items[1], $set->current());
+    }
 
-		$this->assertSame($newItem, $set[2]);
-	}
+    public function testSeekOutOfBounds(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $this->expectException(OutOfBoundsException::class);
+        $set->seek(99);
+    }
 
-	public function testOffsetSetSpecificPosition(): void
-	{
-		$set = new TestModel\ValidSet(self::$_items);
+    public function testCurrentReturnsFalse(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $set->next();
+        $set->next();
+        $this->assertFalse($set->current());
+    }
 
-		$newItem = new TestModel\ValidItem(['id' => 3, 'name' => 'Wendy']);
-		$set[1] = $newItem;
+    public function testArrayMapKeyAndValue(): void
+    {
+        $set = new TestModel\ValidSet(self::$data);
+        $result = $set->arrayMap('id', 'name');
+        $this->assertSame([1 => 'Jack', 2 => 'Jill'], $result);
+    }
 
-		$this->assertSame($newItem, $set[1]);
-	}
+    public function testArrayMapValueOnly(): void
+    {
+        $set = new TestModel\ValidSet(self::$data);
+        $result = $set->arrayMap(null, 'name');
+        $this->assertSame(['Jack', 'Jill'], $result);
+    }
 
-	public function testOffsetUnset(): void
-	{
-		$set = new TestModel\ValidSet(self::$_items);
+    public function testArrayMapKeyOnly(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $result = $set->arrayMap('id');
+        $this->assertCount(2, $result);
+        $this->assertArrayHasKey(1, $result);
+        $this->assertArrayHasKey(2, $result);
+        $this->assertInstanceOf(TestModel\ValidItem::class, $result[1]);
+        $this->assertInstanceOf(TestModel\ValidItem::class, $result[2]);
+    }
 
-		unset($set[1]);
+    public function testArrayMapNoArgs(): void
+    {
+        $set = new TestModel\ValidSet(self::$items);
+        $result = $set->arrayMap();
+        $this->assertCount(2, $result);
+        $this->assertInstanceOf(TestModel\ValidItem::class, $result[0]);
+        $this->assertInstanceOf(TestModel\ValidItem::class, $result[1]);
+    }
 
-		$this->assertCount(1, $set);
-	}
+    public function testAddItemWrongType(): void
+    {
+        $set = new TestModel\ValidSet();
+        $wrongItem = new TestModel\ExternalItem(['id' => 1, 'name' => 'Wrong'], isTemp: false);
+        $this->expectException(InvalidArgumentException::class);
+        $set->addItem($wrongItem);
+    }
+
+    public function testGetItemInvalidData(): void
+    {
+        $set = new TestModel\ValidSet(['not-an-array-or-item']);
+        $this->expectException(Exception::class);
+        $set->current();
+    }
+
+    public function testGetItemProducesNonTempItems(): void
+    {
+        $set = new TestModel\ValidSet(self::$data);
+        $item = $set[0];
+        $this->assertFalse($item->isTemp());
+    }
+
+    public function testCreateItemProducesTempItems(): void
+    {
+        $set = new TestModel\ValidSet();
+        $item = $set->createItem();
+        $this->assertTrue($item->isTemp());
+    }
 }

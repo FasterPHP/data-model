@@ -1,0 +1,466 @@
+<?php
+
+/**
+ * Tests for Paginator\Base class.
+ */
+
+declare(strict_types=1);
+
+namespace FasterPhp\DataModel\Paginator;
+
+use FasterPhp\DataModel\Exception;
+use FasterPhp\DataModel\Sort;
+use PDO;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Tests for Paginator\Base class.
+ */
+class PaginatorBaseTest extends TestCase
+{
+    protected function tearDown(): void
+    {
+        Base::setDefaultMaxItemsPerPage(null);
+        Base::setDefaultMaxPageLinks(null);
+    }
+
+    private function createPaginator(?Sort $sort = null): TestPaginator
+    {
+        return new TestPaginator($sort);
+    }
+
+    public function testDefaultMaxItemsPerPage(): void
+    {
+        Base::setDefaultMaxItemsPerPage(25);
+        $paginator = $this->createPaginator();
+        $this->assertSame(25, $paginator->getMaxItemsPerPage());
+    }
+
+    public function testDefaultMaxItemsPerPageNull(): void
+    {
+        $paginator = $this->createPaginator();
+        $this->assertNull($paginator->getMaxItemsPerPage());
+    }
+
+    public function testInstanceMaxItemsPerPageOverridesDefault(): void
+    {
+        Base::setDefaultMaxItemsPerPage(25);
+        $paginator = $this->createPaginator();
+        $paginator->setMaxItemsPerPage(10);
+        $this->assertSame(10, $paginator->getMaxItemsPerPage());
+    }
+
+    public function testDefaultMaxPageLinks(): void
+    {
+        Base::setDefaultMaxPageLinks(5);
+        $paginator = $this->createPaginator();
+        $this->assertSame(5, $paginator->getMaxPageLinks());
+    }
+
+    public function testDefaultMaxPageLinksNull(): void
+    {
+        $paginator = $this->createPaginator();
+        $this->assertNull($paginator->getMaxPageLinks());
+    }
+
+    public function testMaxPageLinks(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setMaxPageLink(7);
+        $this->assertSame(7, $paginator->getMaxPageLinks());
+    }
+
+    public function testMaxPageLinksOverridesDefault(): void
+    {
+        Base::setDefaultMaxPageLinks(5);
+        $paginator = $this->createPaginator();
+        $paginator->setMaxPageLink(7);
+        $this->assertSame(7, $paginator->getMaxPageLinks());
+    }
+
+    public function testInstanceNullMaxItemsPerPageOverridesDefault(): void
+    {
+        Base::setDefaultMaxItemsPerPage(25);
+        $paginator = $this->createPaginator();
+        $paginator->setMaxItemsPerPage(null);
+        $this->assertNull($paginator->getMaxItemsPerPage());
+    }
+
+    public function testDefaultMaxItemsPerPageUsedWhenSetterNeverCalled(): void
+    {
+        Base::setDefaultMaxItemsPerPage(15);
+        $paginator = $this->createPaginator();
+        $this->assertSame(15, $paginator->getMaxItemsPerPage());
+    }
+
+    public function testInstanceNullMaxPageLinksOverridesDefault(): void
+    {
+        Base::setDefaultMaxPageLinks(10);
+        $paginator = $this->createPaginator();
+        $paginator->setMaxPageLink(null);
+        $this->assertNull($paginator->getMaxPageLinks());
+    }
+
+    public function testSetPageNumClampsToOne(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setPageNum(0);
+        $this->assertSame(1, $paginator->getPageNum());
+
+        $paginator->setPageNum(-5);
+        $this->assertSame(1, $paginator->getPageNum());
+    }
+
+    public function testSetPageNumValid(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setPageNum(3);
+        $this->assertSame(3, $paginator->getPageNum());
+    }
+
+    public function testGetNumPagesNoLimit(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(100);
+        $this->assertSame(1, $paginator->getNumPages());
+    }
+
+    public function testGetNumPagesWithLimit(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(25);
+        $paginator->setMaxItemsPerPage(10);
+        $this->assertSame(3, $paginator->getNumPages());
+    }
+
+    public function testGetNumPagesZeroItems(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(0);
+        $paginator->setMaxItemsPerPage(10);
+        $this->assertSame(1, $paginator->getNumPages());
+    }
+
+    /**
+     * A change of page size invalidates the cached page count.
+     */
+    public function testNumPagesRecomputedAfterPageSizeChange(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(25);
+        $paginator->setMaxItemsPerPage(10);
+        $this->assertSame(3, $paginator->getNumPages());
+
+        $paginator->setMaxItemsPerPage(5);
+        $this->assertSame(5, $paginator->getNumPages());
+    }
+
+    /**
+     * A change of total item count invalidates the cached page count.
+     */
+    public function testNumPagesRecomputedAfterTotalChange(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setMaxItemsPerPage(10);
+        $paginator->setNumItemsTotal(25);
+        $this->assertSame(3, $paginator->getNumPages());
+
+        $paginator->setNumItemsTotal(100);
+        $this->assertSame(10, $paginator->getNumPages());
+    }
+
+    /**
+     * The page count is stable while its inputs are unchanged.
+     */
+    public function testNumPagesStableWhenInputsUnchanged(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(25);
+        $paginator->setMaxItemsPerPage(10);
+        $this->assertSame(3, $paginator->getNumPages());
+
+        $paginator->setMaxItemsPerPage(10);
+        $paginator->setNumItemsTotal(25);
+        $paginator->setPageNum(1);
+        $this->assertSame(3, $paginator->getNumPages());
+    }
+
+    public function testNumItemsOnPage(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsOnPage(5);
+        $this->assertSame(5, $paginator->getNumItemsOnPage());
+    }
+
+    public function testGetNumItemsTotalThrows(): void
+    {
+        $paginator = $this->createPaginator();
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Num items total not set');
+        $paginator->getNumItemsTotal();
+    }
+
+    public function testNumItemsTotal(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(42);
+        $this->assertSame(42, $paginator->getNumItemsTotal());
+    }
+
+    public function testGetFirstItemNum(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(30);
+        $paginator->setMaxItemsPerPage(10);
+
+        $paginator->setPageNum(1);
+        $this->assertSame(1, $paginator->getFirstItemNum());
+
+        $paginator->setPageNum(2);
+        $paginator->setNumItemsTotal(30); // reset cached numPages
+        $this->assertSame(11, $paginator->getFirstItemNum());
+    }
+
+    public function testGetFirstItemNumEmpty(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(0);
+        $paginator->setMaxItemsPerPage(10);
+        $this->assertSame(0, $paginator->getFirstItemNum());
+    }
+
+    public function testGetLastItemNum(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(30);
+        $paginator->setMaxItemsPerPage(10);
+        $paginator->setPageNum(1);
+        $paginator->setNumItemsOnPage(10);
+        $this->assertSame(10, $paginator->getLastItemNum());
+    }
+
+    public function testGetLastItemNumEmpty(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(0);
+        $paginator->setMaxItemsPerPage(10);
+        $paginator->setNumItemsOnPage(0);
+        $this->assertSame(0, $paginator->getLastItemNum());
+    }
+
+    public function testGetFirstPageLinkNumNoMaxPageLinks(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(100);
+        $paginator->setMaxItemsPerPage(10);
+        $paginator->setPageNum(5);
+        $this->assertSame(1, $paginator->getFirstPageLinkNum());
+    }
+
+    public function testGetFirstPageLinkNumWithMaxPageLinks(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(100);
+        $paginator->setMaxItemsPerPage(10);
+        $paginator->setMaxPageLink(5);
+
+        $paginator->setPageNum(1);
+        $paginator->setNumItemsTotal(100);
+        $this->assertSame(1, $paginator->getFirstPageLinkNum());
+
+        $paginator->setPageNum(5);
+        $paginator->setNumItemsTotal(100);
+        $this->assertSame(1, $paginator->getFirstPageLinkNum());
+
+        $paginator->setPageNum(6);
+        $paginator->setNumItemsTotal(100);
+        $this->assertSame(6, $paginator->getFirstPageLinkNum());
+    }
+
+    public function testGetLastPageLinkNumNoMaxPageLinks(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(50);
+        $paginator->setMaxItemsPerPage(10);
+        $paginator->setPageNum(1);
+        $this->assertSame(5, $paginator->getLastPageLinkNum());
+    }
+
+    public function testGetLastPageLinkNumWithMaxPageLinks(): void
+    {
+        $paginator = $this->createPaginator();
+        $paginator->setNumItemsTotal(100);
+        $paginator->setMaxItemsPerPage(10);
+        $paginator->setMaxPageLink(5);
+
+        $paginator->setPageNum(1);
+        $paginator->setNumItemsTotal(100);
+        $this->assertSame(5, $paginator->getLastPageLinkNum());
+
+        $paginator->setPageNum(6);
+        $paginator->setNumItemsTotal(100);
+        $this->assertSame(10, $paginator->getLastPageLinkNum());
+    }
+
+    public function testGetSort(): void
+    {
+        $sort = new Sort('name', Sort::ASCENDING);
+        $paginator = $this->createPaginator($sort);
+        $this->assertSame($sort, $paginator->getSort());
+    }
+
+    public function testGetSortNull(): void
+    {
+        $paginator = $this->createPaginator();
+        $this->assertNull($paginator->getSort());
+    }
+
+    /*
+     * SqlPaginator-specific tests
+     */
+    private function createMockPdo(): PDO
+    {
+        return $this->getMockBuilder(PDO::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare'])
+            ->getMock();
+    }
+
+    public function testSqlPaginatorSetPdo(): void
+    {
+        $pdo1 = $this->createMockPdo();
+        $pdo2 = $this->createMockPdo();
+
+        $paginator = new SqlPaginator($pdo1);
+        $result = $paginator->setPdo($pdo2);
+        $this->assertSame($paginator, $result);
+    }
+
+    public function testSqlPaginatorSetSql(): void
+    {
+        $pdo = $this->createMockPdo();
+        $paginator = new SqlPaginator($pdo);
+        $result = $paginator->setSql('SELECT 1');
+        $this->assertSame($paginator, $result);
+
+        // Setting the same SQL should not clear results
+        $paginator->setSql('SELECT 1');
+    }
+
+    public function testSqlPaginatorSetParams(): void
+    {
+        $pdo = $this->createMockPdo();
+        $paginator = new SqlPaginator($pdo);
+        $result = $paginator->setParams([':id' => 1]);
+        $this->assertSame($paginator, $result);
+    }
+
+    public function testSqlPaginatorSortSqlQuotesValidatedIdentifiers(): void
+    {
+        $pdo = $this->createMockPdo();
+        $sort = new Sort('users.name', Sort::DESCENDING, new Sort('age'));
+        $paginator = new SqlPaginator($pdo, $sort);
+
+        $this->assertSame('ORDER BY `users`.`name` DESC, `age` ASC', $paginator->getSortSql());
+    }
+
+    /**
+     * A paginator reused for a second query reports figures for that second query.
+     */
+    public function testSqlPaginatorReusedAcrossQueries(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->exec('CREATE TABLE first (id INTEGER)');
+        $pdo->exec('CREATE TABLE second (id INTEGER)');
+        for ($i = 1; $i <= 25; $i++) {
+            $pdo->exec("INSERT INTO first (id) VALUES ($i)");
+        }
+        for ($i = 1; $i <= 7; $i++) {
+            $pdo->exec("INSERT INTO second (id) VALUES ($i)");
+        }
+
+        $paginator = new SqlPaginator($pdo);
+        $paginator->setMaxItemsPerPage(10);
+        $paginator->setParams([]);
+
+        $paginator->setSql('SELECT id FROM first');
+        $this->assertCount(10, $paginator->getItems());
+        $this->assertSame(25, $paginator->getNumItemsTotal());
+        $this->assertSame(3, $paginator->getNumPages());
+
+        $paginator->setSql('SELECT id FROM second');
+        $this->assertCount(7, $paginator->getItems());
+        $this->assertSame(7, $paginator->getNumItemsOnPage());
+        $this->assertSame(7, $paginator->getNumItemsTotal());
+        $this->assertSame(1, $paginator->getNumPages());
+    }
+
+    /**
+     * Setting the same page size again does not discard the cached total.
+     */
+    public function testSqlPaginatorUnchangedPageSizeDoesNotRequery(): void
+    {
+        $numPrepared = 0;
+
+        $stmt = $this->getMockBuilder(\PDOStatement::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['execute', 'fetchAll', 'fetchColumn'])
+            ->getMock();
+        $stmt->method('execute')->willReturn(true);
+        $stmt->method('fetchAll')->willReturn([]);
+        $stmt->method('fetchColumn')->willReturn('25');
+
+        $pdo = $this->getMockBuilder(PDO::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare'])
+            ->getMock();
+        $pdo->method('prepare')->willReturnCallback(function () use (&$numPrepared, $stmt) {
+            $numPrepared++;
+            return $stmt;
+        });
+
+        $paginator = new SqlPaginator($pdo);
+        $paginator->setSql('SELECT id FROM first');
+        $paginator->setParams([]);
+        $paginator->setMaxItemsPerPage(10);
+
+        $this->assertSame(3, $paginator->getNumPages());
+        $this->assertSame(1, $numPrepared);
+
+        $paginator->setMaxItemsPerPage(10);
+        $this->assertSame(3, $paginator->getNumPages());
+        $this->assertSame(1, $numPrepared);
+
+        // A genuine change recomputes the page count from the cached total, still without a query.
+        $paginator->setMaxItemsPerPage(5);
+        $this->assertSame(5, $paginator->getNumPages());
+        $this->assertSame(1, $numPrepared);
+    }
+
+    public function testSqlPaginatorGetSqlThrows(): void
+    {
+        $pdo = $this->createMockPdo();
+        $paginator = new SqlPaginator($pdo);
+        $paginator->setParams([]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('SQL not set');
+        $paginator->getItems();
+    }
+
+    public function testSqlPaginatorGetParamsThrows(): void
+    {
+        $pdo = $this->createMockPdo();
+        $stmt = $this->getMockBuilder(\PDOStatement::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $pdo->method('prepare')->willReturn($stmt);
+
+        $paginator = new SqlPaginator($pdo);
+        $paginator->setSql('SELECT 1');
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Params not set');
+        $paginator->getItems();
+    }
+}

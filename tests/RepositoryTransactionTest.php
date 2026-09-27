@@ -1,0 +1,561 @@
+<?php
+
+declare(strict_types=1);
+
+namespace FasterPhp\DataModel;
+
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\TestCase;
+use PDO;
+use PDOException;
+use PDOStatement;
+use FasterPhp\DataModel\TestModel\ReadonlyItem;
+use FasterPhp\DataModel\TestModel\ReadonlyRepository;
+use FasterPhp\DataModel\TestModel\ValidItem;
+use FasterPhp\DataModel\TestModel\ValidRepository;
+use FasterPhp\DataModel\TestModel\ValidSet;
+
+/**
+ * Transaction ownership and Item state across commit and rollback, against in-memory SQLite.
+ */
+class RepositoryTransactionTest extends TestCase
+{
+    private PDO $pdo;
+
+    protected function setUp(): void
+    {
+        $this->pdo = new PDO('sqlite::memory:');
+        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $this->pdo->exec(
+            'CREATE TABLE users (
+                userId INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                age INTEGER,
+                height REAL,
+                handsome TEXT
+            )'
+        );
+    }
+
+    /**
+     * A save with the flag set inside a caller's transaction joins it rather than throwing.
+     */
+    public function testSaveItemInsideCallerTransactionJoinsIt(): void
+    {
+        $repo = new ValidRepository($this->pdo);
+        $this->pdo->beginTransaction();
+
+        $repo->saveItem($this->newUser('Alice'), true);
+
+        $this->assertTrue($this->pdo->inTransaction());
+        $this->pdo->rollBack();
+        $this->assertSame(0, $this->countRows('users'));
+    }
+
+    /**
+     * A Set saved with the flag set inside a caller's transaction joins it rather than throwing.
+     */
+    public function testSaveSetInsideCallerTransactionJoinsIt(): void
+    {
+        $repo = new ValidRepository($this->pdo);
+        $this->pdo->beginTransaction();
+
+        $repo->saveSet($this->newSet([$this->newUser('Alice'), $this->newUser('Bob')]), true);
+
+        $this->assertTrue($this->pdo->inTransaction());
+        $this->pdo->rollBack();
+        $this->assertSame(0, $this->countRows('users'));
+    }
+
+    /**
+     * Joining a caller's transaction never begins or commits one.
+     */
+    #[DataProvider('saveMethodProvider')]
+    public function testJoinedSaveNeitherBeginsNorCommits(string $method): void
+    {
+        $pdo = $this->createTransactionMock(inTransaction: true);
+        $pdo->expects($this->never())->method('beginTransaction');
+        $pdo->expects($this->never())->method('commit');
+        $pdo->expects($this->never())->method('rollBack');
+
+        $this->save(new ValidRepository($pdo), $method, $this->newUser('Alice'), true);
+    }
+
+    /**
+     * A failure inside a caller's transaction is rethrown as-is, with no rollback attempted.
+     */
+    #[DataProvider('saveMethodProvider')]
+    public function testJoinedFailureRethrowsWithoutRollBack(string $method): void
+    {
+        $original = new PDOException('DB error');
+        $stmt = $this->createMock(PDOStatement::class);
+        $stmt->method('execute')->willThrowException($original);
+
+        $pdo = $this->createTransactionMock(inTransaction: true, stmt: $stmt);
+        $pdo->expects($this->never())->method('rollBack');
+
+        try {
+            $this->save(new ValidRepository($pdo), $method, $this->newUser('Alice'), true);
+            $this->fail('Expected the statement failure to propagate');
+        } catch (PDOException $e) {
+            $this->assertSame($original, $e);
+        }
+    }
+
+    /**
+     * A failure inside a caller's transaction leaves that transaction active for its owner.
+     */
+    #[DataProvider('saveMethodProvider')]
+    public function testJoinedFailureLeavesCallerTransactionActive(string $method): void
+    {
+        $this->pdo->exec("INSERT INTO users (name) VALUES ('Alice')");
+        $repo = new ValidRepository($this->pdo);
+        $this->pdo->beginTransaction();
+        $repo->saveItem($this->newUser('Bob'), true);
+
+        try {
+            $this->save($repo, $method, $this->newUser('Alice'), true);
+            $this->fail('Expected the duplicate name to violate the UNIQUE constraint');
+        } catch (PDOException $e) {
+            $this->assertStringContainsString('UNIQUE', $e->getMessage());
+        }
+
+        $this->assertTrue($this->pdo->inTransaction());
+        $this->pdo->commit();
+        $this->assertSame(2, $this->countRows('users'));
+    }
+
+    /**
+     * Saves through two repositories in one caller transaction are durable together.
+     */
+    public function testRepositoriesSharingCallerTransactionCommitTogether(): void
+    {
+        $this->saveThroughTwoRepositoriesInCallerTransaction();
+        $this->pdo->commit();
+
+        $this->assertSame(1, $this->countRows('users'));
+        $this->assertSame(1, $this->countRows('readonly_users'));
+    }
+
+    /**
+     * Saves through two repositories in one caller transaction are undone together.
+     */
+    public function testRepositoriesSharingCallerTransactionRollBackTogether(): void
+    {
+        $this->saveThroughTwoRepositoriesInCallerTransaction();
+        $this->pdo->rollBack();
+
+        $this->assertSame(0, $this->countRows('users'));
+        $this->assertSame(0, $this->countRows('readonly_users'));
+    }
+
+    /**
+     * With no transaction active, the flag begins one and commits it once the save succeeds.
+     */
+    #[DataProvider('saveMethodProvider')]
+    public function testOwnedTransactionBeginsAndCommits(string $method): void
+    {
+        $this->save(new ValidRepository($this->pdo), $method, $this->newUser('Alice'), true);
+
+        $this->assertFalse($this->pdo->inTransaction());
+        $this->assertSame(1, $this->countRows('users'));
+    }
+
+    /**
+     * An owned transaction rolls back on failure and the original exception is rethrown.
+     */
+    #[DataProvider('saveMethodProvider')]
+    public function testOwnedTransactionRollsBackAndRethrows(string $method): void
+    {
+        $this->pdo->exec("INSERT INTO users (name) VALUES ('Alice')");
+        $repo = new ValidRepository($this->pdo);
+
+        try {
+            if ($method === 'saveSet') {
+                $repo->saveSet($this->newSet([$this->newUser('Bob'), $this->newUser('Alice')]), true);
+            } else {
+                $repo->saveItem($this->newUser('Alice'), true);
+            }
+            $this->fail('Expected the duplicate name to violate the UNIQUE constraint');
+        } catch (PDOException $e) {
+            $this->assertStringContainsString('UNIQUE', $e->getMessage());
+        }
+
+        $this->assertFalse($this->pdo->inTransaction());
+        $this->assertSame(1, $this->countRows('users'));
+    }
+
+    /**
+     * Without the flag, a save neither begins, commits nor rolls back a transaction.
+     */
+    #[DataProvider('saveMethodProvider')]
+    public function testUnflaggedSaveLeavesTransactionsAlone(string $method): void
+    {
+        $pdo = $this->createTransactionMock(inTransaction: false);
+        $pdo->expects($this->never())->method('beginTransaction');
+        $pdo->expects($this->never())->method('commit');
+        $pdo->expects($this->never())->method('rollBack');
+
+        $this->save(new ValidRepository($pdo), $method, $this->newUser('Alice'), false);
+    }
+
+    /**
+     * Without the flag, a failing save does not roll back a transaction the caller holds.
+     */
+    public function testUnflaggedFailureLeavesCallerTransactionActive(): void
+    {
+        $this->pdo->exec("INSERT INTO users (name) VALUES ('Alice')");
+        $repo = new ValidRepository($this->pdo);
+        $this->pdo->beginTransaction();
+        $repo->saveItem($this->newUser('Bob'));
+
+        try {
+            $repo->saveItem($this->newUser('Alice'));
+            $this->fail('Expected the duplicate name to violate the UNIQUE constraint');
+        } catch (PDOException) {
+            // Expected.
+        }
+
+        $this->assertTrue($this->pdo->inTransaction());
+        $this->pdo->commit();
+        $this->assertSame(2, $this->countRows('users'));
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function saveMethodProvider(): array
+    {
+        return [
+            'saveItem' => ['saveItem'],
+            'saveSet'  => ['saveSet'],
+        ];
+    }
+
+    /**
+     * A rolled-back Set leaves the Items written before the failure temporary, with no id.
+     */
+    public function testRolledBackSaveSetLeavesEarlierItemsTemporary(): void
+    {
+        $repo = new ValidRepository($this->pdo);
+        $items = [$this->newUser('Alice'), $this->newUser('Bob'), $this->newUser('Alice')];
+        $set = $this->newSet($items);
+
+        try {
+            $repo->saveSet($set, true);
+            $this->fail('Expected the duplicate name to violate the UNIQUE constraint');
+        } catch (PDOException) {
+            // Expected.
+        }
+
+        $this->assertSame(0, $this->countRows('users'));
+        $this->assertTrue($items[0]->isTemp());
+        $this->assertNull($items[0]->getId());
+        $this->assertTrue($items[1]->isTemp());
+        $this->assertNull($items[1]->getId());
+    }
+
+    /**
+     * After an owned commit, new Items carry their generated ids and modified Items are clean.
+     */
+    public function testCommittedSaveSetMarksNewAndModifiedItems(): void
+    {
+        $this->pdo->exec("INSERT INTO users (name, age) VALUES ('Alice', 30)");
+        $repo = new ValidRepository($this->pdo);
+        $existing = $repo->getItemWithId(1);
+        $existing->setAge(31);
+        $new = $this->newUser('Bob');
+
+        $repo->saveSet($this->newSet([$existing, $new]), true);
+
+        $this->assertFalse($existing->isDirty());
+        $this->assertFalse($new->isTemp());
+        $this->assertSame($this->idForName('Bob'), $new->getId());
+        $this->assertSame(31, (int) $this->pdo->query('SELECT age FROM users WHERE userId = 1')->fetchColumn());
+    }
+
+    /**
+     * A rolled-back Set leaves a modified Item dirty, as it was before the save.
+     */
+    public function testRolledBackSaveSetLeavesModifiedItemDirty(): void
+    {
+        $this->pdo->exec("INSERT INTO users (name, age) VALUES ('Alice', 30)");
+        $repo = new ValidRepository($this->pdo);
+        $existing = $repo->getItemWithId(1);
+        $existing->setAge(31);
+
+        $this->saveSetExpectingFailure($repo, $this->newSet([$existing, $this->newUser('Alice')]));
+
+        $this->assertTrue($existing->isDirty());
+        $this->assertSame(30, (int) $this->pdo->query('SELECT age FROM users WHERE userId = 1')->fetchColumn());
+    }
+
+    /**
+     * Retrying a rolled-back Set writes every Item again, including those written before the failure.
+     */
+    public function testRetriedSaveSetWritesEveryItem(): void
+    {
+        $repo = new ValidRepository($this->pdo);
+        $items = [$this->newUser('Alice'), $this->newUser('Bob'), $this->newUser('Alice')];
+        $set = $this->newSet($items);
+        $this->saveSetExpectingFailure($repo, $set);
+
+        $items[2]->setName('Carol');
+        $repo->saveSet($set, true);
+
+        $this->assertSame(3, $this->countRows('users'));
+        foreach ($items as $item) {
+            $this->assertFalse($item->isTemp());
+            $this->assertSame($this->idForName($item->getName()), $item->getId());
+        }
+    }
+
+    /**
+     * Each Item inserted in one owned transaction receives the id generated for its own insert.
+     */
+    public function testEachInsertInOwnedTransactionKeepsItsOwnId(): void
+    {
+        $repo = new ValidRepository($this->pdo);
+        $items = [$this->newUser('Alice'), $this->newUser('Bob'), $this->newUser('Carol')];
+
+        $repo->saveSet($this->newSet($items), true);
+
+        $ids = array_map(fn(ValidItem $item) => $item->getId(), $items);
+        $this->assertSame([1, 2, 3], $ids);
+        foreach ($items as $item) {
+            $this->assertSame($this->idForName($item->getName()), $item->getId());
+        }
+    }
+
+    /**
+     * Inside the caller's transaction a new parent's id is available before commit, flag or not.
+     */
+    #[DataProvider('useTransactionProvider')]
+    public function testParentIdAvailableInsideCallerTransaction(bool $useTransaction): void
+    {
+        $repo = new ValidRepository($this->pdo);
+        $parent = $this->newUser('Alice');
+        $this->pdo->beginTransaction();
+
+        $repo->saveItem($parent, $useTransaction);
+
+        $this->assertTrue($this->pdo->inTransaction());
+        $this->assertFalse($parent->isTemp());
+        $this->assertSame($this->idForName('Alice'), $parent->getId());
+        $this->pdo->commit();
+    }
+
+    /**
+     * Without the flag, a new Item is marked with its generated id as soon as the save returns.
+     */
+    public function testUnflaggedSaveMarksItemImmediately(): void
+    {
+        $item = $this->newUser('Alice');
+
+        (new ValidRepository($this->pdo))->saveItem($item);
+
+        $this->assertFalse($item->isTemp());
+        $this->assertSame($this->idForName('Alice'), $item->getId());
+    }
+
+    /**
+     * A failed owned save leaves nothing queued for a later successful save to mark.
+     */
+    public function testFailedSaveLeavesNothingForLaterFlush(): void
+    {
+        $this->pdo->exec("INSERT INTO users (name) VALUES ('Alice')");
+        $repo = new ValidRepository($this->pdo);
+        $failed = $this->newUser('Bob');
+        $this->saveSetExpectingFailure($repo, $this->newSet([$failed, $this->newUser('Alice')]));
+
+        $repo->saveItem($this->newUser('Carol'), true);
+
+        $this->assertTrue($failed->isTemp());
+        $this->assertNull($failed->getId());
+        $this->assertSame(2, $this->countRows('users'));
+    }
+
+    /**
+     * An owned transaction calls markItemPersisted() only after commit, with each insert's own id.
+     */
+    public function testOwnedTransactionDefersMarkUntilAfterCommit(): void
+    {
+        $log = [];
+        $pdo = $this->createTransactionMock(inTransaction: false, insertIds: ['7', '8']);
+        $pdo->method('commit')->willReturnCallback(function () use (&$log) {
+            $log[] = 'commit';
+            return true;
+        });
+
+        $items = [$this->createLoggingUser('Alice', $log), $this->createLoggingUser('Bob', $log)];
+        (new ValidRepository($pdo))->saveSet($this->newSet($items), true);
+
+        $this->assertSame(['commit', 'mark:7', 'mark:8'], $log);
+    }
+
+    /**
+     * An owned transaction that rolls back calls markItemPersisted() on no Item in the Set.
+     */
+    public function testOwnedTransactionRollbackMakesNoMark(): void
+    {
+        $stmt = $this->createMock(PDOStatement::class);
+        $calls = 0;
+        $stmt->method('execute')->willReturnCallback(function () use (&$calls) {
+            if (++$calls === 2) {
+                throw new PDOException('DB error');
+            }
+            return true;
+        });
+        $pdo = $this->createTransactionMock(inTransaction: false, stmt: $stmt);
+        $pdo->expects($this->once())->method('rollBack')->willReturn(true);
+
+        $log = [];
+        $items = [$this->createLoggingUser('Alice', $log), $this->createLoggingUser('Bob', $log)];
+
+        try {
+            (new ValidRepository($pdo))->saveSet($this->newSet($items), true);
+            $this->fail('Expected the statement failure to propagate');
+        } catch (PDOException) {
+            // Expected.
+        }
+
+        $this->assertSame([], $log);
+    }
+
+    /**
+     * @return array<string, array{bool}>
+     */
+    public static function useTransactionProvider(): array
+    {
+        return [
+            'flag set'     => [true],
+            'flag not set' => [false],
+        ];
+    }
+
+    private function saveSetExpectingFailure(ValidRepository $repo, ValidSet $set): void
+    {
+        try {
+            $repo->saveSet($set, true);
+            $this->fail('Expected the duplicate name to violate the UNIQUE constraint');
+        } catch (PDOException $e) {
+            $this->assertStringContainsString('UNIQUE', $e->getMessage());
+        }
+    }
+
+    private function idForName(string $name): int
+    {
+        $stmt = $this->pdo->prepare('SELECT userId FROM users WHERE name = ?');
+        $stmt->execute([$name]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * Begin a transaction and save one new Item through each of two repositories with the flag set.
+     */
+    private function saveThroughTwoRepositoriesInCallerTransaction(): void
+    {
+        $this->pdo->exec(
+            'CREATE TABLE readonly_users (
+                userId INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                email TEXT,
+                createdAt TEXT,
+                updatedAt TEXT
+            )'
+        );
+
+        $account = new ReadonlyItem();
+        $account->setName('Alice');
+        $account->setEmail('alice@example.com');
+
+        $this->pdo->beginTransaction();
+        (new ValidRepository($this->pdo))->saveItem($this->newUser('Alice'), true);
+        (new ReadonlyRepository($this->pdo))->saveItem($account, true);
+
+        $this->assertTrue($this->pdo->inTransaction());
+    }
+
+    /**
+     * Save one Item through either save method.
+     */
+    private function save(ValidRepository $repo, string $method, ValidItem $item, bool $useTransaction): void
+    {
+        if ($method === 'saveSet') {
+            $repo->saveSet($this->newSet([$item]), $useTransaction);
+        } else {
+            $repo->saveItem($item, $useTransaction);
+        }
+    }
+
+    /**
+     * A partial PDO mock reporting the given transaction state, whose statements succeed unless one is given.
+     *
+     * @param list<string> $insertIds Values lastInsertId() returns on successive calls
+     */
+    private function createTransactionMock(
+        bool $inTransaction,
+        ?PDOStatement $stmt = null,
+        array $insertIds = ['42'],
+    ): PDO&MockObject {
+        if ($stmt === null) {
+            $stmt = $this->createMock(PDOStatement::class);
+            $stmt->method('execute')->willReturn(true);
+        }
+
+        $pdo = $this->getMockBuilder(PDO::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['prepare', 'beginTransaction', 'commit', 'rollBack', 'inTransaction', 'lastInsertId'])
+            ->getMock();
+        $pdo->method('prepare')->willReturn($stmt);
+        $pdo->method('inTransaction')->willReturn($inTransaction);
+        $pdo->method('lastInsertId')->willReturnOnConsecutiveCalls(...$insertIds);
+
+        return $pdo;
+    }
+
+    /**
+     * A new user Item whose markItemPersisted() calls are recorded in $log rather than applied.
+     *
+     * @param list<string> $log
+     */
+    private function createLoggingUser(string $name, array &$log): ValidItem&MockObject
+    {
+        $item = $this->getMockBuilder(ValidItem::class)
+            ->onlyMethods(['markItemPersisted'])
+            ->getMock();
+        $item->method('markItemPersisted')->willReturnCallback(function (mixed $id = null) use (&$log) {
+            $log[] = 'mark:' . $id;
+        });
+        $item->setName($name);
+        return $item;
+    }
+
+    private function newUser(string $name): ValidItem
+    {
+        $item = new ValidItem();
+        $item->setName($name);
+        $item->setAge(30);
+        $item->setHeight(5.9);
+        $item->setHandsome(true);
+        return $item;
+    }
+
+    /**
+     * @param list<ValidItem> $items
+     */
+    private function newSet(array $items): ValidSet
+    {
+        $set = new ValidSet();
+        foreach ($items as $item) {
+            $set->addItem($item);
+        }
+        return $set;
+    }
+
+    private function countRows(string $table): int
+    {
+        return (int) $this->pdo->query('SELECT COUNT(*) FROM ' . $table)->fetchColumn();
+    }
+}

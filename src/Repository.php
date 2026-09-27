@@ -1,436 +1,586 @@
 <?php
-/**
- * Data Model Repository class.
- */
+
 declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
-use PDO;
-use FasterPhp\Db\Db;
 use FasterPhp\DataModel\Paginator\SqlPaginator;
+use FasterPhp\DataModel\Sql\SqlFragment;
+use FasterPhp\DataModel\Sql\SqlQuery;
+use FasterPhp\DataModel\Sql\SqlUtil;
+use PDO;
 
 /**
- * Data Model Repository class.
+ * @template TItem of Item
  */
-abstract class Repository
+abstract class Repository implements RepositoryInterface
 {
-	const EQUALS = 'equals';
-	const NOT_EQUALS = 'not equals';
-	const STARTS = 'starts';
-	const ENDS = 'ends';
-	const CONTAINS = 'contains';
-	const GREATER = 'greater';
-	const GREATER_OR_EQUALS = 'greater or equals';
-	const LESS = 'less';
-	const LESS_OR_EQUALS = 'less or equals';
+    /* -------------------------------
+     * Model metadata – override in subclass
+     * ----------------------------- */
+    protected const DB_NAME    = '';
+    protected const TABLE_NAME = '';
 
-	const OPERATORS = [
-		self::EQUALS => '=',
-		self::NOT_EQUALS => '!=',
-		self::STARTS => 'LIKE',
-		self::ENDS => 'LIKE',
-		self::CONTAINS => 'LIKE',
-		self::GREATER => '>',
-		self::GREATER_OR_EQUALS => '>=',
-		self::LESS => '<',
-		self::LESS_OR_EQUALS => '<=',
-	];
+    /* -------------------------------
+     * Search operators
+     * ----------------------------- */
+    public const EQUALS            = 'equals';
+    public const NOT_EQUALS        = 'not equals';
+    public const STARTS            = SqlUtil::STARTS;
+    public const ENDS              = SqlUtil::ENDS;
+    public const CONTAINS          = SqlUtil::CONTAINS;
+    public const GREATER           = 'greater';
+    public const GREATER_OR_EQUALS = 'greater or equals';
+    public const LESS              = 'less';
+    public const LESS_OR_EQUALS    = 'less or equals';
 
-	protected static string $_dbName;
-	protected static string $_tableName;
+    public const OPERATORS = [
+        self::EQUALS            => '=',
+        self::NOT_EQUALS        => '!=',
+        self::STARTS            => 'LIKE',
+        self::ENDS              => 'LIKE',
+        self::CONTAINS          => 'LIKE',
+        self::GREATER           => '>',
+        self::GREATER_OR_EQUALS => '>=',
+        self::LESS              => '<',
+        self::LESS_OR_EQUALS    => '<=',
+    ];
 
-	protected SqlPaginator $_paginator;
-	protected Db|PDO $_db;
-	protected string $_itemClassName;
-	protected string $_setClassName;
+    /* -------------------------------
+     * Instance state
+     * ----------------------------- */
+    protected PDO $pdo;
+    protected SqlPaginator $paginator;
 
-	public function __construct(SqlPaginator|Sort $paginatorOrSort = null)
-	{
-		if ($paginatorOrSort instanceof SqlPaginator) {
-			$this->_paginator = $paginatorOrSort;
-		} elseif ($paginatorOrSort instanceof Sort) {
-			$this->_paginator = new SqlPaginator($paginatorOrSort);
-		} else {
-			$this->_paginator = new SqlPaginator();
-		}
-		$this->_itemClassName = Util::getItemClassName(get_called_class());
-		$this->_setClassName = Util::getSetClassName(get_called_class());
-	}
+    /** @var class-string<TItem> */
+    protected string $itemClassName;
+    /** @var class-string<Set<TItem>> */
+    protected string $setClassName;
 
-	public function setSort(?Sort $sort): static
-	{
-		$this->_paginator->setSort($sort);
-		return $this;
-	}
+    /**
+     * Items awaiting markItemPersisted() until an owned transaction commits; null when none is owned.
+     *
+     * @var list<array{Item, mixed}>|null
+     */
+    private ?array $pendingPersisted = null;
 
-	public function setMaxItemsPerPage(?int $maxItemsPerPage): static
-	{
-		$this->_paginator->setMaxItemsPerPage($maxItemsPerPage);
-		return $this;
-	}
+    /* -------------------------------
+     * Construction
+     * ----------------------------- */
+    public function __construct(PDO $pdo, SqlPaginator|Sort|null $paginatorOrSort = null)
+    {
+        $this->pdo = $pdo;
+        if ($paginatorOrSort instanceof SqlPaginator) {
+            // A paginator the caller built is used exactly as given, static defaults included.
+            $this->paginator = $paginatorOrSort;
+        } else {
+            // A paginator nobody asked for is unlimited: application-wide defaults must not reach it.
+            $this->paginator = (new SqlPaginator($pdo, $paginatorOrSort))
+                ->setMaxItemsPerPage(null);
+        }
 
-	public function setDb(Db|PDO $db): static
-	{
-		$this->_db = $db;
-		return $this;
-	}
+        $this->itemClassName = ClassNameUtil::getItemClassName(static::class);
+        $this->setClassName  = ClassNameUtil::getSetClassName(static::class);
+    }
 
-	public function getDbName(): string
-	{
-		if (!isset(static::$_dbName)) {
-			throw new Exception('Database name not set');
-		}
-		return static::$_dbName;
-	}
+    /* -------------------------------
+     * Fluent configurators
+     * ----------------------------- */
+    public function setSort(?Sort $sort): static
+    {
+        $this->paginator->setSort($sort);
+        return $this;
+    }
 
-	public function getTableName(): string
-	{
-		if (!isset(static::$_tableName)) {
-			throw new Exception('Table name not set');
-		}
-		return static::$_tableName;
-	}
+    public function setMaxItemsPerPage(?int $max): static
+    {
+        $this->paginator->setMaxItemsPerPage($max);
+        return $this;
+    }
 
-	public function getIdField(): string
-	{
-		if (empty($this->_itemClassName::ID_FIELD)) {
-			throw new Exception('Table ID field not set');
-		}
-		return $this->_itemClassName::ID_FIELD;
-	}
+    /* -------------------------------
+     * Metadata helpers
+     * ----------------------------- */
+    public function getDbName(): string
+    {
+        if (empty(static::DB_NAME)) {
+            throw new Exception('Database name not set');
+        }
+        return static::DB_NAME;
+    }
 
-	public function getItemWithId(mixed $id): ?Item
-	{
-		$set = $this->getSetWithParams([$this->getTableName() . '.' . $this->getIdField() => $id]);
-		if (0 === count($set)) {
-			return null;
-		}
-		return $set[0];
-	}
+    public function getTableName(): string
+    {
+        if (empty(static::TABLE_NAME)) {
+            throw new Exception('Table name not set');
+        }
+        return static::TABLE_NAME;
+    }
 
-	public function getItemWithParams(array $params, array $searchTypes = []): ?Item
-	{
-		$set = $this->getSetWithParams($params, $searchTypes);
-		if (0 === count($set)) {
-			return null;
-		}
-		return $set[0];
-	}
+    public function getIdField(): string
+    {
+        if (empty($this->itemClassName::ID_FIELD)) {
+            throw new Exception('Table ID field not set');
+        }
+        return $this->itemClassName::ID_FIELD;
+    }
 
-	public function getSetOfAll(): Set
-	{
-		return $this->_createSetWithData($this->getDataWithParams([]));
-	}
+    /* -------------------------------
+     * Public retrieval API
+     * ----------------------------- */
+    public function getItemWithId(mixed $id): ?ItemInterface
+    {
+        return $this->getItemWithParams([
+            $this->getTableName() . '.' . $this->getIdField() => $id,
+        ]);
+    }
 
-	public function getSetWithParams(array $params, array $searchTypes = []): Set
-	{
-		return $this->_createSetWithData($this->getDataWithParams($params, $searchTypes));
-	}
+    public function getItemWithParams(array $params, array $types = []): ?ItemInterface
+    {
+        // A paginator of its own keeps the one-row limit off the repository's, which the caller
+        // may be holding for its result figures. It inherits the sort so the row picked is the
+        // first under whatever ordering the repository is using.
+        $data = (new SqlPaginator($this->getPdo(), $this->paginator->getSort()))
+            ->setMaxItemsPerPage(1)
+            ->setQuery($this->buildSelectQuery($params, $types))
+            ->getItems();
 
-	public function getDataWithParams(array $params, array $searchTypes = []): array
-	{
-		$sql = rtrim($this->_getSelectAndFromSql());
-		[$whereSql, $whereParams] = $this->_getWhereSqlAndParams($params, $searchTypes);
-		if (!empty($whereSql)) {
-			$sql .= "\nWHERE " . $whereSql;
-		}
-		$groupBySql = $this->_getGroupBySql();
-		if (!empty($groupBySql)) {
-			$sql .= "\nGROUP BY " . $groupBySql;
-		}
-		[$havingSql, $havingParams] = $this->_getHavingSqlAndParams($params, $searchTypes);
-		if (!empty($havingSql)) {
-			$sql .= "\nHAVING " . $havingSql;
-		}
-		return $this->_getData($sql, array_merge($whereParams, $havingParams));
-	}
+        if (empty($data)) {
+            return null;
+        }
+        return $this->createItem($data[0]);
+    }
 
-	public function saveSet(Set $set): void
-	{
-		if (!$set instanceof $this->_setClassName) {
-			throw new Exception("Cannot save Set of class '" . get_class($set) . "'");
-		}
-		$idsToDelete = [];
-		foreach ($set->getRawData() as $item) {
-			if (!is_object($item)) {
-				continue;
-			} elseif ($item->isToDelete()) {
-				$idsToDelete[] = $item->getId();
-			} elseif ($item->isTemp()) {
-				$this->_insertItem($item);
-			} elseif ($item->isDirty()) {
-				$this->_updateItem($item);
-			}
-		}
+    public function getSetOfAll(): SetInterface
+    {
+        return $this->createSet($this->getDataWithParams([]));
+    }
 
-		if (!empty($idsToDelete)) {
-			$this->_deleteItemIds($idsToDelete);
-		}
-	}
+    public function getSetWithParams(array $params, array $types = []): SetInterface
+    {
+        return $this->createSet($this->getDataWithParams($params, $types));
+    }
 
-	public function saveItem(Item $item): void
-	{
-		if (!$item instanceof $this->_itemClassName) {
-			throw new Exception("Cannot save Item of class '" . get_class($item) . "'");
-		}
-		if ($item->isToDelete()) {
-			$this->_deleteItemIds([$item->getId()]);
-		} elseif ($item->isTemp()) {
-			$this->_insertItem($item);
-		} elseif ($item->isDirty()) {
-			$this->_updateItem($item);
-		}
-	}
+    /* -------------------------------
+     * Item / Set factories (override if needed)
+     * ----------------------------- */
+    protected function createItem(array $data): Item
+    {
+        return new $this->itemClassName($data, isTemp: false);
+    }
 
-	protected function _createItemWithData(array $data): Item
-	{
-		return new $this->_itemClassName($data);
-	}
+    protected function createSet(array $data): Set
+    {
+        return new $this->setClassName($data);
+    }
 
-	protected function _createSetWithData(array $data): Set
-	{
-		return new $this->_setClassName($data);
-	}
+    /**
+     * Persist a Set: insert new, update dirty, delete removed.
+     *
+     * With $useTransaction true, the repository begins a transaction only if none is active on the
+     * connection, and commits or rolls back only a transaction it began. Items are then marked persisted
+     * after the commit; on rollback they keep their pre-save state, so saving them again repeats every
+     * write. If a transaction is already active, the save joins it: nothing is begun, committed or rolled
+     * back, a failure propagates to the transaction's owner, and Items are marked persisted as each
+     * statement succeeds, so a new Item's id is available before the owner commits. A caller rolling back
+     * a transaction of its own must discard or reload the Items saved within it.
+     *
+     * @param SetInterface $set
+     * @param bool $useTransaction Wrap operations in a transaction, or join the one already active
+     */
+    public function saveSet(SetInterface $set, bool $useTransaction = false): void
+    {
+        if (!$set instanceof $this->setClassName) {
+            throw new Exception("Cannot save Set of class '" . get_class($set) . "'");
+        }
 
-	protected function _getFieldList(): string
-	{
-		$tableName = $this->getTableName();
-		$idField = $this->getIdField();
-		$fieldNames = array_keys(array_merge($this->_itemClassName::FIELDS, $this->_itemClassName::FIELDS_READONLY));
+        // Decided once: at commit or rollback time inTransaction() would report our own transaction.
+        $ownsTransaction = $useTransaction && !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+            $this->pendingPersisted = [];
+        }
 
-		$dbFields = array_map(function ($fieldName) use ($tableName, $idField) {
-			if ($fieldName == $this->_itemClassName::ID_INTERNAL) {
-				return '`' . $tableName . '`.`' . $idField . '` AS `' . $this->_itemClassName::ID_INTERNAL . '`';
-			}
-			return '`' . $tableName . '`.`' . $fieldName . '`';
-		}, $fieldNames);
+        try {
+            $idsToDelete = [];
+            foreach ($set->getRawData() as $item) {
+                if (!is_object($item)) {
+                    continue;
+                } elseif ($item->isToDelete()) {
+                    $idsToDelete[] = $item->getId();
+                } elseif ($item->isTemp()) {
+                    $this->insertItem($item);
+                } elseif ($item->isDirty()) {
+                    $this->updateItem($item);
+                }
+            }
+            if (!empty($idsToDelete)) {
+                $this->deleteItemIds($idsToDelete);
+            }
 
-		return implode(', ', $dbFields);
-	}
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($ownsTransaction) {
+                $this->pendingPersisted = null;
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
-	protected function _getSelectAndFromSql(): string
-	{
-		return 'SELECT ' . $this->_getFieldList() . ' FROM `' . $this->getTableName() . '`';
-	}
+        if ($ownsTransaction) {
+            $this->flushPendingPersisted();
+        }
+    }
 
-	protected function _getWhereSqlAndParams(array $params, array $searchTypes = []): array
-	{
-		return $this->_getArgsSqlAndParams(
-			array_diff_key($params, $this->_itemClassName::FIELDS_AGGREGATE),
-			$searchTypes
-		);
-	}
+    /**
+     * Persist a single Item: insert, update, or delete.
+     *
+     * With $useTransaction true, the repository begins a transaction only if none is active on the
+     * connection, and commits or rolls back only a transaction it began. The Item is then marked
+     * persisted after the commit; on rollback it keeps its pre-save state, so saving it again repeats the
+     * write. If a transaction is already active, the save joins it: nothing is begun, committed or rolled
+     * back, a failure propagates to the transaction's owner, and the Item is marked persisted as soon as
+     * its statement succeeds, so a new Item's id is available before the owner commits. A caller rolling
+     * back a transaction of its own must discard or reload the Items saved within it.
+     *
+     * @param ItemInterface $item
+     * @param bool $useTransaction Wrap operation in a transaction, or join the one already active
+     */
+    public function saveItem(ItemInterface $item, bool $useTransaction = false): void
+    {
+        if (!$item instanceof $this->itemClassName) {
+            throw new Exception("Cannot save Item of class '" . get_class($item) . "'");
+        }
 
-	protected function _getGroupBySql(): string
-	{
-		if (!empty($this->_itemClassName::FIELDS_AGGREGATE)) {
-			return '`' . $this->getTableName() . '`.`' . $this->getIdField() . '`';
-		}
-		return '';
-	}
+        // Decided once: at commit or rollback time inTransaction() would report our own transaction.
+        $ownsTransaction = $useTransaction && !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+            $this->pendingPersisted = [];
+        }
 
-	protected function _getHavingSqlAndParams(array $params, array $searchTypes = []): array
-	{
-		return $this->_getArgsSqlAndParams(
-			array_intersect_key($params, $this->_itemClassName::FIELDS_AGGREGATE),
-			$searchTypes
-		);
-	}
+        try {
+            if ($item->isToDelete()) {
+                $this->deleteItemIds([$item->getId()]);
+            } elseif ($item->isTemp()) {
+                $this->insertItem($item);
+            } elseif ($item->isDirty()) {
+                $this->updateItem($item);
+            }
 
-	protected function _getArgsSqlAndParams(array $params, array $searchTypes = []): array
-	{
-		$tableName = $this->getTableName();
-		$argsSql = '';
-		$args = [];
-		foreach ($params as $key => $value) {
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($ownsTransaction) {
+                $this->pendingPersisted = null;
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
 
-			// Set search type and ensure operator defined
-			if (!array_key_exists($key, $searchTypes)) {
-				$searchType = self::EQUALS;
-			} elseif (!array_key_exists($searchTypes[$key], self::OPERATORS)) {
-				throw new Exception("Unsupported search type '{$searchTypes[$key]}'");
-			} else {
-				$searchType = $searchTypes[$key];
-			}
+        if ($ownsTransaction) {
+            $this->flushPendingPersisted();
+        }
+    }
 
-			// Create safe and unambiguous placeholder
-			$placeholder = ':' . preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
+    /* -------------------------------
+     * Field list helper – quoted identifiers
+     * ----------------------------- */
+    protected function getFieldList(): string
+    {
+        $table      = $this->getTableName();
+        $idField    = $this->itemClassName::ID_FIELD;
+        $idInternal = $this->itemClassName::ID_INTERNAL;
 
-			// Create safe version of key name (field name, plus table name where needed)
-			if (false !== strpos($key, '.')) {
-				// If table and field included, escape with backticks
-				$safeKey = '`' . str_replace('.', '`.`', $key) . '`';
-			} elseif (isset($this->_itemClassName::FIELDS[$key])
-				|| isset($this->_itemClassName::FIELDS_READONLY[$key])
-			) {
-				// If field in primary table, include table name to avoid ambiguity
-				$safeKey = '`' . $tableName . '`.`' . $key . '`';
-			} else {
-				$safeKey = '`' . $key . '`';
-			}
+        $fields = array_keys(array_merge(
+            $this->itemClassName::FIELDS,
+            $this->itemClassName::FIELDS_READONLY,
+        ));
 
-			// If value is array of one, just extract value and treat as scalar
-			$hasNullValue = false;
-			if (is_array($value)) {
-				$value = array_unique($value);
-				if (1 === count($value)) {
-					$value = array_pop($value);
-				} elseif (2 === count($value) && in_array(null, $value)) {
-					$hasNullValue = true;
-					$value = array_filter($value, function ($thisValue) {
-						return null !== $thisValue;
-					});
-					$value = array_pop($value);
-				}
-			}
+        // Prepend the id column explicitly — it is no longer in FIELDS
+        $parts = [
+            SqlUtil::ident("$table.$idField") . ' AS ' . SqlUtil::ident($idInternal),
+        ];
+        foreach ($fields as $field) {
+            $parts[] = SqlUtil::ident("$table.$field");
+        }
+        return implode(', ', $parts);
+    }
 
-			// Convert array of values to IN statement
-			if ($searchType == self::EQUALS && is_array($value)) {
-				$nonNullValues = [];
-				foreach ($value as $thisValue) {
-					if (null === $thisValue) {
-						$hasNullValue = true;
-					} else {
-						$nonNullValues[] = $thisValue;
-					}
-				}
-				$quotedValues = implode(', ', array_map([$this->_getDb(), 'quote'], $nonNullValues));
-				$argsSql .= ' AND (' . $safeKey . ' IN (' . $quotedValues . ')';
-				if ($hasNullValue) {
-					$argsSql .= ' OR ' . $safeKey . ' IS NULL';
-				}
-				$argsSql .= ')';
+    /* -------------------------------
+     * SQL clause getters – override piecemeal for joins/aliases
+     * ----------------------------- */
+    protected function getSelectClause(): string
+    {
+        return $this->getFieldList();
+    }
 
-			// Deal with null values
-			} elseif ($searchType == self::EQUALS && is_null($value)) {
-				$argsSql .= ' AND ' . $safeKey . ' IS NULL';
+    protected function getFromClause(): string
+    {
+        return SqlUtil::ident($this->getTableName());
+    }
 
-			// Scalar values with/without wildcards
-			} else {
-				$thisArgSql = $safeKey . ' ' . self::OPERATORS[$searchType] . ' ' . $placeholder;
-				switch ($searchType) {
-					case self::STARTS:
-						$value = $value . '%';
-						break;
+    protected function getGroupByClause(): string
+    {
+        return $this->itemClassName::FIELDS_AGGREGATE !== []
+            ? SqlUtil::ident($this->getTableName() . '.' . $this->getIdField())
+            : '';
+    }
 
-					case self::ENDS:
-						$value = '%' . $value;
-						break;
+    /* -------------------------------
+     * Core data retrieval pipeline
+     * ----------------------------- */
+    protected function getDataWithParams(array $params, array $types = []): array
+    {
+        return $this->fetchData($this->buildSelectQuery($params, $types));
+    }
 
-					case self::CONTAINS;
-						$value = '%' . $value . '%';
-						break;
+    /**
+     * Build the query for a set of filters.
+     *
+     * This is the coarse extension point: a subclass may override it to return a wholly
+     * hand-written query, which is executed as given and still receives the repository's sorting,
+     * pagination and Item construction. The default composes the clause hooks below, so a subclass
+     * that overrides only one of those keeps working unchanged.
+     *
+     * @param array<string, mixed>  $params Filters to apply.
+     * @param array<string, string> $types  Search type per filter key.
+     *
+     * @return SqlQuery
+     */
+    protected function buildSelectQuery(array $params, array $types = []): SqlQuery
+    {
+        [$whereSql,  $whereParams]  = $this->getWhereSqlAndParams($params, $types);
+        [$havingSql, $havingParams] = $this->getHavingSqlAndParams($params, $types);
+        $groupBy = $this->getGroupByClause();
 
-					default;
-						break;
-				}
-				if ($hasNullValue) {
-					$argsSql .= ' AND (' . $thisArgSql . ' OR ' . $safeKey . ' IS NULL)';
-				} else {
-					$argsSql .= ' AND ' . $thisArgSql;
-				}
+        return new SqlQuery(
+            new SqlFragment($this->getSelectClause()),
+            new SqlFragment($this->getFromClause()),
+            $whereSql !== '' ? new SqlFragment($whereSql, $whereParams) : null,
+            $groupBy !== '' ? new SqlFragment($groupBy) : null,
+            $havingSql !== '' ? new SqlFragment($havingSql, $havingParams) : null,
+        );
+    }
 
-				$args[$placeholder] = $value;
-			}
-		}
-		return [substr($argsSql, 5), $args];
-	}
+    /* -------------------------------
+     * WHERE / HAVING helpers
+     * ----------------------------- */
+    protected function getWhereSqlAndParams(array $params, array $types = []): array
+    {
+        return $this->getArgsSqlAndParams(
+            array_diff_key($params, $this->itemClassName::FIELDS_AGGREGATE),
+            $types
+        );
+    }
 
-	protected function _getData(string $sql, array $params = []): array
-	{
-		return $this->_paginator
-			->setDb($this->_getDb())
-			->setSql($sql)
-			->setParams($params)
-			->getItems()
-		;
-	}
+    protected function getHavingSqlAndParams(array $params, array $types = []): array
+    {
+        return $this->getArgsSqlAndParams(
+            array_intersect_key($params, $this->itemClassName::FIELDS_AGGREGATE),
+            $types
+        );
+    }
 
-	protected function _insertItem(Item $item): void
-	{
-		$sqlValues = $item->getSqlValues(false);
+    protected function getArgsSqlAndParams(array $filters, array $types = []): array
+    {
+        $fragments = [];
+        $params    = [];
+        foreach ($filters as $key => $value) {
+            $searchType = $types[$key] ?? self::EQUALS;
+            [$sql, $chunk] = $this->getComparison($key, $searchType, $value);
+            $fragments[] = $sql;
+            foreach ($chunk as $placeholder => $bound) {
+                // Placeholders are injective in the filter key, so a clash within one clause means
+                // a binding would be silently discarded. This is an assertion, not expected.
+                if (array_key_exists($placeholder, $params)) {
+                    throw new Exception("Duplicate bound parameter '$placeholder'");
+                }
+                $params[$placeholder] = $bound;
+            }
+        }
+        return [implode(' AND ', $fragments), $params];
+    }
 
-		$placeholders = [];
-		$params = [];
-		foreach ($sqlValues as $fieldName => $sqlValue) {
-			if ($fieldName == $this->_itemClassName::ID_INTERNAL) {
-				if (is_null($sqlValue)) {
-					continue;
-				}
-				$fieldName = $this->_itemClassName::ID_FIELD;
-			}
-			$placeholders[] = '`' . $fieldName . '` = :' . $fieldName;
-			$params[':' . $fieldName] = $sqlValue;
-		}
+    protected function getComparison(string $key, string $type, mixed $value): array
+    {
+        if (!isset(self::OPERATORS[$type])) {
+            throw new Exception("Unsupported search type '{$type}'");
+        }
+        // Qualify column with table only if it belongs to the base table
+        if (str_contains($key, '.')) {
+            $identifier = $key;
+        } elseif (
+            isset($this->itemClassName::FIELDS[$key])
+            || isset($this->itemClassName::FIELDS_READONLY[$key])
+        ) {
+            $identifier = $this->getTableName() . '.' . $key;
+        } else {
+            $identifier = $key;
+        }
+        $safeKey     = SqlUtil::ident($identifier);
+        $placeholder = SqlUtil::placeholder($key);
+        $params      = [];
 
-		$sql = 'INSERT INTO `' . $this->getTableName() . '`'
-			. ' SET '. implode(', ', $placeholders);
+        $hasNull = false;
+        $nonNull = [];
+        if (is_array($value)) {
+            $value   = array_unique($value);
+            $hasNull = in_array(null, $value, true);
+            $nonNull = array_values(array_filter($value, static fn($v) => $v !== null));
+            if (count($value) === 1) {
+                $value = $value[0];
+            } elseif (count($value) === 2 && $hasNull) {
+                $value = $nonNull[0] ?? null;
+            }
+        }
 
-//		echo "<pre>";
-//		echo "$sql\n";
-//		echo "\$params: " . var_export($params, true);
-//		exit;
+        // Array → IN (...) with params
+        if ($type === self::EQUALS && is_array($value)) {
+            if ($nonNull !== []) {
+                [$frag, $inParams] = SqlUtil::expandIn($safeKey, $nonNull, trim($placeholder, ':') . '_');
+                $sql = "($frag" . ($hasNull ? " OR $safeKey IS NULL)" : ')');
+                return [$sql, $inParams];
+            }
+            if ($hasNull) {
+                return ["$safeKey IS NULL", []];
+            }
+            // Empty array matches no rows, using the same fragment as an empty IN (...)
+            return SqlUtil::expandIn($safeKey, []);
+        }
 
-		$db = $this->_getDb();
-		$stmt = $db->prepare($sql);
-		$stmt->execute($params);
+        // Null scalar: compared using SQL null semantics, never bound as a parameter
+        if ($value === null) {
+            if ($type === self::EQUALS) {
+                return ["$safeKey IS NULL", []];
+            }
+            if ($type === self::NOT_EQUALS) {
+                return ["$safeKey IS NOT NULL", []];
+            }
+        }
 
-		if (empty($item->getId())) {
-			//$newId = $db->lastInsertId();
-			$idStmt = $db->query("SELECT MAX(`{$this->getIdField()}`) FROM `{$this->getTableName()}`");
-			if ($idStmt) {
-				$newId = $idStmt->fetchColumn();
-				if (!empty($newId)) {
-					$item->setId($newId);
-				}
-			}
-		}
-		$item->clearOriginalValues();
-	}
+        // Scalar / LIKE
+        $op   = self::OPERATORS[$type];
+        $val  = is_null($value) ? null : SqlUtil::likeWildcards((string)$value, $type);
+        $sql  = "$safeKey $op $placeholder";
+        if ($hasNull) {
+            $sql = "($sql OR $safeKey IS NULL)";
+        }
+        $params[$placeholder] = $val;
 
-	protected function _updateItem(Item $item): void
-	{
-		$sqlValues = $item->getChangedSqlValues();
+        return [$sql, $params];
+    }
 
-		$placeholders = [];
-		$params = [':id' => $item->getId()];
-		foreach ($sqlValues as $fieldName => $sqlValue) {
-			$placeholders[] = '`' . $fieldName . '` = :' . $fieldName;
-			$params[':' . $fieldName] = $sqlValue;
-		}
+    /* -------------------------------
+     * Core fetch via paginator
+     * ----------------------------- */
+    protected function fetchData(SqlQuery $query): array
+    {
+        return $this->paginator
+            ->setQuery($query)
+            ->getItems();
+    }
 
-		$sql = 'UPDATE `' . $this->getTableName(). '`'
-			. ' SET '. implode(', ', $placeholders)
-			. ' WHERE `' . $this->getIdField() . '` = :id';
-		$stmt = $this->_getDb()->prepare($sql);
-		$stmt->execute($params);
+    /* -------------------------------
+     * Persistence helpers
+     * ----------------------------- */
+    protected function insertItem(Item $item): void
+    {
+        $sqlValues = $item->getSqlValues(false);
 
-		$item->clearOriginalValues();
-	}
+        // Build portable INSERT INTO (cols) VALUES (...) syntax
+        $columns = array_keys($sqlValues);
+        $idents  = array_map([SqlUtil::class, 'ident'], $columns);
+        $placeholders = array_map(fn($name) => ':' . $name, $columns);
 
-	protected function _deleteItemIds(array $itemIds): void
-	{
-		$db = $this->_getDb();
-		$quotedIds = implode(', ', array_map([$db, 'quote'], $itemIds));
-		$sql = 'DELETE FROM `' . $this->getTableName() . '`'
-			. ' WHERE `' . $this->getIdField() . '`'
-			. ' IN (' . $quotedIds . ')';
-		$db->exec($sql);
-	}
+        $sql = 'INSERT INTO ' . SqlUtil::ident($this->getTableName())
+             . ' (' . implode(', ', $idents) . ')'
+             . ' VALUES (' . implode(', ', $placeholders) . ')';
 
-	protected function _getDb(): Db|PDO
-	{
-		if (!isset($this->_db) && class_exists('\FasterPhp\Db\Db')) {
-			return Db::newDb($this->getDbName());
-		}
+        $params = [];
+        foreach ($sqlValues as $name => $value) {
+            $params[':' . $name] = $value;
+        }
 
-		if (!isset($this->_db)) {
-			$dbName = $this->getDbName();
-			$config = \FasterPhp\CoreApp\App::getInstance()->getConfig()->db->databases->$dbName;
-			$this->_db = new \PDO($config->dsn, $config->username, $config->password);
-		}
+        $stmt = $this->getPdo()->prepare($sql);
+        $stmt->execute($params);
+        if (empty($item->getId())) {
+            $newId = $this->getPdo()->lastInsertId();
+            if (empty($newId)) {
+                throw new Exception('Insert succeeded but lastInsertId() returned no value');
+            }
+            $this->markPersisted($item, $newId);
+        } else {
+            $this->markPersisted($item);
+        }
+    }
 
-		return $this->_db;
-	}
+    protected function updateItem(Item $item): void
+    {
+        $sqlValues = $item->getChangedSqlValues();
+        [$pairs, $params] = $this->buildSetList($sqlValues, '');
+        $params[':id'] = $item->getId();
+        $sql = 'UPDATE ' . SqlUtil::ident($this->getTableName())
+             . ' SET ' . implode(', ', $pairs)
+             . ' WHERE ' . SqlUtil::ident($this->getIdField()) . ' = :id';
+        $stmt = $this->getPdo()->prepare($sql);
+        $stmt->execute($params);
+        $this->markPersisted($item);
+    }
+
+    protected function deleteItemIds(array $ids): void
+    {
+        [$inSql, $inParams] = SqlUtil::expandIn(
+            SqlUtil::ident($this->getIdField()),
+            $ids,
+            'del_'
+        );
+        $sql = 'DELETE FROM ' . SqlUtil::ident($this->getTableName())
+             . ' WHERE ' . $inSql;
+        $stmt = $this->getPdo()->prepare($sql);
+        $stmt->execute($inParams);
+    }
+
+    protected function buildSetList(array $fieldSqlValues, string $prefix = ''): array
+    {
+        $pairs  = [];
+        $params = [];
+        foreach ($fieldSqlValues as $name => $value) {
+            $ph = ':' . $prefix . $name;
+            $pairs[]     = SqlUtil::ident($name) . ' = ' . $ph;
+            $params[$ph] = $value;
+        }
+        return [$pairs, $params];
+    }
+
+    /**
+     * Mark an Item persisted now, or once the owned transaction commits if one is in progress.
+     *
+     * @param mixed $id Generated id, captured straight after the INSERT since later inserts overwrite it
+     */
+    private function markPersisted(Item $item, mixed $id = null): void
+    {
+        if ($this->pendingPersisted === null) {
+            $item->markItemPersisted($id);
+        } else {
+            $this->pendingPersisted[] = [$item, $id];
+        }
+    }
+
+    private function flushPendingPersisted(): void
+    {
+        $pending = $this->pendingPersisted ?? [];
+        $this->pendingPersisted = null;
+        foreach ($pending as [$item, $id]) {
+            $item->markItemPersisted($id);
+        }
+    }
+
+    protected function getPdo(): PDO
+    {
+        return $this->pdo;
+    }
 }

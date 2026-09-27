@@ -1,14 +1,17 @@
 <?php
+
 /**
  * SQL Paginator class.
  */
+
 declare(strict_types=1);
 
 namespace FasterPhp\DataModel\Paginator;
 
 use FasterPhp\DataModel\Exception;
 use FasterPhp\DataModel\Sort;
-use FasterPhp\Db\Db;
+use FasterPhp\DataModel\Sql\SqlQuery;
+use FasterPhp\DataModel\Sql\SqlUtil;
 use PDO;
 
 /**
@@ -16,171 +19,201 @@ use PDO;
  */
 class SqlPaginator extends Base
 {
-	protected Db|PDO $_db;
-	protected string $_sql;
-	protected array $_params;
-	protected array $_sortFields = [];
+    protected PDO $pdo;
+    protected string $sql;
+    protected array $params;
+    protected array $sortFields = [];
 
-	public function setDb(Db|PDO $db): static
-	{
-		if (isset($this->_db) && $db !== $this->_db) {
-			$this->_clearResults();
-		}
-		$this->_db = $db;
-		return $this;
-	}
+    public function __construct(PDO $pdo, ?Sort $sort = null)
+    {
+        $this->pdo = $pdo;
+        parent::__construct($sort);
+    }
 
-	public function setSql(string $sql): static
-	{
-		if (isset($this->_sql) && $sql != $this->_sql) {
-			$this->_clearResults();
-		}
-		$this->_sql = $sql;
-		return $this;
-	}
+    public function setPdo(PDO $pdo): static
+    {
+        if (isset($this->pdo) && $pdo !== $this->pdo) {
+            $this->clearResults();
+        }
+        $this->pdo = $pdo;
+        return $this;
+    }
 
-	public function setParams(array $params): static
-	{
-		if (isset($this->_params) && $params != $this->_params) {
-			$this->_clearResults();
-		}
-		$this->_params = $params;
-		return $this;
-	}
+    public function setSql(string $sql): static
+    {
+        if (isset($this->sql) && $sql != $this->sql) {
+            $this->clearResults();
+        }
+        $this->sql = $sql;
+        return $this;
+    }
 
-	public function setSort(?Sort $sort): static
-	{
-		parent::setSort($sort);
+    public function setParams(array $params): static
+    {
+        if (isset($this->params) && $params != $this->params) {
+            $this->clearResults();
+        }
+        $this->params = $params;
+        return $this;
+    }
 
-		$this->_sortFields = [];
-		if (!is_null($sort)) {
-			$this->addSort($sort);
-		}
+    /**
+     * Supply the whole query to execute, SQL and parameters together.
+     *
+     * Taking one value rather than a setSql() then setParams() sequence leaves no intermediate
+     * state in which the two disagree, and lets the cache-invalidation decision be made once
+     * against a coherent input.
+     *
+     * @param SqlQuery $query The query to execute.
+     *
+     * @return static
+     */
+    public function setQuery(SqlQuery $query): static
+    {
+        $rendered = $query->render();
+        $sql      = $rendered->getSql();
+        $params   = $rendered->getParams();
 
-		return $this;
-	}
+        // One invalidation decision, made against the whole query before either half is stored.
+        $changed = (isset($this->sql) && $sql !== $this->sql)
+            || (isset($this->params) && $params != $this->params);
 
-	public function addSort(Sort $sort): void
-	{
-		$direction = $sort->getSortDirection() === Sort::DESCENDING ? 'DESC' : 'ASC';
-		$this->_sortFields[$sort->getSortField()] = $direction;
+        $this->sql    = $sql;
+        $this->params = $params;
 
-		// If sort contains secondary sort, recurse
-		$secondarySort = $sort->getSecondarySort();
-		if (!empty($secondarySort)) {
-			$this->addSort($secondarySort);
-		}
+        if ($changed) {
+            $this->clearResults();
+        }
 
-		$this->_clearResults();
-	}
+        return $this;
+    }
 
-	public function getItems(int $mode = PDO::FETCH_ASSOC): array
-	{
-		if (!isset($this->_items)) {
-//			echo "<pre>";
-//			echo "\nSQL: " . $this->getPaginatedSql() . "\n";
-//			echo "\$params: " . print_r($this->_getParams(), true) . "\n";
-//			echo "</pre>\n";
-//			exit;
+    public function setSort(?Sort $sort): static
+    {
+        parent::setSort($sort);
 
-			$stmt = $this->_getDb()->prepare($this->getPaginatedSql());
-			$stmt->execute($this->_getParams());
+        $this->sortFields = [];
+        if (!is_null($sort)) {
+            $this->addSort($sort);
+        }
 
-			$this->_items = $stmt->fetchAll($mode) ?? [];
-		}
-		return $this->_items;
-	}
+        return $this;
+    }
 
-	public function getNumItemsTotal(): int
-	{
-		if (!isset($this->_numItemsTotal)) {
-			$stmt = $this->_getDb()->prepare("SELECT COUNT(*) FROM ({$this->_getSql()}) AS numItemsTotal");
-			$stmt->execute($this->_getParams());
-			$this->setNumItemsTotal((int) $stmt->fetchColumn());
-		}
-		return $this->_numItemsTotal;
-	}
+    public function addSort(Sort $sort): void
+    {
+        $direction = $sort->getSortDirection() === Sort::DESCENDING ? 'DESC' : 'ASC';
+        $this->sortFields[$sort->getSortField()] = $direction;
 
-	public function getPaginatedSql(): string
-	{
-		$sql = $this->_getSql();
+        // If sort contains secondary sort, recurse
+        $secondarySort = $sort->getSecondarySort();
+        if (!empty($secondarySort)) {
+            $this->addSort($secondarySort);
+        }
 
-		$sortSql = $this->getSortSql();
-		if (!empty($sortSql)) {
-			$sql .= ' ' . $sortSql;
-		}
+        $this->clearResults();
+    }
 
-		$limitSql = $this->getLimitSql();
-		if (!empty($limitSql)) {
-			$sql .= ' ' . $limitSql;
-		}
+    public function getItems(int $mode = PDO::FETCH_ASSOC): array
+    {
+        if (!isset($this->items)) {
+//            echo "\nSQL: " . $this->getPaginatedSql() . "\n";
+//            echo "\$params: " . print_r($this->getParams(), true) . "\n";
 
-		return $sql;
-	}
+            $stmt = $this->getPdo()->prepare($this->getPaginatedSql());
+            $stmt->execute($this->getParams());
 
-	/**
-	 * Get ORDER BY clause SQL.
-	 *
-	 * @return string
-	 */
-	public function getSortSql(): string
-	{
-		$sort = '';
-		if (!empty($this->_sortFields)) {
-			foreach ($this->_sortFields as $field => $direction) {
-				$sort .= ', `' . str_replace('.', '`.`', $field) . '` ' . $direction;
-			}
-			$sort = 'ORDER BY ' . substr($sort, 2);
-		}
-		return $sort;
-	}
+            $this->items = $stmt->fetchAll($mode) ?? [];
+        }
+        return $this->items;
+    }
 
-	/**
-	 * Get LIMIT clause SQL.
-	 *
-	 * @return string
-	 */
-	public function getLimitSql(): string
-	{
-		$sql = '';
-		$maxItemsPerPage = $this->getMaxItemsPerPage();
-		if (!is_null($maxItemsPerPage)) {
-			$sql .= 'LIMIT ' . $maxItemsPerPage;
-			if ($this->_pageNum > 1) {
-				$sql .= ' OFFSET ' . (($this->_pageNum - 1) * $maxItemsPerPage);
-			}
-		}
-		return $sql;
-	}
+    public function getNumItemsTotal(): int
+    {
+        if (!isset($this->numItemsTotal)) {
+            $stmt = $this->getPdo()->prepare("SELECT COUNT(*) FROM ({$this->getSql()}) AS numItemsTotal");
+            $stmt->execute($this->getParams());
+            $this->setNumItemsTotal((int) $stmt->fetchColumn());
+        }
+        return $this->numItemsTotal;
+    }
 
-	protected function _getDb(): Db|PDO
-	{
-		if (!isset($this->_db)) {
-			throw new Exception('Db not set');
-		}
-		return $this->_db;
-	}
+    public function getPaginatedSql(): string
+    {
+        $sql = $this->getSql();
 
-	protected function _getSql(): string
-	{
-		if (empty($this->_sql)) {
-			throw new Exception('SQL not set');
-		}
-		return $this->_sql;
-	}
+        $sortSql = $this->getSortSql();
+        if (!empty($sortSql)) {
+            $sql .= ' ' . $sortSql;
+        }
 
-	protected function _getParams(): array
-	{
-		if (!isset($this->_params)) {
-			throw new Exception('Params not set');
-		}
-		return $this->_params;
-	}
+        $limitSql = $this->getLimitSql();
+        if (!empty($limitSql)) {
+            $sql .= ' ' . $limitSql;
+        }
 
-	protected function _clearResults()
-	{
-		unset($this->_items);
-		unset($this->_numItemsOnPage);
-		unset($this->_numItemsTotal);
-	}
+        return $sql;
+    }
+
+    /**
+     * Get ORDER BY clause SQL.
+     *
+     * @return string
+     */
+    public function getSortSql(): string
+    {
+        $sort = '';
+        if (!empty($this->sortFields)) {
+            foreach ($this->sortFields as $field => $direction) {
+                $sort .= ', ' . SqlUtil::ident($field) . ' ' . $direction;
+            }
+            $sort = 'ORDER BY ' . substr($sort, 2);
+        }
+        return $sort;
+    }
+
+    /**
+     * Get LIMIT clause SQL.
+     *
+     * @return string
+     */
+    public function getLimitSql(): string
+    {
+        $sql = '';
+        $maxItemsPerPage = $this->getMaxItemsPerPage();
+        if (!is_null($maxItemsPerPage)) {
+            $sql .= 'LIMIT ' . $maxItemsPerPage;
+            if ($this->pageNum > 1) {
+                $sql .= ' OFFSET ' . (($this->pageNum - 1) * $maxItemsPerPage);
+            }
+        }
+        return $sql;
+    }
+
+    protected function getPdo(): PDO
+    {
+        return $this->pdo;
+    }
+
+    protected function getSql(): string
+    {
+        if (empty($this->sql)) {
+            throw new Exception('SQL not set');
+        }
+        return $this->sql;
+    }
+
+    protected function getParams(): array
+    {
+        if (!isset($this->params)) {
+            throw new Exception('Params not set');
+        }
+        return $this->params;
+    }
+
+    protected function clearResults()
+    {
+        unset($this->numItemsTotal);
+        $this->invalidateDerivedValues();
+    }
 }

@@ -1,272 +1,272 @@
 <?php
+
 /**
  * Data Model Item class.
  */
+
 declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
 use BadMethodCallException;
-use Laminas\Validator;
-use Serializable;
-use Stringable;
-use FasterPhp\DataModel\Field;
 
 /**
  * Data Model Item class.
  */
-abstract class Item implements Serializable, Stringable
+abstract class Item implements ItemInterface
 {
-	public const ID_FIELD = '';
-	public const ID_INTERNAL = 'id';
+    public const ID_FIELD = '';
+    public const ID_INTERNAL = 'id';
+    public const ID_TYPE = Field\Integer::class;
+    public const FIELDS = [];
+    /**
+     * Write-once fields: settable on a new (temp) Item, immutable once the Item has been persisted.
+     *
+     * Enforced by Item::setValue(), not by the Field.
+     */
+    public const FIELDS_READONLY = [];
+    public const FIELDS_EXTERNAL = [];
+    public const FIELDS_AGGREGATE = [];
+    public const DEFAULTS = [];
 
-	public const FIELDS = [];
-	public const FIELDS_READONLY = [];
-	public const FIELDS_EXTERNAL = [];
-	public const FIELDS_AGGREGATE = [];
+    private const ITEM_STATE_TEMP = 'temp';
+    private const ITEM_STATE_CURRENT = 'current';
+    private const ITEM_STATE_MODIFIED = 'modified';
 
-	public const DEFAULTS = [];
-	public const VALIDATORS = [];
+    protected array $data;
+    protected array $originalValues = [];
+    protected bool $toDelete = false;
+    private string $itemState;
 
-	protected array $_data;
-	protected array $_originalValues = [];
-	protected bool $_toDelete = false;
-	protected bool $_isValid;
-	protected array $_validationErrors;
+    public function __construct(array $data = [], bool $isTemp = true)
+    {
+        if ($isTemp && !empty($data[static::ID_INTERNAL])) {
+            throw new Exception("Cannot construct a temporary item with an id value");
+        }
+        $this->data = $data;
+        $this->itemState = $isTemp ? self::ITEM_STATE_TEMP : self::ITEM_STATE_CURRENT;
+    }
 
-	public function __construct(array $data = [])
-	{
-		$this->_data = $data;
-	}
+    public function getRawData(): array
+    {
+        return $this->data;
+    }
 
-	public function getRawData(): array
-	{
-		return $this->_data;
-	}
+    public function getValues(): array
+    {
+        $values = [];
+        foreach (array_keys(static::FIELDS) as $fieldName) {
+            $values[$fieldName] = $this->getField($fieldName)->getValue();
+        }
+        return $values;
+    }
 
-	public function getValues(): array
-	{
-		$values = [];
-		foreach (array_keys(static::FIELDS) as $fieldName) {
-			$values[$fieldName] = $this->_getField($fieldName)->getValue();
-		}
-		return $values;
-	}
+    public function getSqlValues($includeNull = true): array
+    {
+        $values = [];
+        foreach (array_merge(array_keys(static::FIELDS), array_keys(static::FIELDS_READONLY)) as $fieldName) {
+            $sqlValue = $this->getField($fieldName)->getSqlValue();
+            if (true === $includeNull || null !== $sqlValue) {
+                $values[$fieldName] = $sqlValue;
+            }
+        }
+        return $values;
+    }
 
-	public function getSqlValues($includeNull = true): array
-	{
-		$values = [];
-		foreach (array_merge(array_keys(static::FIELDS), array_keys(static::FIELDS_READONLY)) as $fieldName) {
-			$sqlValue = $this->_getField($fieldName)->getSqlValue();
-			if (true === $includeNull || null !== $sqlValue) {
-				$values[$fieldName] = $sqlValue;
-			}
-		}
-		return $values;
-	}
+    public function isTemp(): bool
+    {
+        return $this->itemState === self::ITEM_STATE_TEMP;
+    }
 
-	public function isTemp(): bool
-	{
-		if (empty($this->_data[static::ID_INTERNAL])) {
-			return true;
-		} elseif (array_key_exists(static::ID_INTERNAL, $this->_originalValues)
-			&& is_null($this->_originalValues[static::ID_INTERNAL])
-		) {
-			return true;
-		}
-		return false;
-	}
+    public function isDirty(): bool
+    {
+        return $this->itemState === self::ITEM_STATE_MODIFIED;
+    }
 
-	public function isDirty(): bool
-	{
-		return !empty($this->_originalValues);
-	}
+    public function setToDelete(bool $toDelete = true): static
+    {
+        $this->toDelete = $toDelete;
+        return $this;
+    }
 
-	public function setToDelete(bool $toDelete = true): static
-	{
-		$this->_toDelete = $toDelete;
-		return $this;
-	}
+    public function isToDelete(): bool
+    {
+        return $this->toDelete;
+    }
 
-	public function isToDelete(): bool
-	{
-		return $this->_toDelete;
-	}
+    public function getChangedSqlValues(): array
+    {
+        $sqlValues = [];
+        foreach (array_keys($this->originalValues) as $fieldName) {
+            $sqlValues[$fieldName] = $this->getField($fieldName)->getSqlValue();
+        }
+        return $sqlValues;
+    }
 
-	public function getChangedSqlValues(): array
-	{
-		$sqlValues = [];
-		foreach (array_keys($this->_originalValues) as $fieldName) {
-			$sqlValues[$fieldName] = $this->_getField($fieldName)->getSqlValue();
-		}
-		return $sqlValues;
-	}
+    public function hasFieldChanged(string $fieldName): bool
+    {
+        return isset($this->originalValues[$fieldName]);
+    }
 
-	public function hasFieldChanged(string $fieldName): bool
-	{
-		return isset($this->_originalValues[$fieldName]);
-	}
+    public function markItemPersisted(mixed $id = null): void
+    {
+        if ($id !== null) {
+            if ($this->itemState !== self::ITEM_STATE_TEMP) {
+                throw new Exception("Cannot set id on a non-temporary item");
+            }
+            $this->getField(static::ID_INTERNAL)->setValue($id);
+        }
+        $this->originalValues = [];
+        $this->itemState = self::ITEM_STATE_CURRENT;
+    }
 
-	public function clearOriginalValues(): static
-	{
-		$this->_originalValues = [];
-		return $this;
-	}
+    #[\Override]
+    public function jsonSerialize(): mixed
+    {
+        return [static::ID_INTERNAL => $this->getId()] + $this->getValues();
+    }
 
-	public function isValid(): bool
-	{
-		if (!isset($this->_isValid)) {
-			$this->validate();
-		}
-		return $this->_isValid;
-	}
+    public function __serialize(): array
+    {
+        return [
+            'values' => [static::ID_INTERNAL => $this->getId()] + $this->getValues(),
+            'originalValues' => $this->originalValues,
+            'toDelete' => $this->toDelete,
+        ];
+    }
 
-	public function validate(): void
-	{
-		$this->_isValid = true;
-		$this->_validationErrors = [];
-		foreach (static::VALIDATORS as $fieldName => $validators) {
-			$validatorChain = new Validator\ValidatorChain();
+    public function __unserialize(array $serialized): void
+    {
+        $this->data = $serialized['values'];
+        $this->originalValues = $serialized['originalValues'];
+        $this->toDelete = $serialized['toDelete'];
 
-			foreach ($validators as $args) {
-				$this->_addValidator($validatorChain, $fieldName, $args);
-			}
+        $hasId = !empty($this->data[static::ID_INTERNAL]);
+        if (!$hasId) {
+            $this->itemState = self::ITEM_STATE_TEMP;
+        } elseif (!empty($this->originalValues)) {
+            $this->itemState = self::ITEM_STATE_MODIFIED;
+        } else {
+            $this->itemState = self::ITEM_STATE_CURRENT;
+        }
+    }
 
-			if ($validatorChain->isValid($this->_getField($fieldName)->getValue())) {
-				unset($this->_validationErrors[$fieldName]);
-			} else {
-				$this->_isValid = false;
-				$this->_validationErrors[$fieldName] = array_values($validatorChain->getMessages());
-			}
-		}
-	}
+    #[\Override]
+    public function __toString(): string
+    {
+        return json_encode($this->jsonSerialize());
+    }
 
-	public function getValidationErrors(): array
-	{
-		if (!isset($this->_validationErrors)) {
-			throw new Exception('Item not validated');
-		}
-		return $this->_validationErrors;
-	}
+    public function __call(string $name, array $args): mixed
+    {
+        if (count($args) === 1 && array_key_exists(0, $args) && preg_match('/^set(.+)$/', $name, $matches)) {
+            $fieldName = lcfirst($matches[1]);
+            if ($fieldName === static::ID_INTERNAL) {
+                throw new Exception(
+                    "Cannot set id directly; the id field is managed automatically"
+                );
+            }
+            $this->setValue($fieldName, $args[0]);
+            return $this;
+        } elseif (count($args) === 0 && preg_match('/^get(.+)$/', $name, $matches)) {
+            return $this->getFieldValue(lcfirst($matches[1]));
+        }
+        throw new BadMethodCallException("Call to undefined method '$name'");
+    }
 
-	public function serialize(): string
-	{
-		return serialize($this->getValues());
-	}
+    protected function getFieldValue($fieldName): mixed
+    {
+        return $this->getField($fieldName)->getValue();
+    }
 
-	public function unserialize(string $data): void
-	{
-		$this->_data = unserialize($data);
-	}
+    protected function setValue(string $fieldName, $value): Field\Base
+    {
+        $field = $this->getField($fieldName);
+        if (
+            isset(static::FIELDS_EXTERNAL[$fieldName])
+            || isset(static::FIELDS_AGGREGATE[$fieldName])
+            || (isset(static::FIELDS_READONLY[$fieldName]) && !$this->isTemp())
+        ) {
+            throw new Exception("Cannot update value for read-only field '$fieldName'");
+        }
+        $oldValue = isset($this->originalValues[$fieldName]) ? $this->originalValues[$fieldName] : $field->getValue();
+        $field->setValue($value);
+        $newValue = $field->getValue();
+        if ($newValue === $oldValue) {
+            unset($this->originalValues[$fieldName]);
+        } else {
+            $this->originalValues[$fieldName] = $oldValue;
+        }
+        if ($this->itemState === self::ITEM_STATE_CURRENT && !empty($this->originalValues)) {
+            $this->itemState = self::ITEM_STATE_MODIFIED;
+        } elseif ($this->itemState === self::ITEM_STATE_MODIFIED && empty($this->originalValues)) {
+            $this->itemState = self::ITEM_STATE_CURRENT;
+        }
+        unset($this->isValid);
+        return $field;
+    }
 
-	public function __serialize(): array
-	{
-		return $this->getValues();
-	}
+    protected function getField(string $fieldName): Field\Base
+    {
+        $isIdField = ($fieldName === static::ID_INTERNAL);
 
-	public function __unserialize(array $data): void
-	{
-		$this->_data = $data;
-	}
+        $inFields    = isset(static::FIELDS[$fieldName]);
+        $inReadonly  = isset(static::FIELDS_READONLY[$fieldName]);
+        $inExternal  = isset(static::FIELDS_EXTERNAL[$fieldName]);
+        $inAggregate = isset(static::FIELDS_AGGREGATE[$fieldName]);
+        $inCount     = $inFields + $inReadonly + $inExternal + $inAggregate;
 
-	public function __toString(): string
-	{
-		return json_encode($this->getValues());
-	}
+        if ($isIdField && $inCount > 0) {
+            throw new Exception(
+                "Do not declare '" . static::ID_INTERNAL . "' in field arrays — it is managed automatically. "
+                . "Remove '" . static::ID_INTERNAL . "' and optionally set ID_TYPE "
+                . "to specify the field type."
+            );
+        }
 
-	public function __call(string $name, array $args): mixed
-	{
-		if (count($args) === 1 && array_key_exists(0, $args) && preg_match('/^set(.+)$/', $name, $matches)) {
-			$this->_setValue(lcfirst($matches[1]), $args[0]);
-			return $this;
-		} elseif (count($args) === 0 && preg_match('/^get(.+)$/', $name, $matches)) {
-			return $this->_getValue(lcfirst($matches[1]));
-		}
-		throw new BadMethodCallException("Call to undefined method '$name'");
-	}
+        if (!$isIdField && $inCount === 0) {
+            throw new Exception("Field '$fieldName' not defined");
+        }
 
-	protected function _getValue($fieldName): mixed
-	{
-		return $this->_getField($fieldName)->getValue();
-	}
+        if ($inCount > 1) {
+            throw new Exception("Field '$fieldName' is defined in multiple field arrays");
+        }
 
-	protected function _setValue(string $fieldName, $value): Field\Base
-	{
-		$field = $this->_getField($fieldName);
-		$oldValue = isset($this->_originalValues[$fieldName]) ? $this->_originalValues[$fieldName] : $field->getValue();
-		$field->setValue($value);
-		$newValue = $field->getValue();
-		if ($newValue === $oldValue) {
-			unset($this->_originalValues[$fieldName]);
-		} else {
-			$this->_originalValues[$fieldName] = $oldValue;
-		}
-		unset($this->_isValid);
-		return $field;
-	}
+        if (!array_key_exists($fieldName, $this->data) || !$this->data[$fieldName] instanceof Field\Base) {
+            $fieldClassName = match (true) {
+                $isIdField   => static::ID_TYPE,
+                $inFields    => static::FIELDS[$fieldName],
+                $inReadonly  => static::FIELDS_READONLY[$fieldName],
+                $inExternal  => static::FIELDS_EXTERNAL[$fieldName],
+                $inAggregate => static::FIELDS_AGGREGATE[$fieldName],
+            };
 
-	protected function _getField(string $fieldName): Field\Base
-	{
-		if (!isset(static::FIELDS[$fieldName])
-			&& !isset(static::FIELDS_READONLY[$fieldName])
-			&& !isset(static::FIELDS_EXTERNAL[$fieldName])
-			&& !isset(static::FIELDS_AGGREGATE[$fieldName])
-		) {
-			throw new Exception("Field '$fieldName' not defined");
-		}
-		if (!array_key_exists($fieldName, $this->_data) || !$this->_data[$fieldName] instanceof Field\Base) {
-			$fieldClassName = static::FIELDS[$fieldName]
-				?? static::FIELDS_READONLY[$fieldName]
-				?? static::FIELDS_EXTERNAL[$fieldName]
-				?? static::FIELDS_AGGREGATE[$fieldName];
-			$field = new $fieldClassName($fieldName);
-			if (array_key_exists($fieldName, $this->_data)) {
-				$field->setValue($this->_data[$fieldName]);
-			} elseif (array_key_exists($fieldName, static::DEFAULTS)) {
-				if ($fieldName === static::ID_INTERNAL) {
-					throw new Exception('Cannot set default id, please omit from DEFAULTS');
-				}
-				$field->setValue(static::DEFAULTS[$fieldName]);
-			} elseif ($fieldName === 'id' && $field->getValue() === 0) {
-				$field->setValue(null);
-			}
-			$this->_data[$fieldName] = $field;
-		}
-		return $this->_data[$fieldName];
-	}
+            // Determine initial value
+            $initialValue = null;
+            $hasInitialValue = false;
+            if (array_key_exists($fieldName, $this->data)) {
+                $initialValue = $this->data[$fieldName];
+                $hasInitialValue = true;
+            } elseif (array_key_exists($fieldName, static::DEFAULTS)) {
+                if ($isIdField) {
+                    throw new Exception('Cannot set default id, please omit from DEFAULTS');
+                }
+                $initialValue = static::DEFAULTS[$fieldName];
+                $hasInitialValue = true;
+            } elseif ($isIdField) {
+                // For id field, we want to set null if no value provided
+                $initialValue = null;
+                $hasInitialValue = true;
+            }
 
-	protected function _addValidator(Validator\ValidatorChain $validatorChain, string $fieldName, array $args): void
-	{
-		if (!isset($args['class'])) {
-			throw new Exception("Validator class name missing for field '$fieldName'");
-		}
+            if ($hasInitialValue) {
+                $field = new $fieldClassName($fieldName, $initialValue);
+            } else {
+                $field = new $fieldClassName($fieldName);
+            }
 
-		if (isset($args['skipIfEmpty'])
-			&& true === $args['skipIfEmpty']
-			&& empty($this->_getField($fieldName)->getValue())
-		) {
-			return;
-		}
-
-		$options = $args['options'] ?? [];
-
-		// If using callback validator, add item instance as last callback option
-		if ($args['class'] == Validator\Callback::class) {
-			if (!isset($options['callbackOptions'])) {
-				$options['callbackOptions'] = [];
-			}
-			$options['callbackOptions'][] = $this;
-		}
-
-		$validator = new $args['class']($options);
-		if (isset($args['message'])) {
-			$validator->setMessage($args['message']);
-		}
-
-		$validatorChain->attach(
-			$validator,
-			breakChainOnFailure: $args['break'] ?? null,
-			priority: $args['priority'] ?? null,
-		);
-	}
+            $this->data[$fieldName] = $field;
+        }
+        return $this->data[$fieldName];
+    }
 }

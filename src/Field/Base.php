@@ -1,7 +1,9 @@
 <?php
+
 /**
  * Base Field class.
  */
+
 declare(strict_types=1);
 
 namespace FasterPhp\DataModel\Field;
@@ -13,44 +15,59 @@ use Stringable;
  */
 abstract class Base implements Stringable
 {
-	protected string $_name;
-	protected $_value;
+    protected string $name;
+    protected mixed $value = null;
 
-	public function __construct(string $name)
-	{
-		$this->_name = $name;
-	}
+    /**
+     * Constructor.
+     *
+     * @param string $name Field name
+     * @param mixed $initialValue Optional initial value; an explicitly supplied null is set, an omitted one is not
+     */
+    public function __construct(string $name, mixed $initialValue = null)
+    {
+        $this->name = $name;
 
-	public function getName(): string
-	{
-		return $this->_name;
-	}
+        // Set initial value only if explicitly provided, so an explicit null is distinguishable from none
+        if (func_num_args() >= 2) {
+            $this->setValueInternal($initialValue);
+        }
+    }
 
-	public function isset(): bool
-	{
-		return isset($this->_value);
-	}
+    public function getName(): string
+    {
+        return $this->name;
+    }
 
-	public function setValue($value): self
-	{
-		$this->_setValue($value);
-		return $this;
-	}
+    public function isset(): bool
+    {
+        return isset($this->value);
+    }
 
-	public function getValue()
-	{
-		return $this->_value;
-	}
+    abstract protected function setValueInternal(mixed $value): self;
 
-	public function getSqlValue()
-	{
-		return $this->getValue();
-	}
+    /**
+     * Set the field value.
+     *
+     * Access control is enforced by Item::setValue(), not here.
+     */
+    public function setValue(mixed $value): self
+    {
+        return $this->setValueInternal($value);
+    }
 
-	public function __toString(): string
-	{
-		return strval($this->getValue());
-	}
+    public function getValue(): mixed
+    {
+        return $this->value;
+    }
 
-	abstract protected function _setValue($value): void;
+    public function getSqlValue(): mixed
+    {
+        return $this->getValue();
+    }
+
+    public function __toString(): string
+    {
+        return strval($this->getValue());
+    }
 }
