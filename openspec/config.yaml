@@ -22,3 +22,7 @@ context: |
   point; the getSelectClause()/getFromClause()/getGroupByClause() hooks remain.
 
   See docs/standards/ for coding and testing guidelines.
+
+  This is a public repository. Consumer-impact analysis must refer to consumers generically
+  ("a known consumer", "a consuming application"): never name private consumers, applications,
+  clients or their internal classes, and never include local machine paths.

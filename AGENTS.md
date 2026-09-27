@@ -33,4 +33,5 @@ When modifying or adding code in `src/`, update or add corresponding tests in `t
 - Do not add dependencies without discussion — this is a lightweight library by design
 - Maintain the `{Prefix}Item` / `{Prefix}Set` / `{Prefix}Repository` naming convention
 - Validation must remain opt-in via traits — Items without traits must have zero validation overhead
+- This is a public repository: never name private consumers, applications or clients, or include local machine paths, in code, comments, docs, OpenSpec artifacts or commit messages. Refer to consumers generically ("a known consumer", "a consuming application")
 
