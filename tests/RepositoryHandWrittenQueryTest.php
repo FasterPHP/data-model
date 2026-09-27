@@ -138,6 +138,37 @@ class RepositoryHandWrittenQueryTest extends TestCase
     }
 
     /**
+     * Characterisation: an identity lookup against a hand-written query that ignores the hook's
+     * filters currently executes with no condition on the id column.
+     */
+    public function testIdentityLookupOnHandWrittenQueryIgnoresTheId(): void
+    {
+        $repo = (new HandWrittenRepository($this->createRecordingPdo()))
+            ->setHandWrittenQuery($this->createQuery());
+
+        $repo->getItemWithId(2);
+
+        $this->assertStringNotContainsString('`users`.`userId` =', $this->executions[0]['sql']);
+        $this->assertSame([':status' => 'active'], $this->executions[0]['params']);
+    }
+
+    /**
+     * Characterisation: a filter on a declared field is currently absent from the SQL executed
+     * for a hand-written query that ignores the hook's filters.
+     */
+    public function testFilterOnHandWrittenQueryIsIgnored(): void
+    {
+        $repo = (new HandWrittenRepository($this->createRecordingPdo()))
+            ->setMaxItemsPerPage(null)
+            ->setHandWrittenQuery($this->createQuery());
+
+        $repo->getSetWithParams(['name' => 'Alice']);
+
+        $this->assertStringNotContainsString('`users`.`name` =', $this->executions[0]['sql']);
+        $this->assertSame([':status' => 'active'], $this->executions[0]['params']);
+    }
+
+    /**
      * The parameters bound by a hand-written query's clauses are applied on execution.
      */
     public function testHandWrittenQueryBindsItsOwnParameters(): void
