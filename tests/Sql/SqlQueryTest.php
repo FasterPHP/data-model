@@ -122,6 +122,153 @@ final class SqlQueryTest extends TestCase
     }
 
     /* -------------------------------
+     * A condition can be ANDed onto WHERE or HAVING
+     * ----------------------------- */
+
+    public function testConditionBecomesAnAbsentWhereClauseUngrouped(): void
+    {
+        $query = new SqlQuery(new SqlFragment('`users`.`name`'), new SqlFragment('`users`'));
+
+        $derived = $query->andWhere(new SqlFragment('`users`.`age` >= :age', [':age' => 21]));
+
+        $this->assertSame('`users`.`age` >= :age', $derived->getWhere()->getSql());
+        $this->assertSame([':age' => 21], $derived->getWhere()->getParams());
+    }
+
+    /**
+     * An OR in the existing clause keeps its meaning because both sides are grouped.
+     */
+    public function testConditionIsCombinedWithAPresentWhereClauseGrouped(): void
+    {
+        $query = new SqlQuery(
+            new SqlFragment('`users`.`name`'),
+            new SqlFragment('`users`'),
+            new SqlFragment('a = :a OR b = :b', [':a' => 1, ':b' => 2]),
+        );
+
+        $derived = $query->andWhere(new SqlFragment('c = :c OR d = :d', [':c' => 3, ':d' => 4]));
+
+        $this->assertSame('(a = :a OR b = :b) AND (c = :c OR d = :d)', $derived->getWhere()->getSql());
+        $this->assertSame([':a' => 1, ':b' => 2, ':c' => 3, ':d' => 4], $derived->getWhere()->getParams());
+    }
+
+    public function testConditionBecomesAnAbsentHavingClauseUngrouped(): void
+    {
+        $query = new SqlQuery(
+            new SqlFragment('`users`.`userId`, COUNT(*) AS total'),
+            new SqlFragment('`users`'),
+            new SqlFragment('`users`.`age` >= :age', [':age' => 21]),
+            new SqlFragment('`users`.`userId`'),
+        );
+
+        $derived = $query->andHaving(new SqlFragment('`total` > :total', [':total' => 2]));
+
+        $this->assertSame('`total` > :total', $derived->getHaving()->getSql());
+        $this->assertSame([':total' => 2], $derived->getHaving()->getParams());
+        $this->assertSame($query->getWhere(), $derived->getWhere());
+    }
+
+    public function testHavingIsCombinedLikeWhereAndLeavesWhereUntouched(): void
+    {
+        $query = $this->createQuery()->with(having: new SqlFragment('a = :a OR b = :b', [':a' => 1, ':b' => 2]));
+
+        $derived = $query->andHaving(new SqlFragment('`total` > :total', [':total' => 2]));
+
+        $this->assertSame('(a = :a OR b = :b) AND (`total` > :total)', $derived->getHaving()->getSql());
+        $this->assertSame([':a' => 1, ':b' => 2, ':total' => 2], $derived->getHaving()->getParams());
+        $this->assertSame($query->getWhere(), $derived->getWhere());
+        $this->assertSame($query->getSelect(), $derived->getSelect());
+        $this->assertSame($query->getFrom(), $derived->getFrom());
+        $this->assertSame($query->getGroupBy(), $derived->getGroupBy());
+    }
+
+    public function testAndingLeavesTheOriginalQueryUnchanged(): void
+    {
+        $query = $this->createQuery();
+
+        $derived = $query
+            ->andWhere(new SqlFragment('`users`.`name` = :name', [':name' => 'Alice']))
+            ->andHaving(new SqlFragment('`total` < :most', [':most' => 9]));
+
+        $this->assertNotSame($query, $derived);
+        $this->assertSame('`users`.`age` >= :age', $query->getWhere()->getSql());
+        $this->assertSame([':age' => 21], $query->getWhere()->getParams());
+        $this->assertSame('`total` > :total', $query->getHaving()->getSql());
+        $this->assertSame([':total' => 2], $query->getHaving()->getParams());
+    }
+
+    public function testEmptyConditionLeavesAPresentClauseUnchanged(): void
+    {
+        $query = $this->createQuery();
+
+        $derived = $query->andWhere(new SqlFragment(''))->andHaving(new SqlFragment(''));
+
+        $this->assertEquals($query, $derived);
+        $this->assertSame($query->getWhere(), $derived->getWhere());
+        $this->assertSame($query->getHaving(), $derived->getHaving());
+    }
+
+    public function testEmptyConditionLeavesAnAbsentClauseAbsent(): void
+    {
+        $query = new SqlQuery(new SqlFragment('`users`.`name`'), new SqlFragment('`users`'));
+
+        $derived = $query->andWhere(new SqlFragment(''))->andHaving(new SqlFragment(''));
+
+        $this->assertEquals($query, $derived);
+        $this->assertNull($derived->getWhere());
+        $this->assertNull($derived->getHaving());
+    }
+
+    /**
+     * Bindings with nowhere to bind are a contradiction, not an empty condition.
+     */
+    public function testEmptyConditionBindingParametersIsRejected(): void
+    {
+        $query = $this->createQuery();
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage(
+            'Cannot AND a condition with empty SQL onto the WHERE clause while it binds parameters'
+        );
+
+        $query->andWhere(new SqlFragment('', [':age' => 21]));
+    }
+
+    public function testSharedParameterBoundToSameValueIsCarriedOnce(): void
+    {
+        $query = $this->createQuery();
+
+        $derived = $query->andWhere(new SqlFragment('`users`.`age` != :age', [':age' => 21]));
+
+        $this->assertSame('(`users`.`age` >= :age) AND (`users`.`age` != :age)', $derived->getWhere()->getSql());
+        $this->assertSame([':age' => 21], $derived->getWhere()->getParams());
+    }
+
+    public function testSharedParameterBoundToDifferentValuesIsRejected(): void
+    {
+        $query = $this->createQuery();
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage(
+            "Parameter ':age' is bound to different values by the WHERE clause and the condition ANDed onto it"
+        );
+
+        $query->andWhere(new SqlFragment('`users`.`age` < :age', [':age' => 65]));
+    }
+
+    public function testSharedHavingParameterBoundToDifferentValuesIsRejected(): void
+    {
+        $query = $this->createQuery();
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage(
+            "Parameter ':total' is bound to different values by the HAVING clause and the condition ANDed onto it"
+        );
+
+        $query->andHaving(new SqlFragment('`total` < :total', [':total' => 9]));
+    }
+
+    /* -------------------------------
      * Query SQL and parameters are produced together
      * ----------------------------- */
 

@@ -42,8 +42,8 @@ class HandWrittenRepository extends Repository
         return parent::getFromClause();
     }
 
-    protected function buildSelectQuery(array $params, array $types = []): SqlQuery
+    protected function buildSelectQuery(): SqlQuery
     {
-        return $this->handWrittenQuery ?? parent::buildSelectQuery($params, $types);
+        return $this->handWrittenQuery ?? parent::buildSelectQuery();
     }
 }

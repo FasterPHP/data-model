@@ -138,7 +138,7 @@ $user->getCreated(); // Returns DateTime object
 
 Avoid N+1 problems by extending your classes to add joins. These clause hooks remain the simplest
 way to adjust one part of a query; see [Replacing the Whole Query](#replacing-the-whole-query) when
-they are too fine-grained:
+they cannot express what you need, such as a join that binds a parameter:
 
 ```php
 class TicketItem extends Item
@@ -179,47 +179,126 @@ foreach ($tickets as $ticket) {
 ### Replacing the Whole Query
 
 The clause hooks above are the fine-grained extension point. `buildSelectQuery()` is the coarse
-one: every Set and Item retrieval builds its SELECT through it, and its default implementation
-composes `getSelectClause()`, `getFromClause()`, `getGroupByClause()` and the WHERE and HAVING
-helpers. Overriding a clause hook alone continues to work exactly as before.
+one: it returns the repository's base query as a `SqlQuery`, and every Set and Item retrieval starts
+from it. Its default implementation composes `getSelectClause()`, `getFromClause()` and
+`getGroupByClause()`, so overriding a clause hook alone continues to work exactly as before.
 
-When the clause hooks are too fine-grained for the query you need, return a `SqlQuery` you built
-yourself. It is executed as given, and still receives the repository's sorting, pagination and Item
-construction, so it is a supported alternative to escaping to `PDO::prepare()` directly:
+The hook receives no filters. The repository applies the caller's filters to whatever query it
+returns, and the query still receives the repository's sorting, pagination and Item construction, so
+it is a supported alternative to escaping to `PDO::prepare()` directly.
+
+The string-returning clause hooks cannot bind parameters. Suppose each ticket should carry a count of
+its public comments. That needs a derived table with a bound visibility, which the coarse hook can
+express by deriving from the parent query and replacing its select list and from source:
 
 ```php
 use FasterPhp\DataModel\Sql\SqlFragment;
 use FasterPhp\DataModel\Sql\SqlQuery;
 
+class TicketItem extends Item
+{
+    public const ID_FIELD = 'ticketId';
+
+    public const FIELDS = [
+        'title' => Field\Varchar::class,
+        'assignedTo' => Field\Integer::class,
+    ];
+
+    public const FIELDS_EXTERNAL = [
+        'commentCount' => Field\Integer::class, // From the derived table
+    ];
+}
+
 class TicketRepository extends Repository
 {
-    protected function buildSelectQuery(array $params, array $types = []): SqlQuery
+    protected const DB_NAME = 'myapp';
+    protected const TABLE_NAME = 'tickets';
+
+    protected function buildSelectQuery(): SqlQuery
     {
-        return new SqlQuery(
-            // Alias the id column to Item::ID_INTERNAL, as the default select clause does
-            new SqlFragment('t.ticketId AS `id`, t.title, u.name AS assigneeName'),
-            new SqlFragment('tickets t LEFT JOIN users u ON u.id = t.assignedTo'),
-            new SqlFragment('t.status = :status', [':status' => 'open']),
+        $query = parent::buildSelectQuery();
+
+        return $query->with(
+            select: new SqlFragment(
+                $query->getSelect()->getSql() . ', COALESCE(c.commentCount, 0) AS commentCount'
+            ),
+            from: new SqlFragment(
+                $query->getFrom()->getSql()
+                . ' LEFT JOIN (SELECT ticketId, COUNT(*) AS commentCount FROM comments'
+                . ' WHERE visibility = :q_visibility GROUP BY ticketId) c'
+                . ' ON c.ticketId = tickets.ticketId',
+                [':q_visibility' => 'public'],
+            ),
         );
     }
 }
+
+$tickets = $repo->getSetWithParams(['assignedTo' => 2]);
 ```
+
+The retrieval above executes the following SQL (line breaks added), binding `:q_visibility` to
+`'public'` and `:assignedTo` to `'2'`. The select list and from source come from the hook; the WHERE
+clause is the caller's filter, added by the repository:
+
+```sql
+SELECT `tickets`.`ticketId` AS `id`, `tickets`.`title`, `tickets`.`assignedTo`,
+       COALESCE(c.commentCount, 0) AS commentCount
+FROM `tickets`
+    LEFT JOIN (SELECT ticketId, COUNT(*) AS commentCount FROM comments
+               WHERE visibility = :q_visibility GROUP BY ticketId) c
+    ON c.ticketId = tickets.ticketId
+WHERE `tickets`.`assignedTo` = :assignedTo
+```
+
+`getItemWithId(3)` executes the same query with a WHERE condition on `` `tickets`.`ticketId` ``,
+so it returns ticket 3 or nothing.
+
+A query returned from the hook must follow these rules:
+
+- **It must not depend on the call.** The hook takes no arguments, and the same query is the base of
+  every retrieval. Do not vary it through repository state set before a call.
+- **Per-call conditions are filters.** Pass them to `getSetWithParams()`, `getItemWithParams()` or
+  `getItemWithId()`. The repository ANDs filters on ordinary fields onto the query's WHERE clause and
+  filters on aggregate fields onto its HAVING clause, grouping each side in parentheses if the query
+  already has a condition there, so an `OR` in either keeps its meaning. To add a condition to every
+  retrieval, override `getWhereSqlAndParams()` or `getHavingSqlAndParams()`.
+- **The base table keeps its name.** Filters on declared fields, and `getItemWithId()`, qualify
+  columns with the table name, as in `` `tickets`.`ticketId` ``. Aliasing the base table
+  (`tickets t`) makes those references fail with an unknown-column error.
+- **Placeholders should not look like field names.** A filter on `status` binds `:status`. If the
+  query binds `:status` to a different value, retrieval throws before anything is executed. A prefix
+  such as `:q_visibility` rules the clash out.
+- **A query for aggregate fields supplies its own GROUP BY.** The default query groups by the id when
+  the Item declares `FIELDS_AGGREGATE`, and a query derived from it keeps that grouping; a query
+  built from scratch must add one.
 
 A `SqlQuery` holds the clauses of a SELECT: `select` and `from` are required, `where`, `groupBy`
 and `having` are optional. Each is a `SqlFragment`, which carries a piece of SQL together with the
-parameters that SQL binds, so the two can never become separated.
+parameters that SQL binds, so the two can never become separated. A query can also be built from
+scratch with named arguments:
+
+```php
+$query = new SqlQuery(
+    select: new SqlFragment('tickets.ticketId AS `id`, tickets.title'),
+    from: new SqlFragment('tickets'),
+    where: new SqlFragment('tickets.archived = :q_archived', [':q_archived' => 0]),
+);
+```
 
 Queries are immutable. `with()` derives a new query rather than modifying the original, carrying
-over every clause not replaced, and `SqlQuery::NONE` removes an optional one:
+over every clause not replaced, and `SqlQuery::NONE` removes an optional one. `andWhere()` and
+`andHaving()` derive a query with a condition ANDed onto the existing clause, as the repository does
+with filters:
 
 ```php
 $query = $parentQuery
-    ->with(where: new SqlFragment('t.status = :status', [':status' => 'closed']))
-    ->with(having: SqlQuery::NONE);
+    ->with(having: SqlQuery::NONE)
+    ->andWhere(new SqlFragment('tickets.priority >= :q_priority', [':q_priority' => 3]));
 ```
 
 If two clauses bind the same parameter name to different values, rendering the query throws rather
-than silently discarding one of the bindings.
+than silently discarding one of the bindings, and so does ANDing a condition that rebinds a name the
+clause already binds.
 
 ### Pagination and Sorting
 

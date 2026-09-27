@@ -10,13 +10,16 @@ use FasterPhp\DataModel\TestModel\HookItem;
 use FasterPhp\DataModel\TestModel\HookRepository;
 use FasterPhp\DataModel\TestModel\HookSet;
 use FasterPhp\DataModel\TestModel\JoinedRepository;
+use FasterPhp\DataModel\TestModel\ParticipantRepository;
+use FasterPhp\DataModel\Sql\SqlFragment;
 use PDO;
 use PDOStatement;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Tests for the repository query hook: that every SELECT is built through it, that its default
- * implementation composes the existing clause hooks, and that filters reach it.
+ * implementation composes the existing clause hooks, and that the repository applies filters to
+ * whatever it returns.
  */
 class RepositoryQueryHookTest extends TestCase
 {
@@ -56,20 +59,21 @@ class RepositoryQueryHookTest extends TestCase
     }
 
     /**
-     * Build the SQL a repository's query hook produces for a set of filters.
+     * Build the SQL a repository retrieves with for a set of filters: the query hook's result
+     * with the filters applied.
      *
      * @param array<string, mixed>  $params Filters to apply.
      * @param array<string, string> $types  Search type per filter key.
      */
     private function hookSql(Repository $repo, array $params = [], array $types = []): string
     {
-        $method = (new \ReflectionClass($repo))->getMethod('buildSelectQuery');
+        $method = new \ReflectionMethod(Repository::class, 'buildRetrievalQuery');
         $method->setAccessible(true);
         return $method->invoke($repo, $params, $types)->render()->getSql();
     }
 
     /* -------------------------------
-     * Repository SELECTs are built through a single query hook
+     * Repository SELECTs are built through a single filter-free query hook
      * ----------------------------- */
 
     public function testSetRetrievalUsesTheHook(): void
@@ -78,10 +82,14 @@ class RepositoryQueryHookTest extends TestCase
 
         $repo->getSetWithParams(['age' => 21]);
 
+        $expected = $repo->hookResults[0]
+            ->andWhere(new SqlFragment('`users`.`age` = :age', [':age' => '21']))
+            ->render();
+
         $this->assertCount(1, $repo->hookResults);
         $this->assertCount(1, $this->executions);
-        $this->assertSame($repo->hookResults[0]->render()->getSql(), $this->executions[0]['sql']);
-        $this->assertSame($repo->hookResults[0]->render()->getParams(), $this->executions[0]['params']);
+        $this->assertSame($expected->getSql(), $this->executions[0]['sql']);
+        $this->assertSame($expected->getParams(), $this->executions[0]['params']);
     }
 
     public function testItemRetrievalUsesTheHook(): void
@@ -91,38 +99,60 @@ class RepositoryQueryHookTest extends TestCase
 
         $item = $repo->getItemWithParams(['age' => 21]);
 
+        $expected = $repo->hookResults[0]
+            ->andWhere(new SqlFragment('`users`.`age` = :age', [':age' => '21']))
+            ->render();
+
         $this->assertInstanceOf(HookItem::class, $item);
         $this->assertCount(1, $repo->hookResults);
         $this->assertCount(1, $this->executions);
-        // The one-row limit is the paginator's; the statement is otherwise the hook's query.
-        $this->assertStringStartsWith(
-            $repo->hookResults[0]->render()->getSql(),
-            $this->executions[0]['sql']
-        );
+        // The one-row limit is the paginator's; the statement is otherwise the filtered hook query.
+        $this->assertStringStartsWith($expected->getSql(), $this->executions[0]['sql']);
         $this->assertStringEndsWith('LIMIT 1', $this->executions[0]['sql']);
-        $this->assertSame($repo->hookResults[0]->render()->getParams(), $this->executions[0]['params']);
+        $this->assertSame($expected->getParams(), $this->executions[0]['params']);
     }
 
-    public function testFiltersAndSearchTypesReachTheHook(): void
+    /**
+     * The hook is called without the filters or search types, which still constrain the SQL.
+     */
+    public function testHookReceivesNoFiltersYetFiltersConstrainTheSql(): void
     {
         $repo = (new HookRepository($this->createRecordingPdo()))->setMaxItemsPerPage(null);
 
         $repo->getSetWithParams(['age' => 21, 'name' => 'Al'], ['name' => Repository::STARTS]);
 
-        $this->assertSame(
-            [['params' => ['age' => 21, 'name' => 'Al'], 'types' => ['name' => Repository::STARTS]]],
-            $repo->hookCalls
+        $this->assertSame([[]], $repo->hookCalls);
+        $this->assertStringNotContainsString('WHERE', $repo->hookResults[0]->render()->getSql());
+        $this->assertStringEndsWith(
+            "\nWHERE `users`.`age` = :age AND `users`.`name` LIKE :name",
+            $this->executions[0]['sql']
         );
+        $this->assertSame([':age' => '21', ':name' => 'Al%'], $this->executions[0]['params']);
     }
 
-    public function testGetSetOfAllReachesTheHookWithNoFilters(): void
+    /**
+     * An identity lookup reaches the hook without its id, which still constrains the SQL.
+     */
+    public function testItemRetrievalByIdCallsTheHookWithoutFilters(): void
+    {
+        $repo = new HookRepository($this->createRecordingPdo());
+
+        $repo->getItemWithId(7);
+
+        $this->assertSame([[]], $repo->hookCalls);
+        $this->assertStringContainsString("\nWHERE `users`.`userId` = :users_userId_", $this->executions[0]['sql']);
+        $this->assertSame(['7'], array_values($this->executions[0]['params']));
+    }
+
+    public function testGetSetOfAllCallsTheHookWithoutFilters(): void
     {
         $repo = (new HookRepository($this->createRecordingPdo()))->setMaxItemsPerPage(null);
 
         $set = $repo->getSetOfAll();
 
         $this->assertInstanceOf(HookSet::class, $set);
-        $this->assertSame([['params' => [], 'types' => []]], $repo->hookCalls);
+        $this->assertSame([[]], $repo->hookCalls);
+        $this->assertSame($repo->hookResults[0]->render()->getSql(), $this->executions[0]['sql']);
     }
 
     /* -------------------------------
@@ -147,7 +177,7 @@ class RepositoryQueryHookTest extends TestCase
 
         $method = (new \ReflectionClass($repo))->getMethod('buildSelectQuery');
         $method->setAccessible(true);
-        $query = $method->invoke($repo, []);
+        $query = $method->invoke($repo);
 
         $this->assertStringContainsString('SUM(`orders`.`amount`) AS totalAmount', $query->getSelect()->getSql());
 
@@ -163,7 +193,7 @@ class RepositoryQueryHookTest extends TestCase
         $method = (new \ReflectionClass($repo))->getMethod('buildSelectQuery');
         $method->setAccessible(true);
 
-        $this->assertSame($join, $method->invoke($repo, [])->getFrom()->getSql());
+        $this->assertSame($join, $method->invoke($repo)->getFrom()->getSql());
 
         $repo->getSetOfAll();
         $this->assertStringContainsString($join, $this->executions[0]['sql']);
@@ -183,6 +213,35 @@ class RepositoryQueryHookTest extends TestCase
         $this->assertStringContainsString('JOIN modules m ON m.moduleId = moduleAttempts.moduleId', $sql);
         $this->assertStringContainsString("\nWHERE `moduleAttempts`.`moduleId` = :moduleId", $sql);
         $this->assertSame([':moduleId' => '7'], $this->executions[0]['params']);
+    }
+
+    /**
+     * Filters injected through the where hook apply to every retrieval, including one with no
+     * caller filters, and the caller's own filters appear alongside them.
+     */
+    public function testFiltersInjectedThroughTheWhereHookApplyToEveryRetrieval(): void
+    {
+        $injected = "`users`.`role` = :role AND `users`.`status` = :status"
+            . " AND `a2`.`courseAttemptId` IS NULL";
+        $injectedParams = [':role' => 'staff', ':status' => 'active'];
+
+        $repo = (new ParticipantRepository($this->createRecordingPdo()))->setMaxItemsPerPage(null);
+
+        $repo->getSetOfAll();
+        $repo->getSetWithParams(['name' => 'Alice']);
+        $repo->getItemWithId(7);
+
+        $this->assertCount(3, $this->executions);
+
+        $this->assertStringEndsWith("\nWHERE $injected", $this->executions[0]['sql']);
+        $this->assertSame($injectedParams, $this->executions[0]['params']);
+
+        $this->assertStringEndsWith("\nWHERE `name` = :name AND $injected", $this->executions[1]['sql']);
+        $this->assertSame([':name' => 'Alice'] + $injectedParams, $this->executions[1]['params']);
+
+        $this->assertStringContainsString("\nWHERE `users`.`userId` = :users_userId_", $this->executions[2]['sql']);
+        $this->assertStringContainsString(" AND $injected", $this->executions[2]['sql']);
+        $this->assertSame($injectedParams, array_slice($this->executions[2]['params'], 1));
     }
 
     /**

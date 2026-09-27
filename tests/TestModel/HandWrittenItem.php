@@ -21,4 +21,8 @@ class HandWrittenItem extends Item
     public const FIELDS_EXTERNAL = [
         'accountName' => Field\Varchar::class,
     ];
+
+    public const FIELDS_AGGREGATE = [
+        'accountCount' => Field\Integer::class,
+    ];
 }

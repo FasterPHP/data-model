@@ -138,6 +138,134 @@ class RepositoryHandWrittenQueryTest extends TestCase
     }
 
     /**
+     * An identity lookup against a hand-written query constrains the id column, qualified with
+     * the table name, so it can only return the requested row.
+     */
+    public function testIdentityLookupOnHandWrittenQueryConstrainsTheId(): void
+    {
+        $repo = (new HandWrittenRepository($this->createRecordingPdo()))
+            ->setHandWrittenQuery($this->createQuery());
+
+        $repo->getItemWithId(2);
+
+        $this->assertMatchesRegularExpression(
+            '/\nWHERE \(`accounts`\.`status` = :status\) AND \(`users`\.`userId` = (:users_userId_\w+)\)/',
+            $this->executions[0]['sql']
+        );
+        $this->assertSame(['active', '2'], array_values($this->executions[0]['params']));
+    }
+
+    /**
+     * A filter on a declared field narrows a hand-written query in addition to its own condition,
+     * qualified with the table name.
+     */
+    public function testFilterNarrowsHandWrittenQuery(): void
+    {
+        $repo = (new HandWrittenRepository($this->createRecordingPdo()))
+            ->setMaxItemsPerPage(null)
+            ->setHandWrittenQuery($this->createQuery());
+
+        $repo->getSetWithParams(['name' => 'Alice']);
+
+        $this->assertStringEndsWith(
+            "\nWHERE (`accounts`.`status` = :status) AND (`users`.`name` = :name)",
+            $this->executions[0]['sql']
+        );
+        $this->assertSame([':status' => 'active', ':name' => 'Alice'], $this->executions[0]['params']);
+    }
+
+    /**
+     * An OR in a hand-written WHERE keeps its meaning when a filter is combined with it.
+     */
+    public function testOrConditionOfHandWrittenQueryKeepsItsMeaning(): void
+    {
+        $repo = (new HandWrittenRepository($this->createRecordingPdo()))
+            ->setMaxItemsPerPage(null)
+            ->setHandWrittenQuery($this->createQuery()->with(where: new SqlFragment(
+                '`accounts`.`status` = :q_active OR `accounts`.`status` = :q_trial',
+                [':q_active' => 'active', ':q_trial' => 'trial'],
+            )));
+
+        $repo->getSetWithParams(['name' => 'Alice']);
+
+        $this->assertStringEndsWith(
+            "\nWHERE (`accounts`.`status` = :q_active OR `accounts`.`status` = :q_trial)"
+            . " AND (`users`.`name` = :name)",
+            $this->executions[0]['sql']
+        );
+        $this->assertSame(
+            [':q_active' => 'active', ':q_trial' => 'trial', ':name' => 'Alice'],
+            $this->executions[0]['params']
+        );
+    }
+
+    /**
+     * A filter on an aggregate field is combined with the hand-written query's own HAVING, and
+     * the WHERE clause is left as written.
+     */
+    public function testAggregateFilterIsCombinedWithExistingHaving(): void
+    {
+        $repo = (new HandWrittenRepository($this->createRecordingPdo()))
+            ->setMaxItemsPerPage(null)
+            ->setHandWrittenQuery($this->createQuery()->with(
+                select: new SqlFragment('`users`.`userId` AS `id`, `users`.`name`, COUNT(*) AS accountCount'),
+                groupBy: new SqlFragment('`users`.`userId`'),
+                having: new SqlFragment('COUNT(*) > :q_minimum', [':q_minimum' => 1]),
+            ));
+
+        $repo->getSetWithParams(['accountCount' => 3], ['accountCount' => Repository::LESS]);
+
+        $sql = $this->executions[0]['sql'];
+        $this->assertStringContainsString("\nWHERE `accounts`.`status` = :status\n", $sql);
+        $this->assertStringEndsWith(
+            "\nHAVING (COUNT(*) > :q_minimum) AND (`accountCount` < :accountCount)",
+            $sql
+        );
+        $this->assertSame(
+            [':status' => 'active', ':q_minimum' => 1, ':accountCount' => '3'],
+            $this->executions[0]['params']
+        );
+    }
+
+    /**
+     * With no filters, the hand-written query is executed unchanged.
+     */
+    public function testNoFiltersLeaveHandWrittenQueryUnchanged(): void
+    {
+        $repo = (new HandWrittenRepository($this->createRecordingPdo()))
+            ->setMaxItemsPerPage(null)
+            ->setHandWrittenQuery($this->createQuery());
+
+        $repo->getSetWithParams([]);
+
+        $rendered = $this->createQuery()->render();
+        $this->assertSame($rendered->getSql(), $this->executions[0]['sql']);
+        $this->assertSame($rendered->getParams(), $this->executions[0]['params']);
+    }
+
+    /**
+     * A filter binding a parameter the hand-written query binds to a different value throws
+     * before any statement is prepared.
+     */
+    public function testFilterCollidingWithHandWrittenParameterThrows(): void
+    {
+        $repo = (new HandWrittenRepository($this->createRecordingPdo()))
+            ->setMaxItemsPerPage(null)
+            ->setHandWrittenQuery($this->createQuery());
+
+        try {
+            $repo->getSetWithParams(['status' => 'closed']);
+            $this->fail('Expected an exception for the colliding parameter');
+        } catch (Exception $e) {
+            $this->assertSame(
+                "Parameter ':status' is bound to different values by the WHERE clause and the condition ANDed onto it",
+                $e->getMessage()
+            );
+        }
+        $this->assertSame([], $this->executions);
+    }
+
+    /**
      * The parameters bound by a hand-written query's clauses are applied on execution.
      */
     public function testHandWrittenQueryBindsItsOwnParameters(): void

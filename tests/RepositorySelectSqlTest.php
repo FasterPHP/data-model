@@ -57,7 +57,7 @@ class RepositorySelectSqlTest extends TestCase
      */
     private function buildSelect(Repository $repo, array $params, array $types = []): array
     {
-        $method = (new \ReflectionClass($repo))->getMethod('buildSelectQuery');
+        $method = new \ReflectionMethod(Repository::class, 'buildRetrievalQuery');
         $method->setAccessible(true);
         $rendered = $method->invoke($repo, $params, $types)->render();
         return [$rendered->getSql(), $rendered->getParams()];

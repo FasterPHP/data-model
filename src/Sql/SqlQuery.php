@@ -97,6 +97,47 @@ final readonly class SqlQuery
     }
 
     /**
+     * Derive a new query with a condition ANDed onto the WHERE clause.
+     *
+     * If the query has no WHERE clause, the condition becomes the clause exactly as given. If it
+     * has one, the derived clause is `(<existing>) AND (<condition>)`: both sides are grouped so
+     * that neither's operators can bind to the other, and an `OR` on either side keeps its meaning.
+     * The derived clause carries the parameters of both. A condition with empty SQL and no
+     * parameters leaves the query as it is. The original query is never modified.
+     *
+     * @param SqlFragment $condition The condition to AND onto the WHERE clause.
+     *
+     * @return self
+     *
+     * @throws Exception If the condition has empty SQL but binds parameters, or if it binds a
+     *                   parameter name the WHERE clause already binds to a different value.
+     */
+    public function andWhere(SqlFragment $condition): self
+    {
+        $where = self::conjoin('WHERE', $this->where, $condition);
+        return $where === $this->where ? $this : $this->with(where: $where);
+    }
+
+    /**
+     * Derive a new query with a condition ANDed onto the HAVING clause.
+     *
+     * Follows the same rules as andWhere(), applied to the HAVING clause. The WHERE clause is left
+     * unchanged.
+     *
+     * @param SqlFragment $condition The condition to AND onto the HAVING clause.
+     *
+     * @return self
+     *
+     * @throws Exception If the condition has empty SQL but binds parameters, or if it binds a
+     *                   parameter name the HAVING clause already binds to a different value.
+     */
+    public function andHaving(SqlFragment $condition): self
+    {
+        $having = self::conjoin('HAVING', $this->having, $condition);
+        return $having === $this->having ? $this : $this->with(having: $having);
+    }
+
+    /**
      * Render the query as its complete SQL together with every parameter that SQL binds.
      *
      * The two are returned as one value, so SQL can never be obtained without the parameters
@@ -141,6 +182,48 @@ final readonly class SqlQuery
             return $current;
         }
         return self::NONE === $replacement ? null : $replacement;
+    }
+
+    /**
+     * AND a condition onto a clause, grouping both sides only when there are two to combine.
+     *
+     * @param string           $keyword   The keyword naming the clause, for error messages.
+     * @param SqlFragment|null $current   The clause currently held, or null if absent.
+     * @param SqlFragment      $condition The condition to AND onto it.
+     *
+     * @return SqlFragment|null The combined clause, or $current itself if the condition is empty.
+     *
+     * @throws Exception If the condition has empty SQL but binds parameters, or rebinds a name
+     *                   the current clause binds to a different value.
+     */
+    private static function conjoin(string $keyword, ?SqlFragment $current, SqlFragment $condition): ?SqlFragment
+    {
+        if ($condition->getSql() === '') {
+            if ($condition->getParams() !== []) {
+                throw new Exception(sprintf(
+                    'Cannot AND a condition with empty SQL onto the %s clause while it binds parameters',
+                    $keyword,
+                ));
+            }
+            return $current;
+        }
+        if (is_null($current)) {
+            return $condition;
+        }
+
+        $params = $current->getParams();
+        foreach ($condition->getParams() as $name => $value) {
+            if (array_key_exists($name, $params) && $params[$name] !== $value) {
+                throw new Exception(sprintf(
+                    "Parameter '%s' is bound to different values by the %s clause and the condition ANDed onto it",
+                    $name,
+                    $keyword,
+                ));
+            }
+            $params[$name] = $value;
+        }
+
+        return new SqlFragment('(' . $current->getSql() . ') AND (' . $condition->getSql() . ')', $params);
     }
 
     /**

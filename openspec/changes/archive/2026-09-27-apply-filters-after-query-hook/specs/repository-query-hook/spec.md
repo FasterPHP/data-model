@@ -1,12 +1,16 @@
-# repository-query-hook Specification
+## REMOVED Requirements
 
-## Purpose
+### Requirement: Repository SELECTs are built through a single query hook
 
-Defines the extension point through which a repository's SELECT is built, so that a subclass can
-adjust one clause, replace the whole query with hand-written SQL, or change nothing at all, without
-losing sorting, pagination or Item construction.
+**Reason**: The hook received the caller's filters and was trusted to apply them, so an override that
+left them unused silently returned the wrong rows, including from identity lookups. Replaced by
+"Repository SELECTs are built through a single filter-free query hook", under which the repository
+applies the filters itself.
 
-## Requirements
+**Migration**: Drop the filter and search-type parameters from any override of the hook, and stop
+applying filters in it. The repository now applies them to whatever query the hook returns.
+
+## ADDED Requirements
 
 ### Requirement: Repository SELECTs are built through a single filter-free query hook
 
@@ -71,6 +75,8 @@ combined with it. A hook override SHALL NOT be able to cause a caller's filter t
 - **THEN** the filter SHALL reference that column qualified by the repository's table name, so a
   returned query SHALL expose the base table under that name for such filters to resolve
 
+## MODIFIED Requirements
+
 ### Requirement: The default query composes the existing clause hooks
 
 The default implementation of the query hook SHALL build its clauses from the existing select, from
@@ -127,18 +133,3 @@ and Item construction as a default one.
 #### Scenario: Hand-written query is subject to the same parameter guarantees
 - **WHEN** a hand-written query's clauses bind the same parameter name to different values
 - **THEN** an `Exception` SHALL be thrown rather than a binding being discarded
-
-### Requirement: Queries are handed to execution intact
-
-A built query SHALL be passed to execution as a single value. Execution SHALL NOT receive a query's
-SQL and its parameters through separate steps, so no intermediate state can exist in which the two
-disagree.
-
-#### Scenario: Execution receives one query
-- **WHEN** a built query is executed
-- **THEN** its SQL and parameters SHALL be supplied together
-
-#### Scenario: Executing a different query replaces both
-- **WHEN** a paginator that has executed one query is given a different one
-- **THEN** both the SQL and the parameters SHALL be those of the new query
-- **AND** cached results from the previous query SHALL be discarded

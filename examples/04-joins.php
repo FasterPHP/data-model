@@ -108,43 +108,43 @@ class HighEarnerSet extends Set
 /**
  * Repository returning a hand-written query from the coarse extension point.
  *
- * buildSelectQuery() is where every Set and Item retrieval builds its SELECT. Its default
+ * buildSelectQuery() returns the base query every Set and Item retrieval starts from. Its default
  * implementation composes the clause hooks, as EmployeeRepository above relies on. Returning a
  * query built here instead replaces that composition wholesale, which is the supported way to
- * express a query the clause hooks are too fine-grained for. Unlike escaping to PDO directly, the
- * query still receives the repository's sorting, pagination and Item construction.
+ * express a query the clause hooks cannot: here, a derived table binding a parameter of its own.
+ * Unlike escaping to PDO directly, the query still receives the repository's filtering, sorting,
+ * pagination and Item construction.
+ *
+ * The hook takes no arguments, so the query is the same for every call. Anything that varies per
+ * call, such as a salary threshold, is a filter passed to getSetWithParams(), which the repository
+ * ANDs onto the query's WHERE clause. Filters qualify declared fields with the table name, so the
+ * base table appears as `employees`, not an alias.
  */
 class HighEarnerRepository extends Repository
 {
     protected const DB_NAME = 'example';
     protected const TABLE_NAME = 'employees';
 
-    private int $minSalary = 0;
-
-    public function getSetEarningAtLeast(int $minSalary): HighEarnerSet
-    {
-        $this->minSalary = $minSalary;
-        return $this->getSetOfAll();
-    }
-
-    protected function buildSelectQuery(array $params, array $types = []): SqlQuery
+    protected function buildSelectQuery(): SqlQuery
     {
         return new SqlQuery(
             // The id column is aliased to Item::ID_INTERNAL, exactly as getFieldList() does
-            new SqlFragment(
-                'e.empId AS `id`, e.name, e.salary'
+            select: new SqlFragment(
+                '`employees`.`empId` AS `id`, `employees`.`name`, `employees`.`salary`'
                 . ', d.name AS departmentName'
                 . ', avg.departmentAverage AS departmentAverage'
             ),
-            new SqlFragment(
-                'employees e'
-                . ' JOIN departments d ON d.deptId = e.departmentId'
+            // The department average counts permanent staff only; the placeholder is prefixed so
+            // that it cannot collide with a filter on a field
+            from: new SqlFragment(
+                '`employees`'
+                . ' JOIN departments d ON d.deptId = `employees`.`departmentId`'
                 . ' JOIN ('
                 . '   SELECT departmentId, CAST(AVG(salary) AS INTEGER) AS departmentAverage'
-                . '   FROM employees GROUP BY departmentId'
-                . ' ) avg ON avg.departmentId = e.departmentId'
+                . '   FROM employees WHERE contract = :q_contract GROUP BY departmentId'
+                . ' ) avg ON avg.departmentId = `employees`.`departmentId`',
+                [':q_contract' => 'permanent'],
             ),
-            new SqlFragment('e.salary >= :minSalary', [':minSalary' => $this->minSalary]),
         );
     }
 }
@@ -170,7 +170,8 @@ $pdo->exec("
         empId INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100),
         departmentId INTEGER,
-        salary INTEGER
+        salary INTEGER,
+        contract VARCHAR(20) NOT NULL DEFAULT 'permanent'
     )
 ");
 
@@ -195,6 +196,7 @@ $pdo->exec("
     ('Grace Lee', 4, 65000),
     ('Henry Taylor', 1, 95000)
 ");
+$pdo->exec("UPDATE employees SET contract = 'contractor' WHERE name = 'Henry Taylor'");
 
 echo "   ✓ Database setup complete\n\n";
 
@@ -220,16 +222,17 @@ foreach ($engineers as $employee) {
 echo "\n";
 
 // 4. Replace the whole query with one the clause hooks cannot express
-echo "4. Fetching high earners with their department average (hand-written query)...\n";
+echo "4. Fetching high earners with their department's permanent-staff average (hand-written query)...\n";
 $highEarners = (new HighEarnerRepository($pdo))
     ->setSort(new Sort('salary', Sort::DESCENDING))
-    ->getSetEarningAtLeast(80000);
+    ->getSetWithParams(['salary' => 80000], ['salary' => Repository::GREATER_OR_EQUALS]);
 
+echo "   The salary threshold is a filter, ANDed onto the hand-written query by the repository.\n";
 echo "   Found " . count($highEarners) . " employees earning at least \$80,000:\n";
 foreach ($highEarners as $employee) {
     echo "   - {$employee->getName()} ({$employee->getDepartmentName()})"
         . " - \${$employee->getSalary()}"
-        . " vs department average \${$employee->getDepartmentAverage()}\n";
+        . " vs permanent-staff average \${$employee->getDepartmentAverage()}\n";
 }
 
 echo "\n=== Example Complete ===\n";
