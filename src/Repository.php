@@ -142,7 +142,7 @@ abstract class Repository implements RepositoryInterface
         // first under whatever ordering the repository is using.
         $data = (new SqlPaginator($this->getPdo(), $this->paginator->getSort()))
             ->setMaxItemsPerPage(1)
-            ->setQuery($this->buildSelectQuery($params, $types))
+            ->setQuery($this->buildRetrievalQuery($params, $types))
             ->getItems();
 
         if (empty($data)) {
@@ -335,35 +335,58 @@ abstract class Repository implements RepositoryInterface
      * ----------------------------- */
     protected function getDataWithParams(array $params, array $types = []): array
     {
-        return $this->fetchData($this->buildSelectQuery($params, $types));
+        return $this->fetchData($this->buildRetrievalQuery($params, $types));
     }
 
     /**
-     * Build the query for a set of filters.
+     * Build the repository's base query, before any filters are applied.
      *
      * This is the coarse extension point: a subclass may override it to return a wholly
-     * hand-written query, which is executed as given and still receives the repository's sorting,
-     * pagination and Item construction. The default composes the clause hooks below, so a subclass
-     * that overrides only one of those keeps working unchanged.
+     * hand-written query, which still receives the repository's filtering, sorting, pagination and
+     * Item construction. The default composes the clause hooks below, so a subclass that overrides
+     * only one of those keeps working unchanged.
      *
-     * @param array<string, mixed>  $params Filters to apply.
-     * @param array<string, string> $types  Search type per filter key.
+     * The hook receives no filters, and the query it returns must not depend on which retrieval
+     * asked for it: anything that varies per call is a filter. The repository applies the caller's
+     * filters to whatever query is returned, ANDing them onto its WHERE and HAVING clauses, so an
+     * override cannot cause a filter to be omitted. Filters on declared fields are qualified with
+     * the table name, so the query must expose the base table under that name, not an alias.
      *
      * @return SqlQuery
      */
-    protected function buildSelectQuery(array $params, array $types = []): SqlQuery
+    protected function buildSelectQuery(): SqlQuery
     {
-        [$whereSql,  $whereParams]  = $this->getWhereSqlAndParams($params, $types);
-        [$havingSql, $havingParams] = $this->getHavingSqlAndParams($params, $types);
         $groupBy = $this->getGroupByClause();
 
         return new SqlQuery(
             new SqlFragment($this->getSelectClause()),
             new SqlFragment($this->getFromClause()),
-            $whereSql !== '' ? new SqlFragment($whereSql, $whereParams) : null,
+            null,
             $groupBy !== '' ? new SqlFragment($groupBy) : null,
-            $havingSql !== '' ? new SqlFragment($havingSql, $havingParams) : null,
         );
+    }
+
+    /**
+     * Build the query for one retrieval: the base query with the caller's filters applied.
+     *
+     * Private so that no subclass can bypass it: the filters reach the SQL whatever the query hook
+     * returns. The where and having hooks remain the place to inject or translate filters.
+     *
+     * @param array<string, mixed>  $params Filters to apply.
+     * @param array<string, string> $types  Search type per filter key.
+     *
+     * @return SqlQuery
+     *
+     * @throws Exception If a filter binds a parameter the base query binds to a different value.
+     */
+    private function buildRetrievalQuery(array $params, array $types = []): SqlQuery
+    {
+        [$whereSql,  $whereParams]  = $this->getWhereSqlAndParams($params, $types);
+        [$havingSql, $havingParams] = $this->getHavingSqlAndParams($params, $types);
+
+        return $this->buildSelectQuery()
+            ->andWhere(new SqlFragment($whereSql, $whereParams))
+            ->andHaving(new SqlFragment($havingSql, $havingParams));
     }
 
     /* -------------------------------

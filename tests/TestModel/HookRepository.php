@@ -15,17 +15,17 @@ class HookRepository extends Repository
     protected const DB_NAME = 'testdb';
     protected const TABLE_NAME = 'users';
 
-    /** @var list<array{params: array<string, mixed>, types: array<string, string>}> */
+    /** @var list<list<mixed>> Arguments of each call to the query hook. */
     public array $hookCalls = [];
 
     /** @var list<SqlQuery> */
     public array $hookResults = [];
 
-    protected function buildSelectQuery(array $params, array $types = []): SqlQuery
+    protected function buildSelectQuery(): SqlQuery
     {
-        $this->hookCalls[] = ['params' => $params, 'types' => $types];
+        $this->hookCalls[] = func_get_args();
 
-        $query = parent::buildSelectQuery($params, $types);
+        $query = parent::buildSelectQuery();
         $this->hookResults[] = $query;
 
         return $query;

@@ -293,7 +293,7 @@ class AggregateFieldsRepositoryTest extends TestCase
         $pdo = new PDO('sqlite::memory:');
         $repo = new AggregateRepository($pdo);
 
-        $method = (new \ReflectionClass($repo))->getMethod('buildSelectQuery');
+        $method = new \ReflectionMethod(Repository::class, 'buildRetrievalQuery');
         $method->setAccessible(true);
 
         $rendered = $method->invoke($repo, [
