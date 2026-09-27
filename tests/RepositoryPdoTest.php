@@ -313,6 +313,56 @@ class RepositoryPdoTest extends RepositoryBase
     }
 
     /**
+     * A per-call sort orders the lookup, which still fetches one row.
+     */
+    public function testGetItemWithParamsAppliesPerCallSort(): void
+    {
+        $capturedSql = [];
+        $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[2]]]);
+
+        $item = (new TestModel\ValidRepository($mockDb))
+            ->getItemWithParams(['handsome' => 'y'], sort: new Sort('id', Sort::DESCENDING));
+
+        $this->assertStringEndsWith(' ORDER BY `id` DESC LIMIT 1', $capturedSql[0]);
+        $this->assertInstanceOf(TestModel\ValidItem::class, $item);
+        $this->assertSame(3, $item->getId());
+    }
+
+    /**
+     * A per-call sort, with the secondary sort it chains, replaces the repository's sort.
+     */
+    public function testGetItemWithParamsPerCallSortReplacesRepositorySort(): void
+    {
+        $capturedSql = [];
+        $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[2]]]);
+
+        $repo = new TestModel\ValidRepository($mockDb, new Sort('users.age', Sort::DESCENDING));
+        $repo->getItemWithParams(
+            ['handsome' => 'y'],
+            sort: new Sort('id', Sort::DESCENDING, new Sort('users.name')),
+        );
+
+        $this->assertStringEndsWith(' ORDER BY `id` DESC, `users`.`name` ASC LIMIT 1', $capturedSql[0]);
+        $this->assertStringNotContainsString('`users`.`age` DESC', $capturedSql[0]);
+    }
+
+    /**
+     * Omitting the sort, or passing null, leaves the lookup ordered by the repository's sort.
+     */
+    public function testGetItemWithParamsWithoutPerCallSortUsesRepositorySort(): void
+    {
+        $capturedSql = [];
+        $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[1]], [self::$data[1]]]);
+
+        $repo = new TestModel\ValidRepository($mockDb, new Sort('users.age', Sort::DESCENDING));
+        $repo->getItemWithParams(['handsome' => 'y']);
+        $repo->getItemWithParams(['handsome' => 'y'], sort: null);
+
+        $this->assertStringEndsWith(' ORDER BY `users`.`age` DESC LIMIT 1', $capturedSql[0]);
+        $this->assertStringEndsWith(' ORDER BY `users`.`age` DESC LIMIT 1', $capturedSql[1]);
+    }
+
+    /**
      * Return a mocked PDO that records every SQL statement it prepares, in order.
      *
      * @param list<string>                            $capturedSql Receives the SQL of each statement.
