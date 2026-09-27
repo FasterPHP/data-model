@@ -200,6 +200,21 @@ class RepositoryQueryHookTest extends TestCase
     }
 
     /**
+     * A filter on the ID column's bare name is qualified with the base table, so it stays
+     * unambiguous when the from clause joins a table with a column of the same name.
+     */
+    public function testIdFilterOnJoinedRepositoryIsQualified(): void
+    {
+        $repo = (new FromOverrideRepository($this->createRecordingPdo()))->setMaxItemsPerPage(null);
+
+        $repo->getSetWithParams(['userId' => 7]);
+
+        $this->assertStringContainsString('JOIN `accounts` ON `accounts`.`userId`', $this->executions[0]['sql']);
+        $this->assertStringEndsWith("\nWHERE `users`.`userId` = :userId", $this->executions[0]['sql']);
+        $this->assertSame([':userId' => '7'], $this->executions[0]['params']);
+    }
+
+    /**
      * A repository overriding both clause hooks, as joined repositories typically do.
      */
     public function testOverridingBothClauseHooksTogether(): void
