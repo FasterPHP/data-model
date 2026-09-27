@@ -296,20 +296,71 @@ class RepositoryPdoTest extends RepositoryBase
     }
 
     /**
-     * Ordering a lookup with setSort() reorders every later retrieval on the same repository.
+     * Ordering a lookup per call leaves an unsorted repository unsorted for the Sets that follow.
      */
-    public function testSetSortBeforeLookupAlsoReordersFollowingSet(): void
+    public function testPerCallSortOnUnsortedRepositoryDoesNotReorderFollowingSet(): void
     {
         $capturedSql = [];
         $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[2]], self::$data]);
 
-        $repo = new TestModel\ValidRepository($mockDb);
-        $repo->setSort(new Sort('id', Sort::DESCENDING))->getItemWithParams(['handsome' => 'y']);
+        $paginator = (new SqlPaginator($mockDb))->setMaxItemsPerPage(null);
+        $repo = new TestModel\ValidRepository($mockDb, $paginator);
+        $repo->getItemWithParams(['handsome' => 'y'], sort: new Sort('id', Sort::DESCENDING));
         $repo->getSetWithParams(['handsome' => 'y']);
 
+        $this->assertNull($paginator->getSort());
         $this->assertCount(2, $capturedSql);
-        $this->assertStringContainsString('ORDER BY `id` DESC LIMIT 1', $capturedSql[0]);
-        $this->assertStringEndsWith(' ORDER BY `id` DESC', $capturedSql[1]);
+        $this->assertStringEndsWith(' ORDER BY `id` DESC LIMIT 1', $capturedSql[0]);
+        $this->assertStringNotContainsString('ORDER BY', $capturedSql[1]);
+    }
+
+    /**
+     * Ordering a lookup per call leaves a sorted repository's sort in place for the Sets that follow.
+     */
+    public function testPerCallSortOnSortedRepositoryLeavesItsSortInPlace(): void
+    {
+        $capturedSql = [];
+        $mockDb = $this->getMockDbCapturingSql($capturedSql, [[self::$data[2]], self::$data]);
+
+        $repositorySort = new Sort('users.age', Sort::DESCENDING);
+        $paginator = (new SqlPaginator($mockDb, $repositorySort))->setMaxItemsPerPage(null);
+        $repo = new TestModel\ValidRepository($mockDb, $paginator);
+        $repo->getItemWithParams(['handsome' => 'y'], sort: new Sort('id', Sort::DESCENDING));
+        $repo->getSetWithParams(['handsome' => 'y']);
+
+        $this->assertSame($repositorySort, $paginator->getSort());
+        $this->assertStringEndsWith(' ORDER BY `users`.`age` DESC', $capturedSql[1]);
+        $this->assertStringNotContainsString('`id` DESC', $capturedSql[1]);
+    }
+
+    /**
+     * A lookup given a sort of its own that throws leaves the repository's sort in place.
+     */
+    public function testFailingLookupWithPerCallSortLeavesRepositorySortUnchanged(): void
+    {
+        $mockDbStatement = $this->getMockDbStatement();
+        $mockDbStatement->expects($this->once())
+            ->method('execute')
+            ->willThrowException(new \PDOException('Query failed'));
+
+        $mockDb = $this->getMockDb();
+        $mockDb->expects($this->once())
+            ->method('prepare')
+            ->willReturn($mockDbStatement);
+
+        $repositorySort = new Sort('users.age', Sort::DESCENDING);
+        $paginator = new SqlPaginator($mockDb, $repositorySort);
+        $repo = new TestModel\ValidRepository($mockDb, $paginator);
+
+        try {
+            $repo->getItemWithParams(['name' => 'Marcus Don'], sort: new Sort('id', Sort::DESCENDING));
+            $this->fail('Expected the lookup to propagate the PDOException');
+        } catch (\PDOException) {
+            // Expected.
+        }
+
+        $this->assertSame($repositorySort, $paginator->getSort());
+        $this->assertSame('ORDER BY `users`.`age` DESC', $paginator->getSortSql());
     }
 
     /**
