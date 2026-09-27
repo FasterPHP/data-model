@@ -433,14 +433,19 @@ abstract class Repository implements RepositoryInterface
         if (!isset(self::OPERATORS[$type])) {
             throw new Exception("Unsupported search type '{$type}'");
         }
-        // Qualify column with table only if it belongs to the base table
+        // Qualify column with table only if it belongs to the base table: the ID column, under its
+        // own name or the reserved id (a select alias, which WHERE cannot reference), and the
+        // declared fields. The placeholder is still derived from the key as given.
+        $idField = $this->itemClassName::ID_FIELD;
+        $column  = ($key === $this->itemClassName::ID_INTERNAL && $idField !== '') ? $idField : $key;
         if (str_contains($key, '.')) {
             $identifier = $key;
         } elseif (
-            isset($this->itemClassName::FIELDS[$key])
-            || isset($this->itemClassName::FIELDS_READONLY[$key])
+            ($idField !== '' && $column === $idField)
+            || isset($this->itemClassName::FIELDS[$column])
+            || isset($this->itemClassName::FIELDS_READONLY[$column])
         ) {
-            $identifier = $this->getTableName() . '.' . $key;
+            $identifier = $this->getTableName() . '.' . $column;
         } else {
             $identifier = $key;
         }

@@ -502,9 +502,9 @@ class AggregateFieldsRepositoryTest extends TestCase
     }
 
     /**
-     * Test that the ID_FIELD key is used bare in getComparison().
+     * Test that the ID_FIELD key is table-qualified in getComparison(), binding its own placeholder.
      */
-    public function testIdFieldKeyIsUsedBare(): void
+    public function testIdFieldIsTableQualified(): void
     {
         $pdo = new PDO('sqlite::memory:');
         $repo = new AggregateRepository($pdo);
@@ -515,14 +515,15 @@ class AggregateFieldsRepositoryTest extends TestCase
 
         [$sql, $params] = $method->invoke($repo, 'orderId', 'equals', 5);
 
-        $this->assertSame('`orderId` = :orderId', $sql);
+        $this->assertSame('`orders`.`orderId` = :orderId', $sql);
         $this->assertSame([':orderId' => '5'], $params);
     }
 
     /**
-     * Test that the reserved id key is used bare in getComparison().
+     * Test that the reserved id key resolves to the table-qualified ID column, not the select
+     * alias, while still binding the placeholder derived from id.
      */
-    public function testReservedIdKeyIsUsedBare(): void
+    public function testReservedIdKeyResolvesToQualifiedIdColumn(): void
     {
         $pdo = new PDO('sqlite::memory:');
         $repo = new AggregateRepository($pdo);
@@ -533,7 +534,7 @@ class AggregateFieldsRepositoryTest extends TestCase
 
         [$sql, $params] = $method->invoke($repo, 'id', 'equals', 5);
 
-        $this->assertSame('`id` = :id', $sql);
+        $this->assertSame('`orders`.`orderId` = :id', $sql);
         $this->assertSame([':id' => '5'], $params);
     }
 
