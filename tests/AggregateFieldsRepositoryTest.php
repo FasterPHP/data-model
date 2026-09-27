@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace FasterPhp\DataModel;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use PDO;
 use FasterPhp\DataModel\TestModel\AggregateItem;
 use FasterPhp\DataModel\TestModel\AggregateRepository;
 use FasterPhp\DataModel\TestModel\ExternalRepository;
+use FasterPhp\DataModel\TestModel\NoValidatorsItem;
 use FasterPhp\DataModel\TestModel\ReadonlyRepository;
 
 /**
@@ -499,6 +501,166 @@ class AggregateFieldsRepositoryTest extends TestCase
         [$sql] = $method->invoke($repo, 'userId', 'equals', 100);
 
         $this->assertStringContainsString('`orders`.`userId`', $sql);
+    }
+
+    /**
+     * Test that the ID_FIELD key is table-qualified in getComparison(), binding its own placeholder.
+     */
+    public function testIdFieldIsTableQualified(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql, $params] = $method->invoke($repo, 'orderId', 'equals', 5);
+
+        $this->assertSame('`orders`.`orderId` = :orderId', $sql);
+        $this->assertSame([':orderId' => '5'], $params);
+    }
+
+    /**
+     * Test that the reserved id key resolves to the table-qualified ID column, not the select
+     * alias, while still binding the placeholder derived from id.
+     */
+    public function testReservedIdKeyResolvesToQualifiedIdColumn(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql, $params] = $method->invoke($repo, 'id', 'equals', 5);
+
+        $this->assertSame('`orders`.`orderId` = :id', $sql);
+        $this->assertSame([':id' => '5'], $params);
+    }
+
+    /**
+     * Test that a list filter on the reserved id key renders an IN on the qualified ID column.
+     */
+    public function testReservedIdKeyListRendersInOnQualifiedIdColumn(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getWhereSqlAndParams');
+        $method->setAccessible(true);
+
+        [$whereSql, $whereParams] = $method->invoke($repo, ['id' => [1, 2, 3]]);
+
+        $this->assertSame('(`orders`.`orderId` IN (:id_0,:id_1,:id_2))', $whereSql);
+        $this->assertSame([':id_0' => 1, ':id_1' => 2, ':id_2' => 3], $whereParams);
+    }
+
+    /**
+     * Test that an ID_FIELD named id is table-qualified, under either key.
+     */
+    public function testIdFieldNamedIdIsTableQualified(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+
+        $reflection = new \ReflectionClass($repo);
+        $reflection->getProperty('itemClassName')->setValue($repo, NoValidatorsItem::class);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql, $params] = $method->invoke($repo, 'id', 'equals', 5);
+
+        $this->assertSame('`orders`.`id` = :id', $sql);
+        $this->assertSame([':id' => '5'], $params);
+    }
+
+    /**
+     * Test that the reserved id key is used bare for an Item without an ID_FIELD.
+     */
+    public function testReservedIdKeyUsedBareWithoutIdField(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $repo = new AggregateRepository($pdo);
+        $itemClass = new class () extends Item {
+            public const FIELDS = [
+                'name' => Field\Varchar::class,
+            ];
+        };
+
+        $reflection = new \ReflectionClass($repo);
+        $reflection->getProperty('itemClassName')->setValue($repo, $itemClass::class);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql, $params] = $method->invoke($repo, 'id', 'equals', 5);
+
+        $this->assertSame('`id` = :id', $sql);
+        $this->assertSame([':id' => '5'], $params);
+    }
+
+    /**
+     * Test that resolving the ID column leaves aggregate, external, dotted and unrecognised keys
+     * exactly as before.
+     */
+    #[DataProvider('keysNotOwnedByBaseTableProvider')]
+    public function testKeysNotOwnedByBaseTableAreUnchanged(
+        string $repoClass,
+        string $key,
+        string $expectedSql,
+        string $expectedPlaceholder
+    ): void {
+        $repo = new $repoClass(new PDO('sqlite::memory:'));
+
+        $reflection = new \ReflectionClass($repo);
+        $method = $reflection->getMethod('getComparison');
+        $method->setAccessible(true);
+
+        [$sql, $params] = $method->invoke($repo, $key, 'equals', 5);
+
+        $this->assertSame($expectedSql, $sql);
+        $this->assertSame([$expectedPlaceholder => '5'], $params);
+    }
+
+    /**
+     * @return array<string, array{class-string<Repository>, string, string, string}>
+     */
+    public static function keysNotOwnedByBaseTableProvider(): array
+    {
+        return [
+            'aggregate' => [
+                AggregateRepository::class,
+                'totalAmount',
+                '`totalAmount` = :totalAmount',
+                ':totalAmount',
+            ],
+            'external' => [
+                ExternalRepository::class,
+                'departmentName',
+                '`departmentName` = :departmentName',
+                ':departmentName',
+            ],
+            'dotted' => [
+                AggregateRepository::class,
+                'a.createdDate',
+                '`a`.`createdDate` = :a_createdDate_1b6a70e9',
+                ':a_createdDate_1b6a70e9',
+            ],
+            'dotted ID column' => [
+                AggregateRepository::class,
+                'orders.orderId',
+                '`orders`.`orderId` = :orders_orderId_6bac9742',
+                ':orders_orderId_6bac9742',
+            ],
+            'unrecognised' => [
+                AggregateRepository::class,
+                'unknownColumn',
+                '`unknownColumn` = :unknownColumn',
+                ':unknownColumn',
+            ],
+        ];
     }
 
     /**

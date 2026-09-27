@@ -262,8 +262,8 @@ A query returned from the hook must follow these rules:
   filters on aggregate fields onto its HAVING clause, grouping each side in parentheses if the query
   already has a condition there, so an `OR` in either keeps its meaning. To add a condition to every
   retrieval, override `getWhereSqlAndParams()` or `getHavingSqlAndParams()`.
-- **The base table keeps its name.** Filters on declared fields, and `getItemWithId()`, qualify
-  columns with the table name, as in `` `tickets`.`ticketId` ``. Aliasing the base table
+- **The base table keeps its name.** Filters on declared fields and on the ID column, and
+  `getItemWithId()`, qualify columns with the table name, as in `` `tickets`.`ticketId` ``. Aliasing the base table
   (`tickets t`) makes those references fail with an unknown-column error.
 - **Placeholders should not look like field names.** A filter on `status` binds `:status`. If the
   query binds `:status` to a different value, retrieval throws before anything is executed. A prefix
@@ -453,6 +453,14 @@ $users = $repo->getSetWithParams([
 Filter keys are used as SQL identifiers, so each must be a plain or dot-qualified name
 (letters, digits and underscores). Anything else, such as an expression, is rejected with an
 exception. The same rule applies to sort fields.
+
+Filters on columns of the base table are qualified with the table name, so they stay unambiguous
+when a repository joins other tables: declared fields (`FIELDS` and `FIELDS_READONLY`), and the ID
+column, by its own name or as `id`. On a repository for `users` whose `ID_FIELD` is `userId`, both
+`'userId' => 7` and `'id' => 7` render `` `users`.`userId` ``, so the `id` examples above filter on
+the real column rather than on the `id` alias of the select list. External and aggregate fields,
+dot-qualified keys and any other key are used as given. Placeholders are always named after the key
+as given: `'id' => 7` binds `:id`.
 
 ### Batch Operations
 
